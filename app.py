@@ -6,6 +6,7 @@ from statsmodels.tsa.stattools import adfuller
 import plotly.graph_objects as go
 import plotly.subplots as sp
 import plotly.express as px
+import plotly.figure_factory as ff
 from utils import *
 from consumption_utils import *
 from order_placement_utils import *
@@ -22,7 +23,7 @@ st.markdown(
 )
 
 # Create a sidebar for navigation (for a dashboard-style layout)
-tabs = st.sidebar.radio("Select an Analysis Type:", ["Material Consumption Analysis", "Order Placement Analysis", "Settings"])
+tabs = st.sidebar.radio("Select an Analysis Type:", ["Material Consumption Analysis", "Order Placement Analysis", "Goods Receipt Analysis"])
 
 if tabs == "Material Consumption Analysis":
     st.title("Material Consumption Analysis")
@@ -74,12 +75,34 @@ if tabs == "Material Consumption Analysis":
             st.subheader(f"Analysis for Material {material_number}")
             st.plotly_chart(plot_trend(df_material, f"Trend - {material_number}"), use_container_width=True)
             forecast_df = forecast_demand(df_material, periods=12)
+
             if forecast_df is not None:
-                fig_forecast = go.Figure(go.Scatter(x=forecast_df['Pstng Date'], y=forecast_df['Forecast'], mode='lines', name=f"Forecast - {material_number}"))
-                fig_forecast.update_layout(title=f"Forecast - Material {material_number}", xaxis_title="Date", yaxis_title="Forecast")
-                st.plotly_chart(fig_forecast, use_container_width=True)
+                for (site, plant), group in forecast_df.groupby(['Site', 'Plant']):
+                    fig = go.Figure(go.Scatter(
+                        x=group['Pstng Date'], 
+                        y=group['Forecast'], 
+                        mode='lines', 
+                        name=f"Forecast - {site}, {plant}"
+                    ))
+
+                    fig.update_layout(
+                        title=f"Demand Forecast - Site {site}, Plant {plant}",
+                        xaxis_title="Date",
+                        yaxis_title="Forecast",
+                        template="plotly_white"
+                    )
+
+                    st.plotly_chart(fig, use_container_width=True)
             else:
-                st.warning("Forecasting failed due to insufficient or invalid data.")
+                st.warning("No forecast data available.")
+
+
+            # if forecast_df is not None:
+            #     fig_forecast = go.Figure(go.Scatter(x=forecast_df['Pstng Date'], y=forecast_df['Forecast'], mode='lines', name=f"Forecast - {material_number}"))
+            #     fig_forecast.update_layout(title=f"Forecast - Material {material_number}", xaxis_title="Date", yaxis_title="Forecast")
+            #     st.plotly_chart(fig_forecast, use_container_width=True)
+            # else:
+            #     st.warning("Forecasting failed due to insufficient or invalid data.")
 
             simulation_data = monte_carlo_simulation(df_material)
             fig_simulation = go.Figure(go.Histogram(x=simulation_data, nbinsx=50, marker_color='green'))
@@ -123,11 +146,31 @@ if tabs == "Material Consumption Analysis":
             forecast_df = forecast_demand(df_material, periods=12)
 
             if forecast_df is not None:
-                fig_forecast = go.Figure(go.Scatter(x=forecast_df['Pstng Date'], y=forecast_df['Forecast'], mode='lines', name=f"Forecast - {material_number}"))
-                fig_forecast.update_layout(title=f"Forecast - Material {material_number}", xaxis_title="Date", yaxis_title="Forecast")
-                st.plotly_chart(fig_forecast, use_container_width=True)
+                for (site, plant), group in forecast_df.groupby(['Site', 'Plant']):
+                    fig = go.Figure(go.Scatter(
+                        x=group['Pstng Date'], 
+                        y=group['Forecast'], 
+                        mode='lines', 
+                        name=f"Forecast - {site}, {plant}"
+                    ))
+
+                    fig.update_layout(
+                        title=f"Demand Forecast - Site {site}, Plant {plant}",
+                        xaxis_title="Date",
+                        yaxis_title="Forecast",
+                        template="plotly_white"
+                    )
+
+                    st.plotly_chart(fig, use_container_width=True)
             else:
-                st.warning("Forecasting failed due to insufficient or invalid data.")
+                st.warning("No forecast data available.")
+
+            # if forecast_df is not None:
+            #     fig_forecast = go.Figure(go.Scatter(x=forecast_df['Pstng Date'], y=forecast_df['Forecast'], mode='lines', name=f"Forecast - {material_number}"))
+            #     fig_forecast.update_layout(title=f"Forecast - Material {material_number}", xaxis_title="Date", yaxis_title="Forecast")
+            #     st.plotly_chart(fig_forecast, use_container_width=True)
+            # else:
+            #     st.warning("Forecasting failed due to insufficient or invalid data.")
 
             simulation_data = monte_carlo_simulation(df_material)
             fig_simulation = go.Figure(go.Histogram(x=simulation_data, nbinsx=50, marker_color='green'))
@@ -181,31 +224,53 @@ if tabs == "Material Consumption Analysis":
         forecast_260 = forecast_demand(df_260, periods=forecast_periods)
         forecast_453 = forecast_demand(df_453, periods=forecast_periods)
 
-        # Create subplots for Forecast
-        fig_forecast = sp.make_subplots(rows=1, cols=2, subplot_titles=("Material Group 260 Forecast", "Material Group 453 Forecast"))
+        # Create subplots (1 row, 2 columns)
+        fig_forecast = sp.make_subplots(
+            rows=1, cols=2, 
+            subplot_titles=("Material Group 260 Forecast", "Material Group 453 Forecast")
+        )
 
-        # Forecast for Material Group 260
-        if forecast_260 is not None and not forecast_260.empty:
-            fig_forecast.add_trace(
-                go.Scatter(x=forecast_260['Pstng Date'], y=forecast_260['Forecast'], mode='lines', name="Forecast - Group 260"),
-                row=1, col=1
-            )
-        else:
-            st.warning("Forecasting failed for Material Group 260 due to insufficient or invalid data.")
-
-        # Forecast for Material Group 453
-        if forecast_453 is not None and not forecast_453.empty:
-            fig_forecast.add_trace(
-                go.Scatter(x=forecast_453['Pstng Date'], y=forecast_453['Forecast'], mode='lines', name="Forecast - Group 453"),
-                row=1, col=2
-            )
-        else:
-            st.warning("Forecasting failed for Material Group 453 due to insufficient or invalid data.")
+        # Add forecasts to subplots
+        add_forecast_traces(fig_forecast, forecast_260, col=1)
+        add_forecast_traces(fig_forecast, forecast_453, col=2)
 
         # Update layout and display the chart if there is at least one valid forecast
         if (forecast_260 is not None and not forecast_260.empty) or (forecast_453 is not None and not forecast_453.empty):
-            fig_forecast.update_layout(title="Demand Forecast Comparison", showlegend=False)
+            fig_forecast.update_layout(
+                title="Demand Forecast Comparison",
+                xaxis_title="Date",
+                yaxis_title="Forecast",
+                template="plotly_white",
+                showlegend=True
+            )
             st.plotly_chart(fig_forecast, use_container_width=True)
+
+        # # Create subplots for Forecast
+        # fig_forecast = sp.make_subplots(rows=1, cols=2, subplot_titles=("Material Group 260 Forecast", "Material Group 453 Forecast"))
+
+        # # Forecast for Material Group 260
+        # if forecast_260 is not None and not forecast_260.empty:
+        #     fig_forecast.add_trace(
+        #         go.Scatter(x=forecast_260['Pstng Date'], y=forecast_260['Forecast'], mode='lines', name="Forecast - Group 260"),
+        #         row=1, col=1
+        #     )
+        # else:
+        #     st.warning("Forecasting failed for Material Group 260 due to insufficient or invalid data.")
+            
+
+        # # Forecast for Material Group 453
+        # if forecast_453 is not None and not forecast_453.empty:
+        #     fig_forecast.add_trace(
+        #         go.Scatter(x=forecast_453['Pstng Date'], y=forecast_453['Forecast'], mode='lines', name="Forecast - Group 453"),
+        #         row=1, col=2
+        #     )
+        # else:
+        #     st.warning("Forecasting failed for Material Group 453 due to insufficient or invalid data.")
+
+        # # Update layout and display the chart if there is at least one valid forecast
+        # if (forecast_260 is not None and not forecast_260.empty) or (forecast_453 is not None and not forecast_453.empty):
+        #     fig_forecast.update_layout(title="Demand Forecast Comparison", showlegend=False)
+        #     st.plotly_chart(fig_forecast, use_container_width=True)
 
         # Monte Carlo Simulation for both material groups
         simulation_260 = monte_carlo_simulation(df_260)
@@ -869,9 +934,372 @@ elif tabs == "Order Placement Analysis":
 
 
 
-elif tabs == "Settings":
-    st.title("Settings")
-    st.write("Adjust your settings here.")
+elif tabs == "Goods Receipt Analysis":
+    st.title("Goods Receipt Analysis")
+
+    # Add selection for Material Group(s)
+    group_selection = st.radio(
+        "Select Material Group(s) to Analyze:",
+        ("Material Group 260", "Material Group 453", "Both")
+    )
+
+    # Upload files based on the selection
+    file_260 = None
+    file_453 = None
+    if group_selection == "Material Group 260" or group_selection == "Both":
+        file_260 = st.file_uploader("Upload Excel for Material Group 260", type=["xlsx"])
+
+    if group_selection == "Material Group 453" or group_selection == "Both":
+        file_453 = st.file_uploader("Upload Excel for Material Group 453", type=["xlsx"])
+
+    # Create subplots for side-by-side layout when both groups are selected
+    if group_selection == "Material Group 260" and file_260:
+        st.subheader("Material Group 260 Analysis")
+        df_260 = load_data(file_260)
+
+        st.write("## Dataset Overview")
+        st.dataframe(df_260.head())
+
+        # Convert date columns
+        df_260["Pstng Date"] = pd.to_datetime(df_260["Pstng Date"], errors='coerce')
+        df_260["SLED/BBD"] = pd.to_datetime(df_260["SLED/BBD"], errors='coerce')
+
+        # --- 1. Time Series Analysis ---
+        st.subheader("Time Series Analysis: Quantity Received Over Time")
+        time_series = df_260.groupby("Pstng Date")["Quantity"].sum().reset_index()
+        fig1 = px.line(time_series, x="Pstng Date", y="Quantity", title="Quantity Received Over Time")
+        st.plotly_chart(fig1)
+
+        # --- 2. Quantity Distribution ---
+        st.subheader("Quantity Distribution")
+        fig2 = px.histogram(df_260, x="Quantity", nbins=30, marginal="box", title="Quantity Distribution")
+        st.plotly_chart(fig2)
+
+        # --- 3. Top 10 Materials ---
+        st.subheader("Top 10 Materials by Quantity Received")
+        top_materials = df_260.groupby("Material Number")["Quantity"].sum().nlargest(10).reset_index()
+        fig3 = px.bar(top_materials, x="Material Number", y="Quantity", title="Top 10 Materials")
+        st.plotly_chart(fig3)
+
+        # --- 4. Vendor Analysis ---
+        st.subheader("Top Vendors Supplying the Most Goods")
+        top_vendors = df_260.groupby("Vendor Number")["Quantity"].sum().nlargest(10).reset_index()
+        fig4 = px.bar(top_vendors, x="Vendor Number", y="Quantity", title="Top 10 Vendors")
+        st.plotly_chart(fig4)
+
+        # --- 5. Plant & Site Analysis ---
+        st.subheader("Quantity Received Per Plant")
+        plant_quantity = df_260.groupby("Plant")["Quantity"].sum().reset_index()
+        fig5 = px.bar(plant_quantity, x="Plant", y="Quantity", title="Quantity Received Per Plant")
+        st.plotly_chart(fig5)
+
+        st.subheader("Quantity Received Per Site")
+        site_quantity = df_260.groupby("Site")["Quantity"].sum().reset_index()
+        fig6 = px.bar(site_quantity, x="Site", y="Quantity", title="Quantity Received Per Site")
+        st.plotly_chart(fig6)
+
+        st.subheader("Quantity Received Per Batch")
+        batch_quantity = df_260.groupby("Batch")["Quantity"].sum().reset_index()
+        fig7 = px.bar(batch_quantity, x="Batch", y="Quantity", title="Quantity Received Per Batch")
+        st.plotly_chart(fig7)
+
+        # Allow user to choose Material Number
+        material_numbers = df_260["Material Number"].unique()
+        material_selection = st.selectbox("Select a Material Number for Further Analysis", material_numbers)
+
+        # Filter the data based on selected material number
+        df_material = df_260[df_260["Material Number"] == material_selection]
+
+        # --- Material Level Analysis ---
+        # --- 7. Material-Specific Time Series ---
+        st.subheader(f"Time Series Analysis for Material Number {material_selection}")
+        material_time_series = df_material.groupby("Pstng Date")["Quantity"].sum().reset_index()
+        fig7 = px.line(material_time_series, x="Pstng Date", y="Quantity", title=f"Quantity Received Over Time for Material {material_selection}")
+        st.plotly_chart(fig7)
+
+        # --- 8. Material-Specific Batch Analysis ---
+        st.subheader(f"Material-Specific Batch Analysis for Material {material_selection}")
+        material_batch_analysis = df_material.groupby("Batch")["Quantity"].sum().reset_index()
+        fig8 = px.bar(material_batch_analysis, x="Batch", y="Quantity", title=f"Batch Analysis for Material {material_selection}")
+        st.plotly_chart(fig8)
+
+        # --- 9. Material-Specific Vendor Analysis ---
+        st.subheader(f"Material-Specific Vendor Analysis for Material {material_selection}")
+        material_vendor_quantity = df_material.groupby("Vendor Number")["Quantity"].sum().reset_index()
+        fig9 = px.bar(material_vendor_quantity, x="Vendor Number", y="Quantity", title=f"Vendor Performance for Material {material_selection}")
+        st.plotly_chart(fig9)
+
+        # --- 10. SLED/BBD vs Quantity Analysis for Material ---
+        st.subheader(f"SLED/BBD vs Quantity Analysis for Material {material_selection}")
+        fig10 = px.scatter(df_material, x="SLED/BBD", y="Quantity", title=f"SLED/BBD vs Quantity for Material {material_selection}")
+        st.plotly_chart(fig10)
+
+        # --- 11. Days to Expiry Distribution for Material ---
+        df_material['Days_to_Expiry'] = (df_material["SLED/BBD"] - df_material["Pstng Date"]).dt.days
+        st.subheader(f"Days to Expiry Distribution for Material {material_selection}")
+        fig11 = px.histogram(df_material, x="Days_to_Expiry", nbins=30, title=f"Days to Expiry Distribution for Material {material_selection}")
+        st.plotly_chart(fig11)
+
+        # --- 12. Vendor Delivery Time Analysis for Material ---
+        df_material['Days_to_Delivery'] = (df_material["SLED/BBD"] - df_material["Pstng Date"]).dt.days
+        st.subheader(f"Vendor Delivery Time Analysis for Material {material_selection}")
+        fig12 = px.box(df_material, x="Vendor Number", y="Days_to_Delivery", title=f"Vendor Delivery Time Efficiency for Material {material_selection}")
+        st.plotly_chart(fig12)
+
+
+    if group_selection == "Material Group 453" and file_453:
+        st.subheader("Material Group 453 Analysis")
+        df_453 = load_data(file_453)
+
+        st.write("## Dataset Overview")
+        st.dataframe(df_453.head())
+
+        # Convert date columns
+        df_453["Pstng Date"] = pd.to_datetime(df_453["Pstng Date"], errors='coerce')
+        df_453["SLED/BBD"] = pd.to_datetime(df_453["SLED/BBD"], errors='coerce')
+
+        # --- 1. Time Series Analysis ---
+        st.subheader("Time Series Analysis: Quantity Received Over Time")
+        time_series = df_453.groupby("Pstng Date")["Quantity"].sum().reset_index()
+        fig1 = px.line(time_series, x="Pstng Date", y="Quantity", title="Quantity Received Over Time")
+        st.plotly_chart(fig1)
+
+        # --- 2. Quantity Distribution ---
+        st.subheader("Quantity Distribution")
+        fig2 = px.histogram(df_453, x="Quantity", nbins=30, marginal="box", title="Quantity Distribution")
+        st.plotly_chart(fig2)
+
+        # --- 3. Top 10 Materials ---
+        st.subheader("Top 10 Materials by Quantity Received")
+        top_materials = df_453.groupby("Material Number")["Quantity"].sum().nlargest(10).reset_index()
+        fig3 = px.bar(top_materials, x="Material Number", y="Quantity", title="Top 10 Materials")
+        st.plotly_chart(fig3)
+
+        # --- 4. Vendor Analysis ---
+        st.subheader("Top Vendors Supplying the Most Goods")
+        top_vendors = df_453.groupby("Vendor Number")["Quantity"].sum().nlargest(10).reset_index()
+        fig4 = px.bar(top_vendors, x="Vendor Number", y="Quantity", title="Top 10 Vendors")
+        st.plotly_chart(fig4)
+
+        # --- 5. Plant & Site Analysis ---
+        st.subheader("Quantity Received Per Plant")
+        plant_quantity = df_453.groupby("Plant")["Quantity"].sum().reset_index()
+        fig5 = px.bar(plant_quantity, x="Plant", y="Quantity", title="Quantity Received Per Plant")
+        st.plotly_chart(fig5)
+
+        st.subheader("Quantity Received Per Site")
+        site_quantity = df_453.groupby("Site")["Quantity"].sum().reset_index()
+        fig6 = px.bar(site_quantity, x="Site", y="Quantity", title="Quantity Received Per Site")
+        st.plotly_chart(fig6)
+
+        st.subheader("Quantity Received Per Batch")
+        batch_quantity = df_453.groupby("Batch")["Quantity"].sum().reset_index()
+        fig7 = px.bar(batch_quantity, x="Batch", y="Quantity", title="Quantity Received Per Batch")
+        st.plotly_chart(fig7)
+
+        # Allow user to choose Material Number
+        material_numbers = df_453["Material Number"].unique()
+        material_selection = st.selectbox("Select a Material Number for Further Analysis", material_numbers)
+
+        # Filter the data based on selected material number
+        df_material = df_453[df_453["Material Number"] == material_selection]
+
+        # --- Material Level Analysis ---
+        # --- 7. Material-Specific Time Series ---
+        st.subheader(f"Time Series Analysis for Material Number {material_selection}")
+        material_time_series = df_material.groupby("Pstng Date")["Quantity"].sum().reset_index()
+        fig7 = px.line(material_time_series, x="Pstng Date", y="Quantity", title=f"Quantity Received Over Time for Material {material_selection}")
+        st.plotly_chart(fig7)
+
+        # --- 8. Material-Specific Batch Analysis ---
+        st.subheader(f"Material-Specific Batch Analysis for Material {material_selection}")
+        material_batch_analysis = df_material.groupby("Batch")["Quantity"].sum().reset_index()
+        fig8 = px.bar(material_batch_analysis, x="Batch", y="Quantity", title=f"Batch Analysis for Material {material_selection}")
+        st.plotly_chart(fig8)
+
+        # --- 9. Material-Specific Vendor Analysis ---
+        st.subheader(f"Material-Specific Vendor Analysis for Material {material_selection}")
+        material_vendor_quantity = df_material.groupby("Vendor Number")["Quantity"].sum().reset_index()
+        fig9 = px.bar(material_vendor_quantity, x="Vendor Number", y="Quantity", title=f"Vendor Performance for Material {material_selection}")
+        st.plotly_chart(fig9)
+
+        # --- 10. SLED/BBD vs Quantity Analysis for Material ---
+        st.subheader(f"SLED/BBD vs Quantity Analysis for Material {material_selection}")
+        fig10 = px.scatter(df_material, x="SLED/BBD", y="Quantity", title=f"SLED/BBD vs Quantity for Material {material_selection}")
+        st.plotly_chart(fig10)
+
+        # --- 11. Days to Expiry Distribution for Material ---
+        df_material['Days_to_Expiry'] = (df_material["SLED/BBD"] - df_material["Pstng Date"]).dt.days
+        st.subheader(f"Days to Expiry Distribution for Material {material_selection}")
+        fig11 = px.histogram(df_material, x="Days_to_Expiry", nbins=30, title=f"Days to Expiry Distribution for Material {material_selection}")
+        st.plotly_chart(fig11)
+
+        # --- 12. Vendor Delivery Time Analysis for Material ---
+        df_material['Days_to_Delivery'] = (df_material["SLED/BBD"] - df_material["Pstng Date"]).dt.days
+        st.subheader(f"Vendor Delivery Time Analysis for Material {material_selection}")
+        fig12 = px.box(df_material, x="Vendor Number", y="Days_to_Delivery", title=f"Vendor Delivery Time Efficiency for Material {material_selection}")
+        st.plotly_chart(fig12)    
+
+    elif group_selection == "Both" and file_260 and file_453:
+        st.subheader("Material Group 260 and 453 Comparison")
+        
+        # Load data for both files
+        df_260 = load_data(file_260)
+        df_453 = load_data(file_453)
+
+        # Convert date columns
+        df_260["Pstng Date"] = pd.to_datetime(df_260["Pstng Date"], errors='coerce')
+        df_260["SLED/BBD"] = pd.to_datetime(df_260["SLED/BBD"], errors='coerce')
+
+        df_453["Pstng Date"] = pd.to_datetime(df_453["Pstng Date"], errors='coerce')
+        df_453["SLED/BBD"] = pd.to_datetime(df_453["SLED/BBD"], errors='coerce')
+
+        # Create two columns for side-by-side layout
+        col1, col2 = st.columns(2)
+
+        # Left column for Material Group 260 plots
+        with col1:
+            # --- 1. Time Series Analysis for 260 ---
+            st.subheader("Material Group 260: Time Series Analysis")
+            time_series_260 = df_260.groupby("Pstng Date")["Quantity"].sum().reset_index()
+            fig1_260 = px.line(time_series_260, x="Pstng Date", y="Quantity", title="Quantity Received Over Time (Material Group 260)")
+            st.plotly_chart(fig1_260)
+
+            # --- 2. Quantity Distribution for 260 ---
+            st.subheader("Material Group 260: Quantity Distribution")
+            fig2_260 = px.histogram(df_260, x="Quantity", nbins=30, marginal="box", title="Quantity Distribution (Material Group 260)")
+            st.plotly_chart(fig2_260)
+
+            # --- 3. Top 10 Materials for 260 ---
+            st.subheader("Material Group 260: Top 10 Materials by Quantity Received")
+            top_materials_260 = df_260.groupby("Material Number")["Quantity"].sum().nlargest(10).reset_index()
+            fig3_260 = px.bar(top_materials_260, x="Material Number", y="Quantity", title="Top 10 Materials (Material Group 260)")
+            st.plotly_chart(fig3_260)
+
+            # --- 4. Vendor Analysis for 260 ---
+            st.subheader("Material Group 260: Top Vendors Supplying the Most Goods")
+            top_vendors_260 = df_260.groupby("Vendor Number")["Quantity"].sum().nlargest(10).reset_index()
+            fig4_260 = px.bar(top_vendors_260, x="Vendor Number", y="Quantity", title="Top 10 Vendors (Material Group 260)")
+            st.plotly_chart(fig4_260)
+
+            # Allow user to select a Material Number for Material Group 260
+            material_numbers_260 = df_260["Material Number"].unique()
+            material_selection_260 = st.selectbox("Select a Material Number for Material Group 260", material_numbers_260)
+
+        # Right column for Material Group 453 plots
+        with col2:
+            # --- 1. Time Series Analysis for 453 ---
+            st.subheader("Material Group 453: Time Series Analysis")
+            time_series_453 = df_453.groupby("Pstng Date")["Quantity"].sum().reset_index()
+            fig1_453 = px.line(time_series_453, x="Pstng Date", y="Quantity", title="Quantity Received Over Time (Material Group 453)")
+            st.plotly_chart(fig1_453)
+
+            # --- 2. Quantity Distribution for 453 ---
+            st.subheader("Material Group 453: Quantity Distribution")
+            fig2_453 = px.histogram(df_453, x="Quantity", nbins=30, marginal="box", title="Quantity Distribution (Material Group 453)")
+            st.plotly_chart(fig2_453)
+
+            # --- 3. Top 10 Materials for 453 ---
+            st.subheader("Material Group 453: Top 10 Materials by Quantity Received")
+            top_materials_453 = df_453.groupby("Material Number")["Quantity"].sum().nlargest(10).reset_index()
+            fig3_453 = px.bar(top_materials_453, x="Material Number", y="Quantity", title="Top 10 Materials (Material Group 453)")
+            st.plotly_chart(fig3_453)
+
+            # --- 4. Vendor Analysis for 453 ---
+            st.subheader("Material Group 453: Top Vendors Supplying the Most Goods")
+            top_vendors_453 = df_453.groupby("Vendor Number")["Quantity"].sum().nlargest(10).reset_index()
+            fig4_453 = px.bar(top_vendors_453, x="Vendor Number", y="Quantity", title="Top 10 Vendors (Material Group 453)")
+            st.plotly_chart(fig4_453)
+
+            # Allow user to select a Material Number for Material Group 453
+            material_numbers_453 = df_453["Material Number"].unique()
+            material_selection_453 = st.selectbox("Select a Material Number for Material Group 453", material_numbers_453)
+
+        # Filter data based on the selected material numbers
+        df_material_260 = df_260[df_260["Material Number"] == material_selection_260]
+        df_material_453 = df_453[df_453["Material Number"] == material_selection_453]
+
+        # Create columns for material-specific analysis (optional if needed)
+        col3, col4 = st.columns(2)
+
+        # Left column for Material Group 260 material-specific analysis
+        with col3:
+            # --- Material-Specific Time Series for 260 ---
+            st.subheader(f"Material-Specific Time Series for Material {material_selection_260}")
+            material_time_series_260 = df_material_260.groupby("Pstng Date")["Quantity"].sum().reset_index()
+            fig5_260 = px.line(material_time_series_260, x="Pstng Date", y="Quantity", title=f"Quantity Received Over Time (Material {material_selection_260})")
+            st.plotly_chart(fig5_260)
+
+            # --- Material-Specific Batch Analysis for 260 ---
+            st.subheader(f"Material-Specific Batch Analysis for Material {material_selection_260}")
+            material_batch_analysis_260 = df_material_260.groupby("Batch")["Quantity"].sum().reset_index()
+            fig6_260 = px.bar(material_batch_analysis_260, x="Batch", y="Quantity", title=f"Batch Analysis for Material {material_selection_260}")
+            st.plotly_chart(fig6_260)
+
+            # --- Material-Specific Vendor Analysis for 260 ---
+            st.subheader(f"Material-Specific Vendor Analysis for Material {material_selection_260}")
+            material_vendor_quantity_260 = df_material_260.groupby("Vendor Number")["Quantity"].sum().reset_index()
+            fig7_260 = px.bar(material_vendor_quantity_260, x="Vendor Number", y="Quantity", title=f"Vendor Performance for Material {material_selection_260}")
+            st.plotly_chart(fig7_260)
+
+            # --- SLED/BBD vs Quantity Analysis for 260 ---
+            st.subheader(f"SLED/BBD vs Quantity Analysis for Material {material_selection_260}")
+            fig8_260 = px.scatter(df_material_260, x="SLED/BBD", y="Quantity", title=f"SLED/BBD vs Quantity for Material {material_selection_260}")
+            st.plotly_chart(fig8_260)
+
+            # --- Days to Expiry Distribution for 260 ---
+            df_material_260['Days_to_Expiry_260'] = (df_material_260["SLED/BBD"] - df_material_260["Pstng Date"]).dt.days
+            st.subheader(f"Days to Expiry Distribution for Material {material_selection_260}")
+            fig9_260 = px.histogram(df_material_260, x="Days_to_Expiry_260", nbins=30, title=f"Days to Expiry Distribution for Material {material_selection_260}")
+            st.plotly_chart(fig9_260)
+
+            # --- Vendor Delivery Time Analysis for 260 ---
+            df_material_260['Days_to_Delivery_260'] = (df_material_260["SLED/BBD"] - df_material_260["Pstng Date"]).dt.days
+            st.subheader(f"Vendor Delivery Time Analysis for Material {material_selection_260}")
+            fig10_260 = px.box(df_material_260, x="Vendor Number", y="Days_to_Delivery_260", title=f"Vendor Delivery Time Efficiency for Material {material_selection_260}")
+            st.plotly_chart(fig10_260)
+
+        # Right column for Material Group 453 material-specific analysis
+        with col4:
+            # --- Material-Specific Time Series for 453 ---
+            st.subheader(f"Material-Specific Time Series for Material {material_selection_453}")
+            material_time_series_453 = df_material_453.groupby("Pstng Date")["Quantity"].sum().reset_index()
+            fig5_453 = px.line(material_time_series_453, x="Pstng Date", y="Quantity", title=f"Quantity Received Over Time (Material {material_selection_453})")
+            st.plotly_chart(fig5_453)
+
+            # --- Material-Specific Batch Analysis for 453 ---
+            st.subheader(f"Material-Specific Batch Analysis for Material {material_selection_453}")
+            material_batch_analysis_453 = df_material_453.groupby("Batch")["Quantity"].sum().reset_index()
+            fig6_453 = px.bar(material_batch_analysis_453, x="Batch", y="Quantity", title=f"Batch Analysis for Material {material_selection_453}")
+            st.plotly_chart(fig6_453)
+
+            # --- Material-Specific Vendor Analysis for 453 ---
+            st.subheader(f"Material-Specific Vendor Analysis for Material {material_selection_453}")
+            material_vendor_quantity_453 = df_material_453.groupby("Vendor Number")["Quantity"].sum().reset_index()
+            fig7_453 = px.bar(material_vendor_quantity_453, x="Vendor Number", y="Quantity", title=f"Vendor Performance for Material {material_selection_453}")
+            st.plotly_chart(fig7_453)
+
+            # --- SLED/BBD vs Quantity Analysis for 453 ---
+            st.subheader(f"SLED/BBD vs Quantity Analysis for Material {material_selection_453}")
+            fig8_453 = px.scatter(df_material_453, x="SLED/BBD", y="Quantity", title=f"SLED/BBD vs Quantity for Material {material_selection_453}")
+            st.plotly_chart(fig8_453)
+
+            # --- Days to Expiry Distribution for 453 ---
+            df_material_453['Days_to_Expiry_453'] = (df_material_453["SLED/BBD"] - df_material_453["Pstng Date"]).dt.days
+            st.subheader(f"Days to Expiry Distribution for Material {material_selection_453}")
+            fig9_453 = px.histogram(df_material_453, x="Days_to_Expiry_453", nbins=30, title=f"Days to Expiry Distribution for Material {material_selection_453}")
+            st.plotly_chart(fig9_453)
+
+            # --- Vendor Delivery Time Analysis for 453 ---
+            df_material_453['Days_to_Delivery_453'] = (df_material_453["SLED/BBD"] - df_material_453["Pstng Date"]).dt.days
+            st.subheader(f"Vendor Delivery Time Analysis for Material {material_selection_453}")
+            fig10_453 = px.box(df_material_453, x="Vendor Number", y="Days_to_Delivery_453", title=f"Vendor Delivery Time Efficiency for Material {material_selection_453}")
+            st.plotly_chart(fig10_453)
+
+
+
+
+
 
 
 

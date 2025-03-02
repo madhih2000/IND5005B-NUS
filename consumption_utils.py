@@ -46,55 +46,171 @@ def plot_trend(df, material_group):
     fig.update_layout(title=f'Consumption Trend for Material Group {material_group}', xaxis_title='Date', yaxis_title='Quantity')
     return fig
 
+# def forecast_demand(df, periods=12):
+#     if df.empty or 'Pstng Date' not in df.columns or 'Quantity' not in df.columns:
+#         st.error("Error: DataFrame is empty or missing required columns.")
+#         return None
+
+#     # Convert 'Pstng Date' to datetime and sort
+#     df['Pstng Date'] = pd.to_datetime(df['Pstng Date'], errors='coerce')
+#     df = df.sort_values('Pstng Date')
+
+#     # Ensure Quantity is numeric
+#     df['Quantity'] = pd.to_numeric(df['Quantity'], errors='coerce')
+
+#     # Drop rows where Quantity is NaN
+#     df = df.dropna(subset=['Quantity'])
+    
+#     if df['Quantity'].isnull().all() or df.empty:
+#         st.error("Error: No valid quantity data for forecasting.")
+#         return None
+
+#     # Aggregate data by week
+#     df_grouped = df.groupby('Pstng Date')['Quantity'].sum()
+
+#     if df_grouped.nunique() <= 1 or len(df_grouped) < 10:
+#         st.warning("Not enough variation in demand data to fit ARIMA.")
+#         return None
+
+#     # Set frequency to weekly, forward fill missing values
+#     df_grouped = df_grouped.asfreq('W', method='ffill')
+
+#     # Check if the data is stationary
+#     p_value = test_stationarity(df_grouped)
+#     if p_value > 0.05:
+#         st.warning("Data is not stationary. Applying differencing.")
+#         df_grouped = make_stationary(df_grouped)
+
+#     # Fit ARIMA model (try-except to catch errors)
+#     try:
+#         model = ARIMA(df_grouped, order=(5, 1, 0))  # Adjust order as needed
+#         model_fit = model.fit()
+#         forecast = model_fit.forecast(steps=periods)
+#     except Exception as e:
+#         st.error(f"ARIMA model failed: {e}")
+#         return None
+
+#     # Create forecast DataFrame
+#     forecast_index = pd.date_range(start=df_grouped.index[-1], periods=periods + 1, freq='W')[1:]
+#     forecast_df = pd.DataFrame({'Pstng Date': forecast_index, 'Forecast': forecast.values})
+
+#     return forecast_df
+
+import pandas as pd
+import streamlit as st
+from statsmodels.tsa.arima.model import ARIMA
+
+def test_stationarity(series):
+    """Checks if the time series is stationary and returns the p-value."""
+    from statsmodels.tsa.stattools import adfuller
+    result = adfuller(series.dropna())
+    return result[1]  # p-value
+
+def make_stationary(series):
+    """Applies differencing if the series is non-stationary."""
+    return series.diff().dropna()
+
 def forecast_demand(df, periods=12):
-    if df.empty or 'Pstng Date' not in df.columns or 'Quantity' not in df.columns:
+    if df.empty or not {'Pstng Date', 'Quantity', 'Site', 'Plant'}.issubset(df.columns):
         st.error("Error: DataFrame is empty or missing required columns.")
         return None
 
-    # Convert 'Pstng Date' to datetime and sort
+    # Convert date column and ensure Quantity is numeric
     df['Pstng Date'] = pd.to_datetime(df['Pstng Date'], errors='coerce')
-    df = df.sort_values('Pstng Date')
-
-    # Ensure Quantity is numeric
     df['Quantity'] = pd.to_numeric(df['Quantity'], errors='coerce')
 
-    # Drop rows where Quantity is NaN
+    # Drop NaNs
     df = df.dropna(subset=['Quantity'])
-    
     if df['Quantity'].isnull().all() or df.empty:
         st.error("Error: No valid quantity data for forecasting.")
         return None
 
-    # Aggregate data by week
-    df_grouped = df.groupby('Pstng Date')['Quantity'].sum()
+    forecasts = []
 
-    if df_grouped.nunique() <= 1 or len(df_grouped) < 10:
-        st.warning("Not enough variation in demand data to fit ARIMA.")
+    # Iterate over each Site-Plant combination
+    for (site, plant), group in df.groupby(['Site', 'Plant']):
+        group = group.sort_values('Pstng Date')
+        
+        # Aggregate by week
+        df_grouped = group.groupby('Pstng Date')['Quantity'].sum()
+        
+        if df_grouped.nunique() <= 1 or len(df_grouped) < 10:
+            st.warning(f"Not enough variation in demand data for Site {site}, Plant {plant}.")
+            continue
+        
+        # Set weekly frequency, forward fill missing values
+        df_grouped = df_grouped.asfreq('W', method='ffill')
+
+        # Check stationarity
+        p_value = test_stationarity(df_grouped)
+        if p_value > 0.05:
+            st.warning(f"Data for Site {site}, Plant {plant} is not stationary. Applying differencing.")
+            df_grouped = make_stationary(df_grouped)
+
+        # Fit ARIMA model
+        try:
+            model = ARIMA(df_grouped, order=(5, 1, 0))  # Adjust as needed
+            model_fit = model.fit()
+            forecast = model_fit.forecast(steps=periods)
+        except Exception as e:
+            st.error(f"ARIMA model failed for Site {site}, Plant {plant}: {e}")
+            continue
+
+        # Create forecast DataFrame
+        forecast_index = pd.date_range(start=df_grouped.index[-1], periods=periods + 1, freq='W')[1:]
+        forecast_df = pd.DataFrame({
+            'Pstng Date': forecast_index,
+            'Forecast': forecast.values,
+            'Site': site,
+            'Plant': plant
+        })
+        
+        forecasts.append(forecast_df)
+
+    if not forecasts:
         return None
 
-    # Set frequency to weekly, forward fill missing values
-    df_grouped = df_grouped.asfreq('W', method='ffill')
+    return pd.concat(forecasts, ignore_index=True)
 
-    # Check if the data is stationary
-    p_value = test_stationarity(df_grouped)
-    if p_value > 0.05:
-        st.warning("Data is not stationary. Applying differencing.")
-        df_grouped = make_stationary(df_grouped)
 
-    # Fit ARIMA model (try-except to catch errors)
-    try:
-        model = ARIMA(df_grouped, order=(5, 1, 0))  # Adjust order as needed
-        model_fit = model.fit()
-        forecast = model_fit.forecast(steps=periods)
-    except Exception as e:
-        st.error(f"ARIMA model failed: {e}")
-        return None
+# Function to create plots for each Site and Plant combination
+def plot_forecast(forecast_df, material_group):
+    if forecast_df is not None and not forecast_df.empty:
+        for (site, plant), group in forecast_df.groupby(['Site', 'Plant']):
+            fig = go.Figure(go.Scatter(
+                x=group['Pstng Date'], 
+                y=group['Forecast'], 
+                mode='lines', 
+                name=f"Forecast - {site}, {plant}"
+            ))
 
-    # Create forecast DataFrame
-    forecast_index = pd.date_range(start=df_grouped.index[-1], periods=periods + 1, freq='W')[1:]
-    forecast_df = pd.DataFrame({'Pstng Date': forecast_index, 'Forecast': forecast.values})
+            fig.update_layout(
+                title=f"Demand Forecast - Material Group {material_group}, Site {site}, Plant {plant}",
+                xaxis_title="Date",
+                yaxis_title="Forecast",
+                template="plotly_white"
+            )
 
-    return forecast_df
+            st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.warning(f"No forecast data available for Material Group {material_group}.")
+
+
+# Function to add traces for each Site & Plant combination
+def add_forecast_traces(fig, forecast_df, col):
+    if forecast_df is not None and not forecast_df.empty:
+        for (site, plant), group in forecast_df.groupby(['Site', 'Plant']):
+            fig.add_trace(
+                go.Scatter(
+                    x=group['Pstng Date'], 
+                    y=group['Forecast'], 
+                    mode='lines', 
+                    name=f"Forecast - {site}, {plant}"
+                ), 
+                row=1, col=col
+            )
+    else:
+        st.warning(f"No forecast data available for Material Group {260 if col == 1 else 453}.")
 
     
 # Monte Carlo simulation for demand
