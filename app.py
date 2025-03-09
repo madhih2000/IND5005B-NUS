@@ -74,7 +74,7 @@ elif tabs == "Order Placement Analysis":
                 df_filtered = df[df['Material Group'].astype(str) == str(group)]
                 # Generate random dates for 'Pstng Date' (if needed)
                 if 'Pstng Date' not in df.columns:
-                    df_filtered = generate_random_dates(df_filtered, "2024-01-01", "2024-12-31")
+                    df_filtered = order_placement_utils.generate_random_dates(df_filtered, "2024-01-01", "2024-12-31")
 
                 # Call the analysis functions
                 order_placement_utils.overall_order_patterns(df_filtered)
