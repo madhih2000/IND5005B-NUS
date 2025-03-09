@@ -61,7 +61,7 @@ elif tabs == "Order Placement Analysis":
     uploaded_file = st.file_uploader("Upload Order Placement Excel File for Analysis", type="xlsx")
 
     if uploaded_file:
-        df = preprocess_order_data(uploaded_file)  # Read the file
+        df = order_placement_utils.preprocess_order_data(uploaded_file)  # Read the file
 
         # Check if 'Material Group' column exists
         if 'Material Group' in df.columns:
