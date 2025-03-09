@@ -6,8 +6,8 @@ import plotly.subplots as sp
 import plotly.express as px
 import plotly.figure_factory as ff
 from utils import *
-from consumption_utils import *
-from order_placement_utils import *
+import consumption_utils
+import order_placement_utils
 
 # Set the page config with the title centered
 st.set_page_config(page_title="Micron SupplySense", layout="wide")
@@ -42,14 +42,14 @@ if tabs == "Material Consumption Analysis":
                 df_filtered = df[df['Material Group'].astype(str) == str(group)]
 
                 # Run analysis functions in the correct order
-                overall_consumption_patterns(df_filtered)
-                outlier_detection(df_filtered)
-                shelf_life_analysis(df_filtered)
-                vendor_consumption_analysis(df_filtered)
-                location_consumption_analysis(df_filtered)
-                batch_variability_analysis(df_filtered)
-                combined_analysis(df_filtered)
-                specific_material_analysis(df_filtered)
+                consumption_utils.overall_consumption_patterns(df_filtered)
+                consumption_utils.outlier_detection(df_filtered)
+                consumption_utils.shelf_life_analysis(df_filtered)
+                consumption_utils.vendor_consumption_analysis(df_filtered)
+                consumption_utils.location_consumption_analysis(df_filtered)
+                consumption_utils.batch_variability_analysis(df_filtered)
+                consumption_utils.combined_analysis(df_filtered)
+                consumption_utils.specific_material_analysis(df_filtered)
 
         else:
             st.error("The uploaded file does not contain a 'Material Group' column. Please check the file format.")
@@ -77,20 +77,20 @@ elif tabs == "Order Placement Analysis":
                     df_filtered = generate_random_dates(df_filtered, "2024-01-01", "2024-12-31")
 
                 # Call the analysis functions
-                overall_order_patterns(df_filtered)
-                outlier_detection(df_filtered)
-                vendor_order_analysis(df_filtered)
-                order_trends_over_time(df_filtered)
-                monthly_order_patterns(df_filtered)
-                vendor_material_analysis(df_filtered)
-                plant_order_analysis(df_filtered)
-                purchasing_document_analysis(df_filtered)
-                order_quantity_distribution(df_filtered)
-                material_vendor_analysis(df_filtered)
-                supplier_order_analysis(df_filtered)
-                material_plant_analysis(df_filtered)
-                abc_analysis(df_filtered)
-                specific_material_analysis(df_filtered)
+                order_placement_utils.overall_order_patterns(df_filtered)
+                order_placement_utils.outlier_detection(df_filtered)
+                order_placement_utils.vendor_order_analysis(df_filtered)
+                order_placement_utils.order_trends_over_time(df_filtered)
+                order_placement_utilsmonthly_order_patterns(df_filtered)
+                order_placement_utils.vendor_material_analysis(df_filtered)
+                order_placement_utilsplant_order_analysis(df_filtered)
+                order_placement_utils.purchasing_document_analysis(df_filtered)
+                order_placement_utils.order_quantity_distribution(df_filtered)
+                order_placement_utils.material_vendor_analysis(df_filtered)
+                order_placement_utils.supplier_order_analysis(df_filtered)
+                order_placement_utils.material_plant_analysis(df_filtered)
+                order_placement_utils.abc_analysis(df_filtered)
+                order_placement_utils.specific_material_analysis(df_filtered)
 
 
     else:
