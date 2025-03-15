@@ -4,24 +4,121 @@ import streamlit as st
 
 def overall_consumption_patterns(df, material_column='Material Number'):
     """
-    Analyzes and visualizes overall consumption patterns.
-
-    Args:
-        df: The input DataFrame.
-        material_column: The column containing material identifiers (default: 'Material Number').
+    Analyzes and visualizes overall consumption patterns, applying a common set of filters to both graphs.
+    Top N filter works differently for transaction and consumption graphs.
     """
-    # Frequency of Transactions
-    transaction_counts = df[material_column].value_counts().reset_index()
+
+    # Make a copy of the dataframe to avoid modifying the original
+    df_filtered = df.copy()
+
+    # -------------------------------------------------------------------
+    # GLOBAL FILTERS (Apply to both graphs)
+    # -------------------------------------------------------------------
+
+    st.header("Global Filters")
+
+    # Row 1: Plant and Site
+    global_filter_row1 = st.columns(2) # Split into two columns
+
+    with global_filter_row1[0]:
+        available_plants = sorted(df_filtered['Plant'].unique().tolist())
+        selected_plants = st.multiselect("Select Plants", available_plants, default=available_plants)
+        df_filtered = df_filtered[df_filtered['Plant'].isin(selected_plants)]
+
+    with global_filter_row1[1]:
+        available_sites = sorted(df_filtered['Site'].unique().tolist())
+        selected_sites = st.multiselect("Select Sites", available_sites, default=available_sites)
+        df_filtered = df_filtered[df_filtered['Site'].isin(selected_sites)]
+
+    # Row 2: Vendor
+    df_filtered['Vendor Number'] = df_filtered['Vendor Number'].fillna('Unknown')
+    df_filtered['Vendor Number'] = df_filtered['Vendor Number'].apply(lambda x: 'Unknown' if not isinstance(x, str) or not x.startswith('Vendor_') else x)
+    available_vendors = sorted(df_filtered['Vendor Number'].unique().tolist())
+    selected_vendors = st.multiselect("Select Vendors", available_vendors, default=available_vendors)
+    df_filtered = df_filtered[df_filtered['Vendor Number'].isin(selected_vendors)]
+
+    # Row 3: Date Range
+    global_filter_row3 = st.columns(1) # Date range alone in this row.
+    with global_filter_row3[0]:
+        try:
+            df_filtered['Pstng Date'] = pd.to_datetime(df_filtered['Pstng Date'], format='%d/%m/%Y %I:%M:%S %p', errors='raise')
+        except ValueError as e:
+            st.error(f"Error converting 'Pstng Date' column to datetime. Ensure the date format is consistent. Error: {e}")
+            return
+        except KeyError:
+            st.error("The column 'Pstng Date' was not found in the DataFrame.")
+            return
+
+        min_date = df_filtered['Pstng Date'].min()
+        max_date = df_filtered['Pstng Date'].max()
+        date_range = st.date_input("Select Date Range", value=[min_date, max_date], min_value=min_date, max_value=max_date)
+
+        if len(date_range) == 2:
+            start_date, end_date = date_range
+            df_filtered = df_filtered[(df_filtered['Pstng Date'] >= pd.to_datetime(start_date)) & (df_filtered['Pstng Date'] <= pd.to_datetime(end_date))]
+
+    # Row 4: Top N Material Selection
+    top_n = st.selectbox("Select Top N Materials", [5, 10, 15, 'All'], index=1) # This is now a global selection.
+
+
+
+    # -------------------------------------------------------------------
+    # GRAPH 1 - Number of Transactions
+    # -------------------------------------------------------------------
+
+    # Use the globally filtered DataFrame
+    df_transactions = df_filtered.copy()
+
+    # Top N Filtering for Transactions
+    material_counts = df_transactions[material_column].value_counts().reset_index()
+    material_counts.columns = [material_column, 'Transaction Count']
+    material_counts = material_counts.sort_values(by='Transaction Count', ascending=False)
+
+    if top_n != 'All':
+        top_n_int = int(top_n)
+        top_materials_trans = material_counts[material_column].head(top_n_int).tolist()
+        df_transactions = df_transactions[df_transactions[material_column].isin(top_materials_trans)]
+
+
+    # Visualization - Number of Transactions
+    transaction_counts = df_transactions[material_column].value_counts().reset_index()
     transaction_counts.columns = [material_column, 'Transaction Count']
     fig_transactions = px.bar(transaction_counts, x=material_column, y='Transaction Count',
                               title=f'Number of Transactions per {material_column}')
     st.plotly_chart(fig_transactions)
 
-    # Volume of Consumption
-    material_consumption = df.groupby(material_column)['Quantity'].sum().reset_index()
-    fig_overall = px.bar(material_consumption, x=material_column, y='Quantity',
+
+    # -------------------------------------------------------------------
+    # GRAPH 2 - Overall Consumption
+    # -------------------------------------------------------------------
+
+    # Use the globally filtered DataFrame
+    #df_consumption = df_filtered.copy()
+
+    # Top N Filtering for Consumption
+    #Assumes there is a column named 'Quantity'
+    material_consumption_sum = df_transactions.groupby(material_column)['Quantity'].sum().abs().reset_index() #Absolute sum
+    material_consumption_sum = material_consumption_sum.sort_values(by='Quantity', ascending=False)
+
+    if top_n != 'All':
+        top_n_int = int(top_n) #To convert from string to int
+        top_materials_cons = material_consumption_sum[material_column].head(top_n_int).tolist()
+        df_transactions = df_transactions[df_transactions[material_column].isin(top_materials_cons)]
+
+    # Visualization - Overall Consumption
+    fig_overall = px.bar(material_consumption_sum, x=material_column, y='Quantity',
                          title=f'Overall Consumption by {material_column}')
     st.plotly_chart(fig_overall)
+
+
+    # -------------------------------------------------------------------
+    # Data Display (For Debugging Purposes)
+    # -------------------------------------------------------------------
+
+    #st.write("Final Dataframe after Global Filters:")
+    #st.dataframe(df_filtered)
+
+    return df_filtered, top_n #Important, must return for the following code to work
 
 
 def detect_outliers_iqr(data):
@@ -43,12 +140,13 @@ def detect_outliers_iqr(data):
     return outliers
 
 
-def outlier_detection(df, material_column='Material Number'):
+def outlier_detection(df, top_n, material_column='Material Number'):
     """
     Detects and visualizes outliers, including percentiles and highlighting high/low usage.
 
     Args:
         df: The input DataFrame.
+        top_n: Number of top materials by variance to display in the plot.
         material_column: The column containing material identifiers (default: 'Material Number').
     """
 
@@ -67,62 +165,102 @@ def outlier_detection(df, material_column='Material Number'):
         lambda row: 'High' if row['Outlier Quantity'] > row['75%'] else ('Low' if row['Outlier Quantity'] < row['25%'] else 'Normal'), axis=1
     )
 
-     # Color coding for "High" and "Low" in the table
-    def color_coding(val):
-        if val == 'High':
-            color = 'red'  # Color "High" values red
-        elif val == 'Low':
-            color = 'blue'  # Color "Low" values blue
-        else:
-            color = 'black'  # Default color
-        return f'color: {color}'
+    # Compute variance per material
+    variance_df = df.groupby(material_column)['Quantity'].var().reset_index().rename(columns={'Quantity': 'Variance'})
+    
+    # Sort by variance in descending order
+    variance_df_sorted = variance_df.sort_values(by='Variance', ascending=False)
 
-    # Format the table to display integers for relevant columns
-    styled_table = outliers_with_percentiles.style.applymap(color_coding, subset=['Type']).format({
-        'Outlier Quantity': "{:.0f}".format,
-        'count': "{:.0f}".format,
-        'min': "{:.0f}".format,
-        '10%': "{:.0f}".format,
-        '25%': "{:.0f}".format,
-        '50%': "{:.0f}".format,
-        '75%': "{:.0f}".format,
-        '90%': "{:.0f}".format,
-        'max': "{:.0f}".format
-    })
+    # Select only top_n materials
+    top_materials = variance_df_sorted.head(top_n)[material_column]
 
-    st.write(f"Outliers (IQR Method) with Percentiles for {material_column}:")
-    st.write(styled_table)
+    # Filter original DataFrame to include only top_n materials
+    df_filtered = df[df[material_column].isin(top_materials)]
 
-    # Box Plots for Outlier Visualization
-    fig_box = px.box(df, x=material_column, y='Quantity', title=f'Box Plot of Consumption by {material_column}')
+    # Display sorted variance DataFrame
+    #st.write("Top Materials by Variance:", variance_df_sorted.head(top_n))
+
+    # Convert column to categorical with the new sorted order
+    df_filtered[material_column] = pd.Categorical(df_filtered[material_column], categories=top_materials, ordered=True)
+
+    # Box Plot for Outlier Visualization (Filtered & Sorted)
+    fig_box = px.box(df_filtered, x=material_column, y='Quantity', title=f'Materials by Variance')
+    
     st.plotly_chart(fig_box)
-
 
 def specific_material_analysis(df, material_column='Material Number'):
     """
-    Analyzes consumption patterns for a specific material, including consumption by site, batch, trend, and seasonal subseries.
+    Analyzes consumption patterns for a specific material, including consumption trend, seasonal subseries,
+    and filters by Site, Plant, and Vendor.
 
     Args:
         df: The input DataFrame.
         material_column: The column containing material identifiers (default: 'Material Number').
     """
+    st.markdown(
+    """
+    <hr style="
+        border: none;
+        height: 4px;
+        background: linear-gradient(to right, #00FF00, #0000FF);
+        margin: 20px 0;">
+    """,
+    unsafe_allow_html=True
+    )
+
+    st.subheader("Consumption Trend for Specific Material")  # Add a section title
+
     selected_material = st.selectbox(f"Select a {material_column}", df[material_column].unique())
     filtered_material_data = df[df[material_column] == selected_material].copy()  # Create a copy
 
-    # Consumption by Site for Selected Material
-    site_consumption = filtered_material_data.groupby('Site')['Quantity'].sum().reset_index()
-    fig_site = px.bar(site_consumption, x='Site', y='Quantity', title=f'Consumption by Site for {selected_material}')
-    st.plotly_chart(fig_site)
+    # -------------------------------------------------------------------
+    # Filters for Site, Plant, and Vendor
+    # -------------------------------------------------------------------
 
-    # Consumption by Batch for Selected Material
-    batch_consumption = filtered_material_data.groupby('Batch')['Quantity'].sum().reset_index()
-    fig_batch = px.bar(batch_consumption, x='Batch', y='Quantity', title=f'Consumption by Batch for {selected_material}')
-    st.plotly_chart(fig_batch)
+    st.subheader("Filters")  # Add a section title for filters
 
+    filter_row = st.columns(3)  # Create a horizontal layout for filters
+
+    with filter_row[0]:
+        available_plants = sorted(filtered_material_data['Plant'].unique().tolist())
+        selected_plants = st.multiselect("Select Plants", available_plants, default=available_plants)
+        filtered_material_data = filtered_material_data[filtered_material_data['Plant'].isin(selected_plants)]
+
+    with filter_row[1]:
+        available_sites = sorted(filtered_material_data['Site'].unique().tolist())
+        selected_sites = st.multiselect("Select Sites", available_sites, default=available_sites)
+        filtered_material_data = filtered_material_data[filtered_material_data['Site'].isin(selected_sites)]
+
+    with filter_row[2]:
+        # Handle missing/invalid Vendor Numbers
+        filtered_material_data['Vendor Number'] = filtered_material_data['Vendor Number'].fillna('Unknown')
+        filtered_material_data['Vendor Number'] = filtered_material_data['Vendor Number'].apply(lambda x: 'Unknown' if not isinstance(x, str) or not x.startswith('Vendor_') else x)
+
+        available_vendors = sorted(filtered_material_data['Vendor Number'].unique().tolist())
+        selected_vendors = st.multiselect("Select Vendors", available_vendors, default=available_vendors)
+        filtered_material_data = filtered_material_data[filtered_material_data['Vendor Number'].isin(selected_vendors)]
+
+    # -------------------------------------------------------------------
     # Time Series of Consumption (Trend)
+    # -------------------------------------------------------------------
+
+    # Convert 'Pstng Date' to datetime objects
+    try:
+        filtered_material_data['Pstng Date'] = pd.to_datetime(filtered_material_data['Pstng Date'], format='%d/%m/%Y %I:%M:%S %p', errors='raise')
+    except (ValueError, KeyError) as e:
+        st.error(f"Error converting 'Pstng Date' to datetime: {e}. Ensure the column exists and contains valid date values.")
+        return
+
+    min_date = filtered_material_data['Pstng Date'].min().date()
+    max_date = filtered_material_data['Pstng Date'].max().date()
+
     start_date, end_date = st.date_input("Select Date Range",
-                                        [filtered_material_data['Pstng Date'].min().date(),
-                                         filtered_material_data['Pstng Date'].max().date()])
+                                        [min_date,
+                                         max_date])
+
+    # Create a date range DataFrame to ensure all dates are present
+    date_range = pd.date_range(start=start_date, end=end_date)
+    date_df = pd.DataFrame({'Pstng Date': date_range})
 
     filtered_time_data = filtered_material_data[(filtered_material_data['Pstng Date'].dt.date >= start_date) &
                                                 (filtered_material_data['Pstng Date'].dt.date <= end_date)]
@@ -131,24 +269,49 @@ def specific_material_analysis(df, material_column='Material Number'):
 
     if aggregation_level == 'Daily':
         aggregated_data = filtered_time_data.groupby('Pstng Date')['Quantity'].sum().reset_index()
+        # Merge with date range to fill missing dates with 0
+        aggregated_data['Pstng Date'] = pd.to_datetime(aggregated_data['Pstng Date'])
+        aggregated_data = pd.merge(date_df, aggregated_data, on='Pstng Date', how='left').fillna(0)
+
     elif aggregation_level == 'Weekly':
         aggregated_data = filtered_time_data.groupby(pd.Grouper(key='Pstng Date', freq='W'))['Quantity'].sum().reset_index()
+        # Create a weekly date range to merge with
+        date_df['Pstng Date'] = pd.to_datetime(date_df['Pstng Date'])
+        date_df_weekly = date_df.groupby(pd.Grouper(key='Pstng Date', freq='W')).min().reset_index() # Get the first day of the week
+        aggregated_data['Pstng Date'] = pd.to_datetime(aggregated_data['Pstng Date'])
+        aggregated_data = pd.merge(date_df_weekly, aggregated_data, on='Pstng Date', how='left').fillna(0) #Merge on the first day of the week
+
     elif aggregation_level == 'Monthly':
         aggregated_data = filtered_time_data.groupby(pd.Grouper(key='Pstng Date', freq='M'))['Quantity'].sum().reset_index()
+        # Create monthly date range
+        date_df['Pstng Date'] = pd.to_datetime(date_df['Pstng Date'])
+        date_df_monthly = date_df.groupby(pd.Grouper(key='Pstng Date', freq='M')).min().reset_index() # Get the first day of the month.
+        aggregated_data['Pstng Date'] = pd.to_datetime(aggregated_data['Pstng Date'])
+        aggregated_data = pd.merge(date_df_monthly, aggregated_data, on='Pstng Date', how='left').fillna(0)  # Merge on the first day of the month
     elif aggregation_level == 'Quarterly':
         aggregated_data = filtered_time_data.groupby(pd.Grouper(key='Pstng Date', freq='Q'))['Quantity'].sum().reset_index()
+        #Create quarterly data range
+        date_df['Pstng Date'] = pd.to_datetime(date_df['Pstng Date'])
+        date_df_quarterly = date_df.groupby(pd.Grouper(key='Pstng Date', freq='Q')).min().reset_index()
+        aggregated_data['Pstng Date'] = pd.to_datetime(aggregated_data['Pstng Date'])
+        aggregated_data = pd.merge(date_df_quarterly, aggregated_data, on = 'Pstng Date', how = 'left').fillna(0)
 
     fig_time_series = px.line(aggregated_data, x='Pstng Date', y='Quantity',
                              title=f'Consumption Trend ({aggregation_level}) for {selected_material}')
     st.plotly_chart(fig_time_series)
 
+    # -------------------------------------------------------------------
     # Seasonal Subseries Plot (Monthly)
+    # -------------------------------------------------------------------
+
+    #st.subheader("Seasonal Subseries Plot (Monthly)") # Add a section title
+    '''
     if aggregation_level in ['Monthly', 'Quarterly']:
         filtered_time_data['Month'] = filtered_time_data['Pstng Date'].dt.month
         fig_seasonal_subseries = px.box(filtered_time_data, x='Month', y='Quantity',
                                        title=f'Seasonal Subseries Plot (Monthly) for {selected_material}')
         st.plotly_chart(fig_seasonal_subseries)
-
+    '''
 
 def shelf_life_analysis(df):
     """

@@ -42,13 +42,13 @@ if tabs == "Material Consumption Analysis":
                 df_filtered = df[df['Material Group'].astype(str) == str(group)]
 
                 # Run analysis functions in the correct order
-                consumption_utils.overall_consumption_patterns(df_filtered)
-                consumption_utils.outlier_detection(df_filtered)
+                df_more_filtered,top_n = consumption_utils.overall_consumption_patterns(df_filtered)
+                consumption_utils.outlier_detection(df_more_filtered, top_n)
                 consumption_utils.shelf_life_analysis(df_filtered)
-                consumption_utils.vendor_consumption_analysis(df_filtered)
-                consumption_utils.location_consumption_analysis(df_filtered)
-                consumption_utils.batch_variability_analysis(df_filtered)
-                consumption_utils.combined_analysis(df_filtered)
+                #consumption_utils.vendor_consumption_analysis(df_filtered)
+                #consumption_utils.location_consumption_analysis(df_filtered)
+                #consumption_utils.batch_variability_analysis(df_filtered)
+                #consumption_utils.combined_analysis(df_filtered)
                 consumption_utils.specific_material_analysis(df_filtered)
 
         else:
