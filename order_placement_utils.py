@@ -9,6 +9,7 @@ def preprocess_order_data(file):
     if file:
         data = pd.read_excel(file)
         data = data.applymap(lambda x: x.strip() if isinstance(x, str) else x)
+        df.columns = df.columns.str.strip()
         # Ensure correct data types
         data['Order Quantity'] = pd.to_numeric(data['Order Quantity'], errors='coerce')
         # data['Still to be delivered (qty)'] = pd.to_numeric(data['Still to be delivered (qty)'], errors='coerce')

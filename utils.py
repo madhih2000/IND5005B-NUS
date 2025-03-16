@@ -16,6 +16,7 @@ def load_data_consumption(file):
     df = pd.read_excel(file)
     # Strip leading and trailing spaces from all string columns
     df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
+    df.columns = df.columns.str.strip()
 
     # Select specific columns
     selected_cols = ['Material Group', 'Material Number', 'Pstng Date', 'Quantity',
@@ -41,5 +42,6 @@ def load_data(file):
 
     # Strip leading and trailing spaces from all string columns
     df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
+    df.columns = df.columns.str.strip()
 
     return df

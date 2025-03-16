@@ -1,6 +1,8 @@
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
+import llm_reasoning
 
 def overall_consumption_patterns(df, material_column='Material Number'):
     """
@@ -22,12 +24,12 @@ def overall_consumption_patterns(df, material_column='Material Number'):
 
     with global_filter_row1[0]:
         available_plants = sorted(df_filtered['Plant'].unique().tolist())
-        selected_plants = st.multiselect("Select Plants", available_plants, default=available_plants)
+        selected_plants = st.multiselect("Select Plants", available_plants, default=available_plants, key="plant_filter")
         df_filtered = df_filtered[df_filtered['Plant'].isin(selected_plants)]
 
     with global_filter_row1[1]:
         available_sites = sorted(df_filtered['Site'].unique().tolist())
-        selected_sites = st.multiselect("Select Sites", available_sites, default=available_sites)
+        selected_sites = st.multiselect("Select Sites", available_sites, default=available_sites, key="site_filter")
         df_filtered = df_filtered[df_filtered['Site'].isin(selected_sites)]
 
     # Row 2: Vendor
@@ -58,7 +60,7 @@ def overall_consumption_patterns(df, material_column='Material Number'):
             df_filtered = df_filtered[(df_filtered['Pstng Date'] >= pd.to_datetime(start_date)) & (df_filtered['Pstng Date'] <= pd.to_datetime(end_date))]
 
     # Row 4: Top N Material Selection
-    top_n = st.selectbox("Select Top N Materials", [5, 10, 15, 'All'], index=1) # This is now a global selection.
+    top_n = st.selectbox("Select Top N Materials", [5, 10, 15, 'All'], index=1)
 
 
 
@@ -188,6 +190,8 @@ def outlier_detection(df, top_n, material_column='Material Number'):
     
     st.plotly_chart(fig_box)
 
+    llm_reasoning.explain_box_plot_with_groq(df_filtered)
+
 def specific_material_analysis(df, material_column='Material Number'):
     """
     Analyzes consumption patterns for a specific material, including consumption trend, seasonal subseries,
@@ -208,7 +212,7 @@ def specific_material_analysis(df, material_column='Material Number'):
     unsafe_allow_html=True
     )
 
-    st.subheader("Consumption Trend for Specific Material")  # Add a section title
+    st.subheader("Material-Level Analysis")  # Add a section title
 
     selected_material = st.selectbox(f"Select a {material_column}", df[material_column].unique())
     filtered_material_data = df[df[material_column] == selected_material].copy()  # Create a copy
@@ -223,12 +227,12 @@ def specific_material_analysis(df, material_column='Material Number'):
 
     with filter_row[0]:
         available_plants = sorted(filtered_material_data['Plant'].unique().tolist())
-        selected_plants = st.multiselect("Select Plants", available_plants, default=available_plants)
+        selected_plants = st.multiselect("Select Plants", available_plants, default=available_plants, key="plant_key_specific")
         filtered_material_data = filtered_material_data[filtered_material_data['Plant'].isin(selected_plants)]
 
     with filter_row[1]:
         available_sites = sorted(filtered_material_data['Site'].unique().tolist())
-        selected_sites = st.multiselect("Select Sites", available_sites, default=available_sites)
+        selected_sites = st.multiselect("Select Sites", available_sites, default=available_sites, key="site_key_specific")
         filtered_material_data = filtered_material_data[filtered_material_data['Site'].isin(selected_sites)]
 
     with filter_row[2]:
@@ -244,7 +248,6 @@ def specific_material_analysis(df, material_column='Material Number'):
     # Time Series of Consumption (Trend)
     # -------------------------------------------------------------------
 
-    # Convert 'Pstng Date' to datetime objects
     try:
         filtered_material_data['Pstng Date'] = pd.to_datetime(filtered_material_data['Pstng Date'], format='%d/%m/%Y %I:%M:%S %p', errors='raise')
     except (ValueError, KeyError) as e:
@@ -254,51 +257,159 @@ def specific_material_analysis(df, material_column='Material Number'):
     min_date = filtered_material_data['Pstng Date'].min().date()
     max_date = filtered_material_data['Pstng Date'].max().date()
 
-    start_date, end_date = st.date_input("Select Date Range",
-                                        [min_date,
-                                         max_date])
+    start_date, end_date = st.date_input("Select Date Range", [min_date, max_date])
 
-    # Create a date range DataFrame to ensure all dates are present
     date_range = pd.date_range(start=start_date, end=end_date)
     date_df = pd.DataFrame({'Pstng Date': date_range})
 
-    filtered_time_data = filtered_material_data[(filtered_material_data['Pstng Date'].dt.date >= start_date) &
-                                                (filtered_material_data['Pstng Date'].dt.date <= end_date)]
+    filtered_time_data = filtered_material_data[
+        (filtered_material_data['Pstng Date'].dt.date >= start_date) &
+        (filtered_material_data['Pstng Date'].dt.date <= end_date)
+    ]
 
     aggregation_level = st.selectbox("Select Aggregation Level", ['Daily', 'Weekly', 'Monthly', 'Quarterly'])
 
     if aggregation_level == 'Daily':
         aggregated_data = filtered_time_data.groupby('Pstng Date')['Quantity'].sum().reset_index()
-        # Merge with date range to fill missing dates with 0
         aggregated_data['Pstng Date'] = pd.to_datetime(aggregated_data['Pstng Date'])
         aggregated_data = pd.merge(date_df, aggregated_data, on='Pstng Date', how='left').fillna(0)
 
+        transaction_counts = filtered_time_data.groupby(filtered_time_data['Pstng Date'].dt.date).size().reset_index(name='Transaction Count')
+        transaction_counts['Pstng Date'] = pd.to_datetime(transaction_counts['Pstng Date'])
+        transaction_counts = pd.merge(date_df, transaction_counts, on='Pstng Date', how='left').fillna(0)
+
     elif aggregation_level == 'Weekly':
         aggregated_data = filtered_time_data.groupby(pd.Grouper(key='Pstng Date', freq='W'))['Quantity'].sum().reset_index()
-        # Create a weekly date range to merge with
         date_df['Pstng Date'] = pd.to_datetime(date_df['Pstng Date'])
-        date_df_weekly = date_df.groupby(pd.Grouper(key='Pstng Date', freq='W')).min().reset_index() # Get the first day of the week
+        date_df_weekly = date_df.groupby(pd.Grouper(key='Pstng Date', freq='W')).min().reset_index()
         aggregated_data['Pstng Date'] = pd.to_datetime(aggregated_data['Pstng Date'])
-        aggregated_data = pd.merge(date_df_weekly, aggregated_data, on='Pstng Date', how='left').fillna(0) #Merge on the first day of the week
+        aggregated_data = pd.merge(date_df_weekly, aggregated_data, on='Pstng Date', how='left').fillna(0)
+
+        transaction_counts = filtered_time_data.groupby(pd.Grouper(key='Pstng Date', freq='W')).size().reset_index(name='Transaction Count')
+        transaction_counts['Pstng Date'] = pd.to_datetime(transaction_counts['Pstng Date'])
+        transaction_counts = pd.merge(date_df_weekly, transaction_counts, on='Pstng Date', how='left').fillna(0)
 
     elif aggregation_level == 'Monthly':
         aggregated_data = filtered_time_data.groupby(pd.Grouper(key='Pstng Date', freq='M'))['Quantity'].sum().reset_index()
-        # Create monthly date range
         date_df['Pstng Date'] = pd.to_datetime(date_df['Pstng Date'])
-        date_df_monthly = date_df.groupby(pd.Grouper(key='Pstng Date', freq='M')).min().reset_index() # Get the first day of the month.
+        date_df_monthly = date_df.groupby(pd.Grouper(key='Pstng Date', freq='M')).min().reset_index()
         aggregated_data['Pstng Date'] = pd.to_datetime(aggregated_data['Pstng Date'])
-        aggregated_data = pd.merge(date_df_monthly, aggregated_data, on='Pstng Date', how='left').fillna(0)  # Merge on the first day of the month
+        aggregated_data = pd.merge(date_df_monthly, aggregated_data, on='Pstng Date', how='left').fillna(0)
+
+        transaction_counts = filtered_time_data.groupby(pd.Grouper(key='Pstng Date', freq='M')).size().reset_index(name='Transaction Count')
+        transaction_counts['Pstng Date'] = pd.to_datetime(transaction_counts['Pstng Date'])
+        transaction_counts = pd.merge(date_df_monthly, transaction_counts, on='Pstng Date', how='left').fillna(0)
+
     elif aggregation_level == 'Quarterly':
         aggregated_data = filtered_time_data.groupby(pd.Grouper(key='Pstng Date', freq='Q'))['Quantity'].sum().reset_index()
-        #Create quarterly data range
         date_df['Pstng Date'] = pd.to_datetime(date_df['Pstng Date'])
         date_df_quarterly = date_df.groupby(pd.Grouper(key='Pstng Date', freq='Q')).min().reset_index()
         aggregated_data['Pstng Date'] = pd.to_datetime(aggregated_data['Pstng Date'])
-        aggregated_data = pd.merge(date_df_quarterly, aggregated_data, on = 'Pstng Date', how = 'left').fillna(0)
+        aggregated_data = pd.merge(date_df_quarterly, aggregated_data, on='Pstng Date', how='left').fillna(0)
 
-    fig_time_series = px.line(aggregated_data, x='Pstng Date', y='Quantity',
-                             title=f'Consumption Trend ({aggregation_level}) for {selected_material}')
-    st.plotly_chart(fig_time_series)
+        transaction_counts = filtered_time_data.groupby(pd.Grouper(key='Pstng Date', freq='Q')).size().reset_index(name='Transaction Count')
+        transaction_counts['Pstng Date'] = pd.to_datetime(transaction_counts['Pstng Date'])
+        transaction_counts = pd.merge(date_df_quarterly, transaction_counts, on='Pstng Date', how='left').fillna(0)
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(x=aggregated_data['Pstng Date'], y=aggregated_data['Quantity'], name='Quantity', yaxis='y1'))
+    fig.add_trace(go.Scatter(x=transaction_counts['Pstng Date'], y=transaction_counts['Transaction Count'], name='Transaction Count', yaxis='y2'))
+
+    fig.update_layout(
+        title=f'Consumption Trend and Transaction Count ({aggregation_level}) for {selected_material}',
+        xaxis_title='Date',
+        yaxis_title='Quantity',
+        yaxis2=dict(
+            title='Transaction Count',
+            overlaying='y',
+            side='right'
+        )
+    )
+
+    st.plotly_chart(fig)
+
+    # # Convert 'Pstng Date' to datetime objects
+    # try:
+    #     filtered_material_data['Pstng Date'] = pd.to_datetime(filtered_material_data['Pstng Date'], format='%d/%m/%Y %I:%M:%S %p', errors='raise')
+    # except (ValueError, KeyError) as e:
+    #     st.error(f"Error converting 'Pstng Date' to datetime: {e}. Ensure the column exists and contains valid date values.")
+    #     return
+
+    # min_date = filtered_material_data['Pstng Date'].min().date()
+    # max_date = filtered_material_data['Pstng Date'].max().date()
+
+    # start_date, end_date = st.date_input("Select Date Range",
+    #                                     [min_date,
+    #                                      max_date])
+
+    # # Create a date range DataFrame to ensure all dates are present
+    # date_range = pd.date_range(start=start_date, end=end_date)
+    # date_df = pd.DataFrame({'Pstng Date': date_range})
+
+    # filtered_time_data = filtered_material_data[(filtered_material_data['Pstng Date'].dt.date >= start_date) &
+    #                                             (filtered_material_data['Pstng Date'].dt.date <= end_date)]
+
+    # aggregation_level = st.selectbox("Select Aggregation Level", ['Daily', 'Weekly', 'Monthly', 'Quarterly'])
+
+    # if aggregation_level == 'Daily':
+    #     aggregated_data = filtered_time_data.groupby('Pstng Date')['Quantity'].sum().reset_index()
+    #     # Merge with date range to fill missing dates with 0
+    #     aggregated_data['Pstng Date'] = pd.to_datetime(aggregated_data['Pstng Date'])
+    #     aggregated_data = pd.merge(date_df, aggregated_data, on='Pstng Date', how='left').fillna(0)
+
+    # elif aggregation_level == 'Weekly':
+    #     aggregated_data = filtered_time_data.groupby(pd.Grouper(key='Pstng Date', freq='W'))['Quantity'].sum().reset_index()
+    #     # Create a weekly date range to merge with
+    #     date_df['Pstng Date'] = pd.to_datetime(date_df['Pstng Date'])
+    #     date_df_weekly = date_df.groupby(pd.Grouper(key='Pstng Date', freq='W')).min().reset_index() # Get the first day of the week
+    #     aggregated_data['Pstng Date'] = pd.to_datetime(aggregated_data['Pstng Date'])
+    #     aggregated_data = pd.merge(date_df_weekly, aggregated_data, on='Pstng Date', how='left').fillna(0) #Merge on the first day of the week
+
+    # elif aggregation_level == 'Monthly':
+    #     aggregated_data = filtered_time_data.groupby(pd.Grouper(key='Pstng Date', freq='M'))['Quantity'].sum().reset_index()
+    #     # Create monthly date range
+    #     date_df['Pstng Date'] = pd.to_datetime(date_df['Pstng Date'])
+    #     date_df_monthly = date_df.groupby(pd.Grouper(key='Pstng Date', freq='M')).min().reset_index() # Get the first day of the month.
+    #     aggregated_data['Pstng Date'] = pd.to_datetime(aggregated_data['Pstng Date'])
+    #     aggregated_data = pd.merge(date_df_monthly, aggregated_data, on='Pstng Date', how='left').fillna(0)  # Merge on the first day of the month
+    # elif aggregation_level == 'Quarterly':
+    #     aggregated_data = filtered_time_data.groupby(pd.Grouper(key='Pstng Date', freq='Q'))['Quantity'].sum().reset_index()
+    #     #Create quarterly data range
+    #     date_df['Pstng Date'] = pd.to_datetime(date_df['Pstng Date'])
+    #     date_df_quarterly = date_df.groupby(pd.Grouper(key='Pstng Date', freq='Q')).min().reset_index()
+    #     aggregated_data['Pstng Date'] = pd.to_datetime(aggregated_data['Pstng Date'])
+    #     aggregated_data = pd.merge(date_df_quarterly, aggregated_data, on = 'Pstng Date', how = 'left').fillna(0)
+
+    # fig_time_series = px.line(aggregated_data, x='Pstng Date', y='Quantity',
+    #                          title=f'Consumption Trend ({aggregation_level}) for {selected_material}')
+    # st.plotly_chart(fig_time_series)
+
+    # # -------------------------------------------------------------------
+    # # Transaction Count Over Time
+    # # -------------------------------------------------------------------
+    # st.subheader("Transaction Count Over Time")
+
+    # if aggregation_level == 'Daily':
+    #     transaction_counts = filtered_time_data.groupby(filtered_time_data['Pstng Date'].dt.date).size().reset_index(name='Transaction Count')
+    #     transaction_counts['Pstng Date'] = pd.to_datetime(transaction_counts['Pstng Date'])
+    #     transaction_counts = pd.merge(date_df, transaction_counts, on='Pstng Date', how='left').fillna(0)
+    # elif aggregation_level == 'Weekly':
+    #     transaction_counts = filtered_time_data.groupby(pd.Grouper(key='Pstng Date', freq='W')).size().reset_index(name='Transaction Count')
+    #     transaction_counts['Pstng Date'] = pd.to_datetime(transaction_counts['Pstng Date'])
+    #     transaction_counts = pd.merge(date_df_weekly, transaction_counts, on='Pstng Date', how='left').fillna(0)
+    # elif aggregation_level == 'Monthly':
+    #     transaction_counts = filtered_time_data.groupby(pd.Grouper(key='Pstng Date', freq='M')).size().reset_index(name='Transaction Count')
+    #     transaction_counts['Pstng Date'] = pd.to_datetime(transaction_counts['Pstng Date'])
+    #     transaction_counts = pd.merge(date_df_monthly, transaction_counts, on='Pstng Date', how='left').fillna(0)
+    # elif aggregation_level == 'Quarterly':
+    #     transaction_counts = filtered_time_data.groupby(pd.Grouper(key='Pstng Date', freq='Q')).size().reset_index(name='Transaction Count')
+    #     transaction_counts['Pstng Date'] = pd.to_datetime(transaction_counts['Pstng Date'])
+    #     transaction_counts = pd.merge(date_df_quarterly, transaction_counts, on='Pstng Date', how='left').fillna(0)
+
+    # fig_transactions = px.line(transaction_counts, x='Pstng Date', y='Transaction Count',
+    #                             title=f'Number of Transactions Over Time ({aggregation_level}) for {selected_material}')
+    # st.plotly_chart(fig_transactions)
 
     # -------------------------------------------------------------------
     # Seasonal Subseries Plot (Monthly)
