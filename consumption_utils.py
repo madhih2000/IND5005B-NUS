@@ -190,7 +190,7 @@ def outlier_detection(df, top_n, material_column='Material Number'):
     
     st.plotly_chart(fig_box)
 
-    llm_reasoning.explain_box_plot_with_groq(df_filtered)
+    llm_reasoning.explain_box_plot_with_groq_consumption(df_filtered)
 
 def specific_material_analysis(df, material_column='Material Number'):
     """

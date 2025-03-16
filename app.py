@@ -72,31 +72,28 @@ elif tabs == "Order Placement Analysis":
 
                 # Filter data for the current Material Group
                 df_filtered = df[df['Material Group'].astype(str) == str(group)]
-                # Generate random dates for 'Pstng Date' (if needed)
-                if 'Pstng Date' not in df.columns:
-                    df_filtered = order_placement_utils.generate_random_dates(df_filtered, "2024-01-01", "2024-12-31")
 
                 # Call the analysis functions
-                order_placement_utils.overall_order_patterns(df_filtered)
-                order_placement_utils.outlier_detection(df_filtered)
-                order_placement_utils.vendor_order_analysis(df_filtered)
-                order_placement_utils.order_trends_over_time(df_filtered)
-                order_placement_utils.monthly_order_patterns(df_filtered)
-                order_placement_utils.vendor_material_analysis(df_filtered)
-                order_placement_utils.plant_order_analysis(df_filtered)
-                order_placement_utils.purchasing_document_analysis(df_filtered)
-                order_placement_utils.order_quantity_distribution(df_filtered)
-                order_placement_utils.material_vendor_analysis(df_filtered)
-                order_placement_utils.supplier_order_analysis(df_filtered)
-                order_placement_utils.material_plant_analysis(df_filtered)
-                order_placement_utils.abc_analysis(df_filtered)
+                df_more_filtered,top_n = order_placement_utils.overall_orderplacement_patterns(df_filtered)
+                order_placement_utils.outlier_detection(df_more_filtered, top_n)
+                # order_placement_utils.overall_order_patterns(df_filtered)
+                # order_placement_utils.outlier_detection(df_filtered)
+                # order_placement_utils.vendor_order_analysis(df_filtered)
+                # order_placement_utils.order_trends_over_time(df_filtered)
+                # order_placement_utils.monthly_order_patterns(df_filtered)
+                # order_placement_utils.vendor_material_analysis(df_filtered)
+                # order_placement_utils.plant_order_analysis(df_filtered)
+                # order_placement_utils.purchasing_document_analysis(df_filtered)
+                # order_placement_utils.order_quantity_distribution(df_filtered)
+                # order_placement_utils.material_vendor_analysis(df_filtered)
+                # order_placement_utils.supplier_order_analysis(df_filtered)
+                # order_placement_utils.material_plant_analysis(df_filtered)
+                # order_placement_utils.abc_analysis(df_filtered)
                 order_placement_utils.specific_material_analysis(df_filtered)
 
 
     else:
         st.write("Please upload an Excel file to begin the analysis.")
-
-
 
 
 elif tabs == "Goods Receipt Analysis":
