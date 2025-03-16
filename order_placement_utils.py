@@ -382,7 +382,7 @@ def specific_material_analysis(df, material_column='Material Number'):
         transaction_counts = pd.merge(date_df_weekly, transaction_counts, on='Document Date', how='left').fillna(0)
 
     elif aggregation_level == 'Monthly':
-        aggregated_data = filtered_time_data.groupby(pd.Grouper(key='Pstng Date', freq='M'))['Order Quantity'].sum().reset_index()
+        aggregated_data = filtered_time_data.groupby(pd.Grouper(key='Document Date', freq='M'))['Order Quantity'].sum().reset_index()
         date_df['Document Date'] = pd.to_datetime(date_df['Document Date'])
         date_df_monthly = date_df.groupby(pd.Grouper(key='Document Date', freq='M')).min().reset_index()
         aggregated_data['Document Date'] = pd.to_datetime(aggregated_data['Document Date'])
@@ -393,7 +393,7 @@ def specific_material_analysis(df, material_column='Material Number'):
         transaction_counts = pd.merge(date_df_monthly, transaction_counts, on='Document Date', how='left').fillna(0)
 
     elif aggregation_level == 'Quarterly':
-        aggregated_data = filtered_time_data.groupby(pd.Grouper(key='Pstng Date', freq='Q'))['Order Quantity'].sum().reset_index()
+        aggregated_data = filtered_time_data.groupby(pd.Grouper(key='Document Date', freq='Q'))['Order Quantity'].sum().reset_index()
         date_df['Document Date'] = pd.to_datetime(date_df['Document Date'])
         date_df_quarterly = date_df.groupby(pd.Grouper(key='Document Date', freq='Q')).min().reset_index()
         aggregated_data['Document Date'] = pd.to_datetime(aggregated_data['Document Date'])
