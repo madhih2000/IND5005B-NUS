@@ -342,6 +342,50 @@ def specific_material_analysis(df, material_column='Material Number'):
 
     st.plotly_chart(fig)
 
+    # -------------------------------------------------------------------
+    # Quantity by Plant over Time (Bar Chart)
+    # -------------------------------------------------------------------
+
+    st.subheader("Goods Receipt Quantity by Plant Over Time")
+
+    if aggregation_level == 'Daily':
+        plant_aggregated_data = filtered_time_data.groupby(['Pstng Date', 'Plant'])['Quantity'].sum().reset_index()
+        plant_aggregated_data['Pstng Date'] = pd.to_datetime(plant_aggregated_data['Pstng Date'])
+        date_plant_df = pd.MultiIndex.from_product([date_df['Pstng Date'].tolist(), available_plants], names=['Pstng Date', 'Plant']).to_frame(index=False)
+        plant_aggregated_data = pd.merge(date_plant_df, plant_aggregated_data, on=['Pstng Date', 'Plant'], how='left').fillna(0)
+
+    elif aggregation_level == 'Weekly':
+        plant_aggregated_data = filtered_time_data.groupby([pd.Grouper(key='Pstng Date', freq='W'), 'Plant'])['Quantity'].sum().reset_index()
+        date_plant_df = pd.MultiIndex.from_product([date_df_weekly['Pstng Date'].tolist(), available_plants], names=['Pstng Date', 'Plant']).to_frame(index=False)
+        plant_aggregated_data['Pstng Date'] = pd.to_datetime(plant_aggregated_data['Pstng Date'])
+        plant_aggregated_data = pd.merge(date_plant_df, plant_aggregated_data, on=['Pstng Date', 'Plant'], how='left').fillna(0)
+
+    elif aggregation_level == 'Monthly':
+        plant_aggregated_data = filtered_time_data.groupby([pd.Grouper(key='Pstng Date', freq='M'), 'Plant'])['Quantity'].sum().reset_index()
+        date_plant_df = pd.MultiIndex.from_product([date_df_monthly['Pstng Date'].tolist(), available_plants], names=['Pstng Date', 'Plant']).to_frame(index=False)
+        plant_aggregated_data['Pstng Date'] = pd.to_datetime(plant_aggregated_data['Pstng Date'])
+        plant_aggregated_data = pd.merge(date_plant_df, plant_aggregated_data, on=['Pstng Date', 'Plant'], how='left').fillna(0)
+
+    elif aggregation_level == 'Quarterly':
+        plant_aggregated_data = filtered_time_data.groupby([pd.Grouper(key='Pstng Date', freq='Q'), 'Plant'])['Quantity'].sum().reset_index()
+        date_plant_df = pd.MultiIndex.from_product([date_df_quarterly['Pstng Date'].tolist(), available_plants], names=['Pstng Date', 'Plant']).to_frame(index=False)
+        plant_aggregated_data['Pstng Date'] = pd.to_datetime(plant_aggregated_data['Pstng Date'])
+        plant_aggregated_data = pd.merge(date_plant_df, plant_aggregated_data, on=['Pstng Date', 'Plant'], how='left').fillna(0)
+
+    fig_plant = go.Figure()
+
+    for plant in available_plants:
+        plant_data = plant_aggregated_data[plant_aggregated_data['Plant'] == plant]
+        fig_plant.add_trace(go.Bar(x=plant_data['Pstng Date'], y=plant_data['Quantity'], name=plant))
+
+    fig_plant.update_layout(
+        title=f'Goods Receipt Quantity by Plant ({aggregation_level}) for {selected_material}',
+        xaxis_title='Date',
+        yaxis_title='Quantity',
+        barmode='group'  # Group bars for each plant
+    )
+
+    st.plotly_chart(fig_plant)
 
 def plot_quantity_boxplot(data):
     """
