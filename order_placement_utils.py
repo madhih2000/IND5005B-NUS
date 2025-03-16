@@ -290,7 +290,7 @@ def supplier_order_analysis(df):
 
 def specific_material_analysis(df, material_column='Material Number'):
     """
-    Analyzes consumption patterns for a specific material, including consumption trend, seasonal subseries,
+    Analyzes order placement patterns for a specific material, including order placement trend, seasonal subseries,
     and filters by Site, Plant, and Vendor.
 
     Args:
@@ -337,7 +337,7 @@ def specific_material_analysis(df, material_column='Material Number'):
     filtered_material_data = filtered_material_data[filtered_material_data['Vendor Number'].isin(selected_vendors)]
 
     # -------------------------------------------------------------------
-    # Time Series of Consumption (Trend)
+    # Time Series of Order Placement (Trend)
     # -------------------------------------------------------------------
 
     try:
