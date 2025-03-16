@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 import requests
 
-groq_api_key = st.secrets["groq"]["API_KEY"]
+API_KEY = st.secrets["groq"]["API_KEY"]
 
 def explain_box_plot_with_groq(df, material_column="Material Number"):
     """
