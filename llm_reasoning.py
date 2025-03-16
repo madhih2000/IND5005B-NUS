@@ -1,8 +1,9 @@
 from groq import Groq
 import streamlit as st
 import pandas as pd
+import requests
 
-API_KEY = "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"
+groq_api_key = st.secrets["groq"]["API_KEY"]
 
 def explain_box_plot_with_groq(df, material_column="Material Number"):
     """
