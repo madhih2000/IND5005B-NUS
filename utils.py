@@ -75,3 +75,7 @@ def load_data(file):
     df.columns = df.columns.str.strip()
 
     return df
+
+def load_forecast_consumption_data(file):
+    df = pd.read_excel(file)
+    return df
