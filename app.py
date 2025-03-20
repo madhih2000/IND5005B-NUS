@@ -23,7 +23,7 @@ st.markdown(
 )
 
 # Create a sidebar for navigation (for a dashboard-style layout)
-tabs = st.sidebar.radio("Select an Analysis Type:", ["Material Consumption Analysis", "Order Placement Analysis", "Goods Receipt Analysis"])
+tabs = st.sidebar.radio("Select an Analysis Type:", ["Material Consumption Analysis", "Order Placement Analysis", "Goods Receipt Analysis", "Test Page"])
 
 if tabs == "Material Consumption Analysis":
     st.title("Material Consumption Analysis")
@@ -126,7 +126,8 @@ elif tabs == "Goods Receipt Analysis":
     else:
         st.write("Please upload an Excel file to begin the analysis.")
 
-elif tabs == "Test Page":
+
+elif tabs == "Test Page V2":
     st.title("Forecast Model")
 
     # File uploader
@@ -153,6 +154,49 @@ elif tabs == "Test Page":
                     st.write(forecast_results)
                 elif model_choice == "ARIMA":
                     forecast_results,plt = forecast_models.forecast_weekly_consumption_arima(filtered_df, forecast_weeks_ahead=forecast_weeks, seasonality=seasonality)
+                    st.write("ARIMA Forecast Results:")
+                    st.pyplot(plt)
+                    st.write(forecast_results)
+
+        elif df is not None:
+            if 'Material Number' not in df.columns:
+                st.error("The uploaded file does not contain a 'Material Number' column.")
+            elif 'Week' not in df.columns:
+                st.error("The uploaded file does not contain a 'Week' column.")
+            elif 'Consumption' not in df.columns:
+                st.error("The uploaded file does not contain a 'Consumption' column.")
+
+if tabs == "Test Page":
+    st.title("Forecast Model")
+
+    # File uploader
+    uploaded_file = st.file_uploader("Upload Weekly Consumption Data Excel File for Analysis", type="xlsx")
+
+    if uploaded_file:
+        df = load_forecast_consumption_data(uploaded_file)  # Read the file
+
+        # Check if 'Material Number' column exists
+        if df is not None and 'Material Number' in df.columns:
+            material_numbers = df['Material Number'].unique()
+            selected_material_number = st.selectbox("Select Material Number", material_numbers)
+            filtered_df = df[df['Material Number'] == selected_material_number].copy()  # Make a copy
+
+            model_choice = st.selectbox("Select Model", ["XGBoost", "ARIMA"])
+            forecast_weeks = 6  # Fixed to 6 weeks
+            seasonality = "Yes"  # Fixed to Yes
+
+            if st.button("Run Forecast"):
+                if model_choice == "XGBoost":
+                    forecast_results, plt = forecast_models.forecast_weekly_consumption_xgboost(
+                        filtered_df, forecast_weeks_ahead=forecast_weeks, seasonality=seasonality
+                    )
+                    st.write("XGBoost Forecast Results:")
+                    st.pyplot(plt)
+                    st.write(forecast_results)
+                elif model_choice == "ARIMA":
+                    forecast_results, plt = forecast_models.forecast_weekly_consumption_arima(
+                        filtered_df, forecast_weeks_ahead=forecast_weeks, seasonality=seasonality
+                    )
                     st.write("ARIMA Forecast Results:")
                     st.pyplot(plt)
                     st.write(forecast_results)
