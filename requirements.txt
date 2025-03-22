@@ -8,5 +8,5 @@ statsmodels
 openpyxl
 groq
 xgboost
-sklearn
+scikit-learn
 statsmodels
