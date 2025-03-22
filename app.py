@@ -10,6 +10,7 @@ import consumption_utils
 import order_placement_utils
 import goods_receipt_utils
 import forecast_models
+import lead_time_analysis
 
 # Set the page config with the title centered
 st.set_page_config(page_title="Micron SupplySense", layout="wide")
@@ -23,7 +24,7 @@ st.markdown(
 )
 
 # Create a sidebar for navigation (for a dashboard-style layout)
-tabs = st.sidebar.radio("Select an Analysis Type:", ["Material Consumption Analysis", "Order Placement Analysis", "Goods Receipt Analysis", "Test Page"])
+tabs = st.sidebar.radio("Select an Analysis Type:", ["Material Consumption Analysis", "Order Placement Analysis", "Goods Receipt Analysis"])
 
 if tabs == "Material Consumption Analysis":
     st.title("Material Consumption Analysis")
@@ -208,4 +209,36 @@ if tabs == "Test Page":
                 st.error("The uploaded file does not contain a 'Week' column.")
             elif 'Consumption' not in df.columns:
                 st.error("The uploaded file does not contain a 'Consumption' column.")
+
+elif tabs == "Lead Time Analysis":
+    st.title("")
+
+    # File uploader
+    uploaded_file_op = st.file_uploader("Upload Order Placement Excel File for Analysis", type="xlsx")
+    uploaded_file_gr = st.file_uploader("Upload Goods Received Excel File for Analysis", type="xlsx")
+    uploaded_file_sr = st.file_uploader("Upload Modified Shortage Report Excel File for Analysis", type="xlsx")
+
+    if uploaded_file_op and uploaded_file_gr and uploaded_file_sr:
+        with st.spinner("Processing lead time analysis..."):
+            op_df = pd.read_excel(uploaded_file_op)
+            gr_df = pd.read_excel(uploaded_file_gr)
+            shortage_df = pd.read_excel(uploaded_file_sr)
+
+            matched, unmatched_op, unmatched_gr = lead_time_analysis.process_dataframes(op_df, gr_df)
+            calculated_df = lead_time_analysis.calculate_actual_lead_time(matched)
+            final_df = lead_time_analysis.calculate_lead_time_summary(shortage_df)
+            final_result = lead_time_analysis.calculate_lead_time_differences(final_df, calculated_df)
+
+            # Call the updated Plotly version of your function
+            fig1, fig2, fig3, fig4 = lead_time_analysis.analyze_and_plot_lead_time_differences_plotly(final_result)
+
+        st.success("Lead Time Analysis Completed ✅")
+        st.write("### Lead Time Analysis Results:")
+        st.plotly_chart(fig1, use_container_width=True)
+        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig3, use_container_width=True)
+        st.plotly_chart(fig4, use_container_width=True)
+    else:
+        st.write("Please upload all Excel files to begin the analysis.")
+
             
