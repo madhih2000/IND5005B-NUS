@@ -7,3 +7,6 @@ plotly
 statsmodels
 openpyxl
 groq
+xgboost
+sklearn
+statsmodels
