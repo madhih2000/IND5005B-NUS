@@ -24,7 +24,7 @@ st.markdown(
 )
 
 # Create a sidebar for navigation (for a dashboard-style layout)
-tabs = st.sidebar.radio("Select an Analysis Type:", ["Material Consumption Analysis", "Order Placement Analysis", "Goods Receipt Analysis","Lead Time Analysis"])
+tabs = st.sidebar.radio("Select an Analysis Type:", ["Material Consumption Analysis", "Order Placement Analysis", "Goods Receipt Analysis","Lead Time Analysis", "Lead Time Analysis"])
 
 if tabs == "Material Consumption Analysis":
     st.title("Material Consumption Analysis")
