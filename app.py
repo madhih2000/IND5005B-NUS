@@ -24,7 +24,7 @@ st.markdown(
 )
 
 # Create a sidebar for navigation (for a dashboard-style layout)
-tabs = st.sidebar.radio("Select an Analysis Type:", ["Material Consumption Analysis", "Order Placement Analysis", "Goods Receipt Analysis"])
+tabs = st.sidebar.radio("Select an Analysis Type:", ["Material Consumption Analysis", "Order Placement Analysis", "Goods Receipt Analysis","Lead Time Analysis"])
 
 if tabs == "Material Consumption Analysis":
     st.title("Material Consumption Analysis")
@@ -128,7 +128,48 @@ elif tabs == "Goods Receipt Analysis":
         st.write("Please upload an Excel file to begin the analysis.")
 
 
-elif tabs == "Test Page V2":
+elif tabs == "Test Page":
+    st.title("Forecast Model")
+
+    # File uploader
+    uploaded_file = st.file_uploader("Upload Weekly Consumption Data Excel File for Analysis", type="xlsx")
+    external_file = st.file_uploader("Upload External Consumption Data Excel File for Analysis", type="xlsx")
+
+    if uploaded_file and external_file:
+        df = load_forecast_consumption_data(uploaded_file)  # Read the file
+        external_df = load_forecast_consumption_data(external_file)
+
+        # Check if 'Material Number' column exists
+        if df is not None and 'Material Number' in df.columns:
+            material_numbers = df['Material Number'].unique()
+            selected_material_number = st.selectbox("Select Material Number", material_numbers)
+            filtered_df = df[df['Material Number'] == selected_material_number].copy() #Make a copy to avoid SettingWithCopyWarning
+
+            model_choice = st.selectbox("Select Model", ["XGBoost", "ARIMA"])
+            forecast_weeks = st.number_input("Forecast Weeks", min_value=1, value=6)
+            seasonality = st.selectbox("Seasonality", ["Yes", "No"])
+
+            if st.button("Run Forecast"):
+                if model_choice == "XGBoost":
+                    forecast_results,plt = forecast_models.forecast_weekly_consumption_xgboost_v3(filtered_df, external_df, forecast_weeks_ahead=forecast_weeks, seasonality=seasonality)
+                    st.write("XGBoost Forecast Results:")
+                    st.pyplot(plt)
+                    st.write(forecast_results)
+                elif model_choice == "ARIMA":
+                    forecast_results,plt = forecast_models.forecast_weekly_consumption_arima_v2(filtered_df, external_df, forecast_weeks_ahead=forecast_weeks, seasonality=seasonality)
+                    st.write("ARIMA Forecast Results:")
+                    st.pyplot(plt)
+                    st.write(forecast_results)
+
+        elif df is not None:
+            if 'Material Number' not in df.columns:
+                st.error("The uploaded file does not contain a 'Material Number' column.")
+            elif 'Week' not in df.columns:
+                st.error("The uploaded file does not contain a 'Week' column.")
+            elif 'Consumption' not in df.columns:
+                st.error("The uploaded file does not contain a 'Consumption' column.")
+
+elif tabs == "Forecast Page V2":
     st.title("Forecast Model")
 
     # File uploader
@@ -167,7 +208,7 @@ elif tabs == "Test Page V2":
             elif 'Consumption' not in df.columns:
                 st.error("The uploaded file does not contain a 'Consumption' column.")
 
-if tabs == "Test Page":
+if tabs == "Forecast Page":
     st.title("Forecast Model")
 
     # File uploader
