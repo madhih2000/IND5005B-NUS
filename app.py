@@ -24,7 +24,7 @@ st.markdown(
 )
 
 # Create a sidebar for navigation (for a dashboard-style layout)
-tabs = st.sidebar.radio("Select an Analysis Type:", ["Material Consumption Analysis", "Order Placement Analysis", "Goods Receipt Analysis","Lead Time Analysis"])
+tabs = st.sidebar.radio("Select an Analysis Type:", ["Material Consumption Analysis", "Order Placement Analysis", "Goods Receipt Analysis","Lead Time Analysis", "Forecast Page"])
 
 if tabs == "Material Consumption Analysis":
     st.title("Material Consumption Analysis")
@@ -169,11 +169,11 @@ elif tabs == "Test Page":
             elif 'Consumption' not in df.columns:
                 st.error("The uploaded file does not contain a 'Consumption' column.")
 
-elif tabs == "Forecast Page V2":
+elif tabs == "Forecast Page":
     st.title("Forecast Model")
 
     # File uploader
-    uploaded_file = st.file_uploader("Upload Weekly Consumption Data Excel File for Analysis", type="xlsx")
+    uploaded_file = st.file_uploader("Upload Consumption Data Excel File for Analysis", type="xlsx")
 
     if uploaded_file:
         df = load_forecast_consumption_data(uploaded_file)  # Read the file
@@ -208,7 +208,7 @@ elif tabs == "Forecast Page V2":
             elif 'Consumption' not in df.columns:
                 st.error("The uploaded file does not contain a 'Consumption' column.")
 
-if tabs == "Forecast Page":
+if tabs == "Forecast Page Old":
     st.title("Forecast Model")
 
     # File uploader
@@ -270,8 +270,49 @@ elif tabs == "Lead Time Analysis":
             final_df = lead_time_analysis.calculate_lead_time_summary(shortage_df)
             final_result = lead_time_analysis.calculate_lead_time_differences(final_df, calculated_df)
 
+            # Option to pick Supplier from matched
+            if 'Supplier' in final_result.columns:
+                suppliers = final_result['Supplier'].unique().tolist()
+                selected_supplier = st.selectbox("Select Supplier (Optional)", ["All"] + suppliers)
+
+                if selected_supplier != "All":
+                    filtered_final_result = final_result[final_result['Supplier'] == selected_supplier]
+                else:
+                    filtered_final_result = final_result
+            else:
+                filtered_final_result = final_result
+                st.write("Supplier column not found in matched data.")
+
+            # Option to filter based on 'Pstng Date' (Received Date) from gr_df
+            if 'Pstng Date' in gr_df.columns:
+                min_date = gr_df['Pstng Date'].min().date()
+                max_date = gr_df['Pstng Date'].max().date()
+                selected_date_range = st.date_input("Filter By Goods Received Date", (min_date, max_date))
+
+                if len(selected_date_range) == 2:
+                    start_date, end_date = selected_date_range
+                    gr_df_filtered = gr_df[
+                        (gr_df['Pstng Date'].dt.date >= start_date) &
+                        (gr_df['Pstng Date'].dt.date <= end_date)
+                    ]
+                    #recalculate matched, and other dataframes based on filtered gr_df
+                    matched, unmatched_op, unmatched_gr = lead_time_analysis.process_dataframes(op_df, gr_df_filtered)
+                    calculated_df = lead_time_analysis.calculate_actual_lead_time(matched)
+                    final_result = lead_time_analysis.calculate_lead_time_differences(final_df, calculated_df)
+                    if 'Supplier' in final_result.columns:
+                        if selected_supplier != "All":
+                            filtered_final_result = final_result[final_result['Supplier'] == selected_supplier]
+                        else:
+                            filtered_final_result = final_result
+                    else:
+                        filtered_final_result = final_result
+                        st.write("Supplier column not found in matched data.")
+
+            else:
+                st.write("Pstng Date column not found in Goods Received data.")
+
             # Call the updated Plotly version of your function
-            fig1, fig2, fig3, fig4 = lead_time_analysis.analyze_and_plot_lead_time_differences_plotly(final_result)
+            fig1, fig2, fig3, fig4 = lead_time_analysis.analyze_and_plot_lead_time_differences_plotly(filtered_final_result)
 
         st.success("Lead Time Analysis Completed ✅")
         st.write("### Lead Time Analysis Results:")
@@ -281,5 +322,4 @@ elif tabs == "Lead Time Analysis":
         st.plotly_chart(fig4, use_container_width=True)
     else:
         st.write("Please upload all Excel files to begin the analysis.")
-
             

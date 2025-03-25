@@ -9,7 +9,39 @@ from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.stattools import adfuller
 import statsmodels.api as sm
 
+def process_consumption_df(df):
 
+    # Define required columns
+    required_columns = {'Material Number', 'Pstng Date', 'Quantity'}
+    
+    # Check if all required columns are present
+    if not required_columns.issubset(df.columns):
+        missing = required_columns - set(df.columns)
+        raise ValueError(f"Missing columns in the data: {', '.join(missing)}")
+    
+    
+    # Convert posting date to datetime
+    df['Pstng Date'] = pd.to_datetime(df['Pstng Date'])
+    
+    # Extract the ISO week number
+    df['Week'] = df['Pstng Date'].dt.isocalendar().week
+
+    # Take absolute of Quantity before grouping
+    df['Quantity'] = df['Quantity'].abs()
+    
+    # Group by Material Number and Week, summing the quantity
+    grouped = df.groupby(['Material Number', 'Week'])['Quantity'].sum().reset_index()
+    
+    # Pivot the table to have weeks as columns
+    pivot_df = grouped.pivot(index='Material Number', columns='Week', values='Quantity').fillna(0)
+    
+    # Rename the week columns to WW1_Consumption, WW2_Consumption, ..., WW52_Consumption
+    pivot_df.columns = [f'WW{week}_Consumption' for week in pivot_df.columns]
+    
+    # Reset index to bring 'Material Number' back as a column
+    result_df = pivot_df.reset_index()
+    
+    return result_df
 
 def forecast_weekly_consumption_xgboost(df, forecast_weeks_ahead=6, seasonality='No'):
     """
@@ -24,7 +56,7 @@ def forecast_weekly_consumption_xgboost(df, forecast_weeks_ahead=6, seasonality=
     Returns:
         pandas.DataFrame: DataFrame containing the forecasted consumption.
     """
-    material_number = df['Material Number'][0]
+    material_number = df['Material Number'].head(1).values[0]
     df_material = df
     weeks = ['WW' + str(i) + '_Consumption' for i in range(1, 53)]
     df_material = df_material[weeks]
@@ -50,85 +82,7 @@ def forecast_weekly_consumption_xgboost(df, forecast_weeks_ahead=6, seasonality=
     X = weekly_data[features]
     y = weekly_data['consumption']
 
-    model = xgb.XGBRegressor(objective='reg:squarederror', n_estimators=1000, learning_rate=0.1, max_depth=6)
-    model.fit(X, y)
-
-    forecast_weeks = pd.DataFrame({'week': np.arange(1, forecast_weeks_ahead+1)})
-    forecast_weeks['year'] = 2025
-
-    forecast_results = []
-    last_data = weekly_data.iloc[-1].copy()
-    for index, row in forecast_weeks.iterrows():
-        if seasonality == 'Yes':
-            row['year'] = 2025
-            row['week'] = row['week']
-        row['lag_1'] = last_data['consumption']
-        row['lag_2'] = last_data['lag_1']
-        rolling_data = pd.Series([last_data['lag_2'], last_data['lag_1'], last_data['consumption']])
-        rolling_data = pd.concat([weekly_data['consumption'].tail(3), rolling_data])
-        row['rolling_mean_6'] = rolling_data.tail(6).mean()
-        row['rolling_std_6'] = rolling_data.tail(6).std()
-        X_forecast = pd.DataFrame([row[features]])
-        predicted_consumption = model.predict(X_forecast)[0]
-        forecast_results.append({'week': row['week'], 'predicted_consumption': predicted_consumption})
-        last_data['lag_2'] = last_data['lag_1']
-        last_data['lag_1'] = last_data['consumption']
-        last_data['consumption'] = predicted_consumption
-        #print(last_data)
-
-    forecast_results_df = pd.DataFrame(forecast_results)
-    forecast_results_df['year'] = 2025
-
-    # Plotting
-    plt.figure(figsize=(12, 6))
-    plt.plot(weekly_data['week'], y, label='Actual Consumption (2024)', color='blue')
-    plt.plot(forecast_results_df['week'] + 52, forecast_results_df['predicted_consumption'], label='Forecasted Consumption (2025)', linestyle='dashed', color='red')
-    plt.xlabel('Week')
-    plt.ylabel('Consumption')
-    plt.title(f'Recursive Consumption Forecasting for Material {material_number} (Weeks 1-{forecast_weeks_ahead}, 2025)')
-    plt.legend()
-    plt.show()
-
-    return forecast_results_df, plt
-
-def forecast_weekly_consumption_xgboost_v2(df, forecast_weeks_ahead=6, seasonality='No'):
-    """
-    Forecasts weekly consumption for a given material using XGBoost and recursive forecasting.
-
-    Args:
-        file_path (str): Path to the Excel file containing consumption data.
-        material_number (str): Material number to forecast.
-        forecast_weeks_ahead (int): Number of weeks to forecast into the future.
-        seasonality (str): 'Y' to include year and week as features, 'N' otherwise.
-
-    Returns:
-        pandas.DataFrame: DataFrame containing the forecasted consumption.
-    """
-    material_number = df['Material Number'][0]
-    df_material = df
-    weeks = ['WW' + str(i) + '_Consumption' for i in range(1, 53)]
-    df_material = df_material[weeks]
-    weekly_data = df_material.transpose().reset_index()
-    weekly_data.columns = ['week', 'consumption']
-    weekly_data['week'] = weekly_data['week'].str.extract('(\d+)').astype(int)
-    weekly_data = weekly_data.sort_values('week')
-
-    weekly_data['year'] = 2024
-    weekly_data['lag_1'] = weekly_data['consumption'].shift(1)
-    weekly_data['lag_2'] = weekly_data['consumption'].shift(2)
-    weekly_data['rolling_mean_6'] = weekly_data['consumption'].shift(1).rolling(window=6, min_periods=1).mean()
-    weekly_data['rolling_std_6'] = weekly_data['consumption'].shift(1).rolling(window=6, min_periods=1).std()
-
-    #Fill NA with 0
-    weekly_data[['lag_1', 'lag_2', 'rolling_mean_6', 'rolling_std_6']] = weekly_data[['lag_1', 'lag_2', 'rolling_mean_6', 'rolling_std_6']].fillna(0)
-
-    if seasonality == 'Yes':
-        features = ['year', 'week', 'lag_1', 'lag_2', 'rolling_mean_6', 'rolling_std_6']
-    else:
-        features = ['lag_1', 'lag_2', 'rolling_mean_6', 'rolling_std_6']
-
-    X = weekly_data[features]
-    y = weekly_data['consumption']
+    orginal_y = weekly_data['consumption']
 
     model = xgb.XGBRegressor(objective='reg:squarederror', n_estimators=1000, learning_rate=0.1, max_depth=6)
 
@@ -168,14 +122,14 @@ def forecast_weekly_consumption_xgboost_v2(df, forecast_weeks_ahead=6, seasonali
         # Retrain the model with the updated data
         X = temp_weekly_data[features]
         y = temp_weekly_data['consumption']
-        model.fit(X, y)
+        #model.fit(X, y)
 
     forecast_results_df = pd.DataFrame(forecast_results)
     forecast_results_df['year'] = 2025
 
     # Plotting
     plt.figure(figsize=(12, 6))
-    plt.plot(weekly_data['week'], y, label='Actual Consumption (2024)', color='blue')
+    plt.plot(weekly_data['week'], orginal_y, label='Actual Consumption (2024)', color='blue')
     plt.plot(forecast_results_df['week'] + 52, forecast_results_df['predicted_consumption'], label='Forecasted Consumption (2025)', linestyle='dashed', color='red')
     plt.xlabel('Week')
     plt.ylabel('Consumption')
@@ -198,7 +152,7 @@ def forecast_weekly_consumption_xgboost_v3(df, external_df, forecast_weeks_ahead
     Returns:
         pandas.DataFrame: DataFrame containing the forecasted consumption.
     """
-    material_number = df['Material Number'][0]
+    material_number = df['Material Number'].head(1).values[0]
     df_material = df
     weeks = ['WW' + str(i) + '_Consumption' for i in range(1, 53)]
     df_material = df_material[weeks]
@@ -496,20 +450,17 @@ def forecast_weekly_consumption_arima(df, forecast_weeks_ahead=6, seasonality = 
         pandas.DataFrame: DataFrame containing the forecasted consumption.
     """
 
-    material_number = df['Material Number'][0]
+    material_number = df['Material Number'].head(1).values[0]
     df_material = df
     weeks = ['WW' + str(i) + '_Consumption' for i in range(1, 53)]
     df_material = df_material[weeks]
     weekly_data = df_material.transpose().reset_index()
     weekly_data.columns = ['week', 'consumption']
     weekly_data['week'] = weekly_data['week'].str.extract('(\d+)').astype(int)
-    date_data = pd.DataFrame()
-    date_data['date'] = pd.to_datetime('2024-01-01') + pd.to_timedelta((weekly_data['week'] - 1) * 7, unit='days')
-    date_data['consumption'] = weekly_data['consumption'] 
-    weekly_data = weekly_data.sort_values('week')
-    weekly_data = weekly_data.set_index('week')
-    date_data = date_data.set_index('date')
-    date_data.index.freq = 'W-MON'
+
+    weekly_data['year'] = 2024
+
+    weekly_data = weekly_data.sort_values(by=['year', 'week'])
     
 
     # Check stationarity and difference if needed
@@ -536,29 +487,48 @@ def forecast_weekly_consumption_arima(df, forecast_weeks_ahead=6, seasonality = 
     seasonal_order = (p, d, q, 52)
 
     if seasonality == "Yes":
-        model = SARIMAX(date_data['consumption'], order=order, seasonal_order = seasonal_order)
+        model = SARIMAX(weekly_data['consumption'], order=order, seasonal_order = seasonal_order)
         model_fit = model.fit(disp=False)
 
     else:
-        model = ARIMA(date_data['consumption'], order=order)
+        model = ARIMA(weekly_data['consumption'], order=order)
         model_fit = model.fit()
 
     # Forecast
     forecast = model_fit.get_forecast(steps=forecast_weeks_ahead+1)
-    forecast_values = forecast.predicted_mean
+    forecast_values = forecast.predicted_mean.clip(lower=0)
+
+    last_row = weekly_data.iloc[-1]
+    start_year = last_row['year']
+    start_week = last_row['week']
+
+    forecast_weeks = []
+    current_year = start_year
+    current_week = start_week + 1
+
+    for i in range(forecast_weeks_ahead+1):
+
+        if current_week > 52:
+                    current_week = 1
+                    current_year += 1
+
+        forecast_weeks.append({'week': current_week, 'year': current_year, 'predicted_consumption': forecast_values.iloc[i]})
+        current_week += 1
+    
+    forecast_results_df = pd.DataFrame(forecast_weeks)
 
     # Corrected forecast index calculation starting from 2025
-    freq = date_data.index.freq or pd.Timedelta(days=7) # Get the freq or default to weekly.
+    #freq = date_data.index.freq or pd.Timedelta(days=7) # Get the freq or default to weekly.
     
     #Start from 2025:
-    start_forecast_date = pd.to_datetime('2025-01-01') #First Day of 2025.
+    #start_forecast_date = pd.to_datetime('2025-01-01') #First Day of 2025.
     
-    forecast_index = pd.date_range(start=start_forecast_date, periods=forecast_weeks_ahead, freq=freq)
+    #forecast_index = pd.date_range(start=start_forecast_date, periods=forecast_weeks_ahead, freq=freq)
 
-    forecast_series = pd.Series(forecast_values, index=forecast_index)
+    #forecast_series = pd.Series(forecast_values, index=forecast_index)
 
     # Create DataFrame for results
-    forecast_results_df = pd.DataFrame({'date': forecast_series.index, 'predicted_consumption': forecast_series.values})
+    #forecast_results_df = pd.DataFrame({'date': forecast_series.index, 'predicted_consumption': forecast_series.values})
 
 
     # Plotting
@@ -566,13 +536,39 @@ def forecast_weekly_consumption_arima(df, forecast_weeks_ahead=6, seasonality = 
         model_name = "SARIMAX"
     else:
         model_name = "ARIMA"
+
     plt.figure(figsize=(12, 6))
-    plt.plot(date_data.index, date_data['consumption'], label='Actual Consumption (2024)', color='blue')
-    plt.plot(forecast_results_df['date'], forecast_results_df['predicted_consumption'], label='Forecasted Consumption (2025)', linestyle='dashed', color='red')
-    plt.xlabel('Date')
-    plt.ylabel('Consumption')
-    plt.title(f'{model_name} Consumption Forecasting for Material {material_number} (Weeks 1-{forecast_weeks_ahead}, 2025)')
+    # Create year-week labels for actual data
+    if 'year' in weekly_data.columns:
+        actual_labels = [f"{year} - {week}" for year, week in zip(weekly_data['year'], weekly_data['week'])]
+    else:
+        try:
+            actual_labels = [f"{date.year} - {week}" for date, week in zip(weekly_data.index, weekly_data['week'])]
+        except:
+            raise ValueError("weekly_data must contain a 'year' column or a datetime index.")
+
+    # Create year-week labels for forecasted data
+    if 'year' in forecast_results_df.columns:
+        forecast_labels = [f"{int(year)} - {week}" for year, week in zip(forecast_results_df['year'], forecast_results_df['week'])]
+    else:
+        forecast_labels = [f"2025 - {week}" for week in forecast_results_df['week'] ] #default to 2025 if no year col.
+
+    # Combine labels for setting x-ticks
+    all_labels = actual_labels + forecast_labels
+
+    plt.plot(actual_labels, weekly_data['consumption'], label='Actual Consumption', color='blue')
+    plt.plot(forecast_labels, forecast_results_df['predicted_consumption'], label='Forecasted Consumption', linestyle='dashed', color='red')
+
+    plt.xlabel('Year - Week')
+    plt.ylabel('Demand (Units)')
+    plt.title(f'{model_name} Demand Forecasting for Material {material_number}')
     plt.legend()
+
+    # Set x-ticks and labels, showing only every x_label_step labels
+    plt.xticks(range(0, len(all_labels), 4), all_labels[::4], rotation=45, ha='right')
+
+    plt.xticks(rotation=45, ha='right')
+    plt.tight_layout()
 
     return forecast_results_df, plt
 
@@ -589,7 +585,7 @@ def forecast_weekly_consumption_arima_v2(df, external_df, forecast_weeks_ahead=6
     Returns:
         pandas.DataFrame: DataFrame containing the forecasted consumption.
     """
-    material_number = df['Material Number'][0]
+    material_number = df['Material Number'].head(1).values[0]
     df_material = df
     weeks = ['WW' + str(i) + '_Consumption' for i in range(1, 53)]
     df_material = df_material[weeks]
