@@ -8,40 +8,7 @@ from statsmodels.tsa.statespace.sarimax import SARIMAX
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.stattools import adfuller
 import statsmodels.api as sm
-
-def process_consumption_df(df):
-
-    # Define required columns
-    required_columns = {'Material Number', 'Pstng Date', 'Quantity'}
-    
-    # Check if all required columns are present
-    if not required_columns.issubset(df.columns):
-        missing = required_columns - set(df.columns)
-        raise ValueError(f"Missing columns in the data: {', '.join(missing)}")
-    
-    
-    # Convert posting date to datetime
-    df['Pstng Date'] = pd.to_datetime(df['Pstng Date'])
-    
-    # Extract the ISO week number
-    df['Week'] = df['Pstng Date'].dt.isocalendar().week
-
-    # Take absolute of Quantity before grouping
-    df['Quantity'] = df['Quantity'].abs()
-    
-    # Group by Material Number and Week, summing the quantity
-    grouped = df.groupby(['Material Number', 'Week'])['Quantity'].sum().reset_index()
-    
-    # Pivot the table to have weeks as columns
-    pivot_df = grouped.pivot(index='Material Number', columns='Week', values='Quantity').fillna(0)
-    
-    # Rename the week columns to WW1_Consumption, WW2_Consumption, ..., WW52_Consumption
-    pivot_df.columns = [f'WW{week}_Consumption' for week in pivot_df.columns]
-    
-    # Reset index to bring 'Material Number' back as a column
-    result_df = pivot_df.reset_index()
-    
-    return result_df
+import plotly.graph_objects as go
 
 def forecast_weekly_consumption_xgboost(df, forecast_weeks_ahead=6, seasonality='No'):
     """
@@ -82,7 +49,7 @@ def forecast_weekly_consumption_xgboost(df, forecast_weeks_ahead=6, seasonality=
     X = weekly_data[features]
     y = weekly_data['consumption']
 
-    orginal_y = weekly_data['consumption']
+    original_y = weekly_data['consumption']
 
     model = xgb.XGBRegressor(objective='reg:squarederror', n_estimators=1000, learning_rate=0.1, max_depth=6)
 
@@ -126,18 +93,61 @@ def forecast_weekly_consumption_xgboost(df, forecast_weeks_ahead=6, seasonality=
 
     forecast_results_df = pd.DataFrame(forecast_results)
     forecast_results_df['year'] = 2025
+    forecast_results_df['predicted_consumption'] = forecast_results_df['predicted_consumption'].round().astype(int)
+    forecast_results_df['week'] = forecast_results_df['week'].astype(int)
+
+    if 'year' in weekly_data.columns:
+        actual_labels = [f"{year} - {week}" for year, week in zip(weekly_data['year'], weekly_data['week'])]
+    else:
+        try:
+            actual_labels = [f"{date.year} - {week}" for date, week in zip(weekly_data.index,weekly_data['week'])]
+        except:
+            raise ValueError("X_old must contain a 'year' column or a datetime index.")
+
+    # Create year-week labels for forecasted data
+    if 'year' in forecast_results_df.columns:
+        forecast_labels = [f"{year} - {week}" for year, week in zip(forecast_results_df['year'], forecast_results_df['week'])]
+    else:
+        forecast_labels = [f"2025 - {week}" for week in forecast_results_df['week'] ] #default to 2025 if no year col.
+
+    # Combine labels for setting x-ticks
+    all_labels = actual_labels + forecast_labels
 
     # Plotting
-    plt.figure(figsize=(12, 6))
-    plt.plot(weekly_data['week'], orginal_y, label='Actual Consumption (2024)', color='blue')
-    plt.plot(forecast_results_df['week'] + 52, forecast_results_df['predicted_consumption'], label='Forecasted Consumption (2025)', linestyle='dashed', color='red')
-    plt.xlabel('Week')
-    plt.ylabel('Consumption')
-    plt.title(f'Recursive Consumption Forecasting for Material {material_number} (Weeks 1-{forecast_weeks_ahead}, 2025)')
-    plt.legend()
-    plt.show()
+    fig = go.Figure()
+    # Add actual consumption line
+    fig.add_trace(go.Scatter(
+        x=actual_labels,
+        y=original_y,
+        mode='lines',
+        name='Actual Consumption',
+        line=dict(color='blue')
+    ))
 
-    return forecast_results_df, plt
+    # Add forecasted consumption line
+    fig.add_trace(go.Scatter(
+        x=forecast_labels,
+        y=forecast_results_df['predicted_consumption'],
+        mode='lines',
+        name='Forecasted Consumption',
+        line=dict(color='red', dash='dash')
+    ))
+
+    # Update layout with titles and labels
+    fig.update_layout(
+        title=f'Recursive Consumption Forecasting for Material {material_number}',
+        xaxis_title='Year - Week',
+        yaxis_title='Consumption',
+        legend_title='Legend',
+        xaxis=dict(
+            tickmode='array',
+            tickvals=all_labels[::4],
+            ticktext=all_labels[::4],
+            tickangle=45
+        )
+    )
+
+    return forecast_results_df, fig
 
 def forecast_weekly_consumption_xgboost_v3(df, external_df, forecast_weeks_ahead=6, seasonality='No'):
     """
@@ -556,21 +566,46 @@ def forecast_weekly_consumption_arima(df, forecast_weeks_ahead=6, seasonality = 
     # Combine labels for setting x-ticks
     all_labels = actual_labels + forecast_labels
 
-    plt.plot(actual_labels, weekly_data['consumption'], label='Actual Consumption', color='blue')
-    plt.plot(forecast_labels, forecast_results_df['predicted_consumption'], label='Forecasted Consumption', linestyle='dashed', color='red')
+    # --- Round forecasted values and ensure 'week' is int ---
+    forecast_results_df['predicted_consumption'] = forecast_results_df['predicted_consumption'].round().astype(int)
+    forecast_results_df['week'] = forecast_results_df['week'].astype(int)
 
-    plt.xlabel('Year - Week')
-    plt.ylabel('Demand (Units)')
-    plt.title(f'{model_name} Demand Forecasting for Material {material_number}')
-    plt.legend()
+    # Plotting with Plotly
+    fig = go.Figure()
 
-    # Set x-ticks and labels, showing only every x_label_step labels
-    plt.xticks(range(0, len(all_labels), 4), all_labels[::4], rotation=45, ha='right')
+    # Add actual consumption line
+    fig.add_trace(go.Scatter(
+        x=actual_labels,
+        y=weekly_data['consumption'],
+        mode='lines',
+        name='Actual Consumption',
+        line=dict(color='blue')
+    ))
 
-    plt.xticks(rotation=45, ha='right')
-    plt.tight_layout()
+    # Add forecasted consumption line
+    fig.add_trace(go.Scatter(
+        x=forecast_labels,
+        y=forecast_results_df['predicted_consumption'],
+        mode='lines',
+        name='Forecasted Consumption',
+        line=dict(color='red', dash='dash')
+    ))
 
-    return forecast_results_df, plt
+    # Update layout with titles and labels
+    fig.update_layout(
+        title=f'{model_name} Demand Forecasting for Material {material_number}',
+        xaxis_title='Year - Week',
+        yaxis_title='Demand (Units)',
+        legend_title='Legend',
+        xaxis=dict(
+            tickmode='array',
+            tickvals=all_labels[::4],
+            ticktext=all_labels[::4],
+            tickangle=45
+        )
+    )
+
+    return forecast_results_df, fig
 
 def forecast_weekly_consumption_arima_v2(df, external_df, forecast_weeks_ahead=6, seasonality = "No"):
     """

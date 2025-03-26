@@ -192,12 +192,12 @@ elif tabs == "Forecast Page":
                 if model_choice == "XGBoost":
                     forecast_results,plt = forecast_models.forecast_weekly_consumption_xgboost(filtered_df, forecast_weeks_ahead=forecast_weeks, seasonality=seasonality)
                     st.write("XGBoost Forecast Results:")
-                    st.pyplot(plt)
+                    st.plotly_chart(plt)
                     st.write(forecast_results)
                 elif model_choice == "ARIMA":
                     forecast_results,plt = forecast_models.forecast_weekly_consumption_arima(filtered_df, forecast_weeks_ahead=forecast_weeks, seasonality=seasonality)
                     st.write("ARIMA Forecast Results:")
-                    st.pyplot(plt)
+                    st.plotly_chart(plt)
                     st.write(forecast_results)
 
         elif df is not None:
