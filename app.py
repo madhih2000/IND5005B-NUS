@@ -257,7 +257,7 @@ elif tabs == "Lead Time Analysis":
     # File uploader
     uploaded_file_op = st.file_uploader("Upload Order Placement Excel File for Analysis", type="xlsx")
     uploaded_file_gr = st.file_uploader("Upload Goods Received Excel File for Analysis", type="xlsx")
-    uploaded_file_sr = st.file_uploader("Upload Modified Shortage Report Excel File for Analysis", type="xlsx")
+    uploaded_file_sr = st.file_uploader("Upload Latest Shortage Report", type="xlsx")
 
     if uploaded_file_op and uploaded_file_gr and uploaded_file_sr:
         with st.spinner("Processing lead time analysis..."):
@@ -267,7 +267,7 @@ elif tabs == "Lead Time Analysis":
 
             matched, unmatched_op, unmatched_gr = lead_time_analysis.process_dataframes(op_df, gr_df)
             calculated_df = lead_time_analysis.calculate_actual_lead_time(matched)
-            final_df = lead_time_analysis.calculate_lead_time_summary(shortage_df)
+            final_df = lead_time_analysis.calculate_lead_time_summary_v2(shortage_df)
             final_result = lead_time_analysis.calculate_lead_time_differences(final_df, calculated_df)
 
             # Option to pick Supplier from matched
@@ -304,6 +304,7 @@ elif tabs == "Lead Time Analysis":
                             filtered_final_result = final_result[final_result['Supplier'] == selected_supplier]
                         else:
                             filtered_final_result = final_result
+                            fig5, fig6, fig7 = lead_time_analysis.plot_supplier_lead_time_analysis(filtered_final_result)
                     else:
                         filtered_final_result = final_result
                         st.write("Supplier column not found in matched data.")
@@ -314,12 +315,37 @@ elif tabs == "Lead Time Analysis":
             # Call the updated Plotly version of your function
             fig1, fig2, fig3, fig4 = lead_time_analysis.analyze_and_plot_lead_time_differences_plotly(filtered_final_result)
 
+
         st.success("Lead Time Analysis Completed ✅")
-        st.write("### Lead Time Analysis Results:")
+        st.write("### Material Level Lead Time Analysis Results:")
         st.plotly_chart(fig1, use_container_width=True)
         st.plotly_chart(fig2, use_container_width=True)
         st.plotly_chart(fig3, use_container_width=True)
         st.plotly_chart(fig4, use_container_width=True)
+
+        if selected_supplier == "All":
+            st.markdown(
+                """
+                <style>
+                    .gradient-line {
+                        height: 10px;
+                        background: linear-gradient(to right, #0000FF, #008000);
+                        border: none;
+                        margin: 10px 0;
+                    }
+                </style>
+                <hr class="gradient-line">
+                """,
+                unsafe_allow_html=True
+            )
+            st.write("### Supplier Level Lead Time Analysis Results:")
+            st.plotly_chart(fig5, use_container_width=True)
+            st.plotly_chart(fig6, use_container_width=True)
+            st.plotly_chart(fig7, use_container_width=True)
+
+
+
+
     else:
         st.write("Please upload all Excel files to begin the analysis.")
             
