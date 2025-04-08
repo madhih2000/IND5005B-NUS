@@ -12,3 +12,8 @@ scikit-learn
 statsmodels
 fitter
 setuptools
+shutil
+tempfile
+zipfile
+os
+fitter

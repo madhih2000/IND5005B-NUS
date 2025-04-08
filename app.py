@@ -1,6 +1,10 @@
+import zipfile
 import streamlit as st
 import pandas as pd
 import numpy as np
+import os
+import shutil
+import tempfile
 import scipy.stats as stats
 from scipy.stats import norm, poisson, nbinom, gamma, weibull_min, lognorm, expon, beta, kstest, anderson
 
@@ -17,6 +21,7 @@ import forecast_models
 import lead_time_analysis
 import DES
 import llm_reasoning
+import waterfall_analysis
 
 # Set the page config with the title centered
 st.set_page_config(page_title="Micron SupplySense", layout="wide")
@@ -30,7 +35,7 @@ st.markdown(
 )
 
 # Create a sidebar for navigation (for a dashboard-style layout)
-tabs = st.sidebar.radio("Select an Analysis Type:", ["Material Consumption Analysis", "Order Placement Analysis", "Goods Receipt Analysis","Lead Time Analysis", "Forecast Demand", "Inventory Simulation"])
+tabs = st.sidebar.radio("Select an Analysis Type:", ["Material Consumption Analysis", "Order Placement Analysis", "Goods Receipt Analysis","Lead Time Analysis", "Forecast Demand", "Inventory Simulation", "Waterfall Analysis"])
 
 if tabs == "Material Consumption Analysis":
     st.title("Material Consumption Analysis")
@@ -354,6 +359,99 @@ elif tabs == "Lead Time Analysis":
 
     else:
         st.write("Please upload all Excel files to begin the analysis.")
+
+elif tabs == "Waterfall Analysis":
+    st.title("Waterfall Analysis")
+    uploaded_file = st.file_uploader("Upload ZIP file with 52 weeks of data (WW1.xlsx to WW52.xlsx)", type=["zip"])
+
+    if uploaded_file:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            zip_path = os.path.join(tmp_dir, "data.zip")
+            zip_filename = uploaded_file.name
+            zip_ext = os.path.splitext(zip_filename)[0]
+            with open(zip_path, "wb") as f:
+                f.write(uploaded_file.getvalue())
+
+            try:
+                with zipfile.ZipFile(zip_path, "r") as zip_ref:
+                    zip_ref.extractall(tmp_dir)
+            except zipfile.BadZipFile:
+                st.error("❌ The uploaded file is not a valid ZIP.")
+
+            folder_path = tmp_dir
+            folder_path_zip = tmp_dir + f'\{zip_ext}' # This is what gets passed to your function
+
+            if not os.path.exists(folder_path):
+                st.error(f"❌ Error: Folder '{folder_path}' not found.")
+
+            xlsx_files = []
+            for root, dirs, files in os.walk(folder_path):
+                for file in files:
+                    if file.endswith(".xlsx"):
+                        xlsx_files.append(os.path.relpath(os.path.join(root, file), folder_path))
+
+            if not xlsx_files:
+                st.error("❌ Error: No XLSX files found in the ZIP.")
+
+            # Get just the filenames
+            all_files = [os.path.basename(f) for f in xlsx_files]
+
+            # Optional: Store full paths if needed later
+            file_paths = {os.path.basename(f): os.path.join(folder_path, f) for f in xlsx_files}
+
+            # Expected 52 week files
+            expected_files = [f"WW{i}.xlsx" for i in range(1, 53)]
+
+            # Check which expected files are missing
+            missing_files = [f for f in expected_files if f not in all_files]
+            if missing_files:
+                st.error(f"❌ Missing files: {', '.join(missing_files)}")
+
+            # User inputs
+            start_week_str = st.selectbox("Select Start Week", [f"WW{i}" for i in range(1,53)])  # WW1 to WW52
+            if start_week_str:
+                start_week = int(start_week_str.replace("WW", ""))
+                # Get the weekly file path starting from start_week
+                selected_weeks = f"{start_week_str}.xlsx"
+
+                df = pd.read_excel(file_paths[selected_weeks])
+                st.write(df)
+
+                if not df.empty:
+                    # Material dropdown
+                    material_options = sorted(df["Material Number"].dropna().unique())
+                    material_number = st.selectbox("Select Material Number", material_options)
+
+                    if material_number:
+                        plant_options = sorted(df[df["Material Number"] == material_number]["Plant"].dropna().unique())
+                        plant = st.selectbox("Select Plant", plant_options)
+
+                        if plant:
+                            site_options = sorted(
+                                df[
+                                    (df["Material Number"] == material_number) &
+                                    (df["Plant"] == plant)
+                                ]["Site"].dropna().unique()
+                            )
+                            site = st.selectbox("Select Site", site_options)
+
+                            num_weeks = st.number_input("Number of Weeks", min_value=1, max_value=52, value=12)
+
+                            # Submit button to extract & display data
+                            if st.button("Run Waterfall Analysis"):
+                                result_df = waterfall_analysis.extract_and_aggregate_weekly_data(
+                                    folder_path_zip, material_number, plant, site, start_week, int(num_weeks)
+                                )
+
+                                if result_df is not None and not result_df.empty:
+                                    st.success("✅ Data extracted successfully!")
+                                    st.dataframe(result_df.head())
+
+                                    # Download button
+                                    csv = result_df.to_csv(index=False).encode("utf-8")
+                                    st.download_button("📥 Download Result as CSV", data=csv, file_name="waterfall_analysis.csv", mime="text/csv")
+                                else:
+                                    st.warning("No data returned from the extraction.")
             
 elif tabs == "Inventory Simulation":
     st.title("Inventory Simulation")
