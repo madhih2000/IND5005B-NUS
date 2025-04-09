@@ -13,18 +13,18 @@ Follow the steps below to set up and run the application locally.
 python -m venv venv
 source venv/bin/activate
 ```
-On Windows, use:
+#### On Windows, use:
 
 ```
 venv\Scripts\activate
 ```
 
-3. Install Dependencies
+### 3. Install Dependencies
 ```
 pip install -r requirements.txt
 ```
 
-4. Run the Application
+### 4. Run the Application
 ```
 streamlit run app.py
 ```
