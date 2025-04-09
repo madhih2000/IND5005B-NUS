@@ -12,7 +12,4 @@ scikit-learn
 statsmodels
 fitter
 setuptools
-tempfile
-zipfile
-os
 fitter
