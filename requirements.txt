@@ -11,3 +11,4 @@ xgboost
 scikit-learn
 setuptools
 fitter
+io

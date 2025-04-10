@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import os
-import shutil
+from io import BytesIO
 import tempfile
 import scipy.stats as stats
 from scipy.stats import norm, poisson, nbinom, gamma, weibull_min, lognorm, expon, beta, kstest, anderson
@@ -408,14 +408,13 @@ elif tabs == "Waterfall Analysis":
                 st.error(f"❌ Missing files: {', '.join(missing_files)}")
 
             # User inputs
-            start_week_str = st.selectbox("Select Start Week", [f"WW{i}" for i in range(1,53)])  # WW1 to WW52
+            start_week_str = st.selectbox("Select Start Week", [f"WW{i}" for i in range(2,53)])  # WW2 to WW52
             if start_week_str:
                 start_week = int(start_week_str.replace("WW", ""))
                 # Get the weekly file path starting from start_week
                 selected_weeks = f"{start_week_str}.xlsx"
 
                 df = pd.read_excel(file_paths[selected_weeks])
-                st.write(df)
 
                 if not df.empty:
                     # Material dropdown
@@ -439,17 +438,54 @@ elif tabs == "Waterfall Analysis":
 
                             # Submit button to extract & display data
                             if st.button("Run Waterfall Analysis"):
-                                result_df = waterfall_analysis.extract_and_aggregate_weekly_data(
+                                result_df, lead_value = waterfall_analysis.extract_and_aggregate_weekly_data(
                                     folder_path_zip, material_number, plant, site, start_week, int(num_weeks)
                                 )
 
                                 if result_df is not None and not result_df.empty:
                                     st.success("✅ Data extracted successfully!")
-                                    st.dataframe(result_df.head())
+                                    st.markdown(
+                                        """
+                                        <style>
+                                            .gradient-line {
+                                                height: 10px;
+                                                background: linear-gradient(to right, #0000FF, #008000);
+                                                border: none;
+                                                margin: 10px 0;
+                                            }
+                                        </style>
+                                        <hr class="gradient-line">
+                                        """,
+                                        unsafe_allow_html=True
+                                    )
+                                    st.write("### Material Level Analysis:")
+
+                                    st.dataframe(result_df)
+
+                                    #wos_list, analysis_plot = waterfall_analysis.plot_stock_prediction_plotly(result_df, start_week, lead_value, num_weeks)
+                                    #st.plotly_chart(analysis_plot)
+
+                                    #messages, order_needed = waterfall_analysis.check_wos_against_lead_time(wos_list, lead_value)
+
+                                    #for message in messages:
+                                        #st.write(message)
+
+                                    #st.write(f"Immediate order needed: {order_needed}")
 
                                     # Download button
-                                    csv = result_df.to_csv(index=False).encode("utf-8")
-                                    st.download_button("📥 Download Result as CSV", data=csv, file_name="waterfall_analysis.csv", mime="text/csv")
+                                    output = BytesIO()
+                                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                                        result_df.to_excel(writer, index=False, sheet_name='Sheet1')
+                                    output.seek(0)
+
+                                    # Display download button
+                                    st.download_button(
+                                        label="📥 Download Excel File",
+                                        data=output,
+                                        file_name="waterfall_analysis.xlsx",
+                                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                    )
+
                                 else:
                                     st.warning("No data returned from the extraction.")
             

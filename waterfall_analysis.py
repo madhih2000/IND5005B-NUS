@@ -1,9 +1,22 @@
+import plotly.graph_objects as go
 import pandas as pd
+import numpy as np
 import os
 
 def generate_weeks_range(start_week, num_weeks=12):
-    weeks_range = [f"WW{str((start_week + i - num_weeks) % 52 or 52).zfill(2)}" for i in range(2 * num_weeks + 1)]
+    #weeks_range = [f"WW{str((start_week + i - num_weeks) % 52 or 52).zfill(2)}" for i in range(2 * num_weeks + 1)]
+    weeks_range = []
+    for i in range(2 * num_weeks + 1):
+        week = (start_week + i - num_weeks) % 52 or 52
+        if start_week-num_weeks < 1 and week > start_week + num_weeks: #edge case in case you want to check shortage data for week 2 ,e.g.
+            continue
+        weeks_range.append(f"WW{str(week).zfill(2)}")
+    print(weeks_range)
     return weeks_range
+
+# Function to normalize column names
+def normalize(col):
+    return col.strip().replace('\n', ' ').replace('\r', ' ').replace('\t', ' ').lower()
 
 def save_to_excel(df, output_file):
     """Saves a DataFrame to an Excel file."""
@@ -69,11 +82,29 @@ def extract_and_aggregate_weekly_data(folder_path, material_number, plant, site,
                     & (df["Plant"] == plant)
                     & (df["Site"] == site)
                 ]
+
+                lead_value = 0
+
+                if i == start_week:
+
+                    # Lead Time column, normalized
+                    target_col = normalize("Lead Time (Week)")
+                    lead_col = None
+
+                    # Loop to find the unnormalized matching column
+                    for col in df.columns:
+                        if normalize(col) == target_col:
+                            lead_col = col
+                            break
+
+                    if lead_col:
+                        lead_value = df.loc[df["Material Number"] == material_number, lead_col]
+
                 
                 #Remove whitespace in column names
                 filtered_df.columns = filtered_df.columns.str.strip().str.replace('\n', ' ', regex=False).str.replace(r'\s+', '', regex=True)
-
-                if not filtered_df.empty and i != 47:
+        
+                if not filtered_df.empty:
                     # Select only the required columns
                     all_columns = initial_columns + weeks_range
 
@@ -123,4 +154,102 @@ def extract_and_aggregate_weekly_data(folder_path, material_number, plant, site,
     cols = ['Snapshot'] + [col for col in cols if col != 'Snapshot']
     result_df = result_df[cols]
 
-    return result_df
+    return result_df, lead_value
+
+def plot_stock_prediction_plotly(df, start_week, lead_time, weeks_range):
+    """Plots actual and predicted stock values over weeks."""
+
+    weeks = generate_weeks_range(start_week, weeks_range)
+    stock_values = df[df['Measures'] == 'Weeks of Stock']
+
+    fig = go.Figure()
+
+    actual_values = []
+    predicted_values = []
+    plot_weeks_actual = []
+    plot_weeks_predicted = []
+
+    for i, week in enumerate(weeks):
+        print(i)
+        print(predicted_values)
+        if week not in df.columns:
+            print(f"Warning: Week {week} not found in DataFrame.")
+            continue  # skip the iteration if the week is not in the dataframe.
+
+        if week in df['Snapshot'].values: # Only get actual values if the week is in the snapshot.
+            actual_value = stock_values[stock_values['Snapshot'] == week][week].iloc[0]
+            if actual_value is None or np.isnan(actual_value):
+                actual_value = 0  # if actual value is none or nan, set to 0.
+            actual_values.append(actual_value)
+            plot_weeks_actual.append(week)
+        else:
+            break
+
+        if i != 0:
+            predicted_value = stock_values[stock_values['Snapshot'] == weeks[i - 1]][week].iloc[0]
+        else:
+            predicted_value = None
+
+        if predicted_value is None or np.isnan(predicted_value):
+            if i > 0:
+                predicted_value = predicted_values[-1]  # use the previous predicted value if the current one is None or NaN
+            else:
+                predicted_value = 0  # skip the first one as it is none.
+
+        predicted_values.append(predicted_value)
+        plot_weeks_predicted.append(week)
+
+    fig.add_trace(go.Scatter(x=plot_weeks_actual, y=actual_values, mode='lines+markers', name='Actual Weeks of Stock'))
+    fig.add_trace(go.Scatter(x=plot_weeks_predicted, y=predicted_values, mode='lines+markers', name='Predicted Weeks of Stock'))
+
+    fig.update_layout(title='Actual vs. Predicted Weeks of Stock',
+                      xaxis_title='Week',
+                      yaxis_title='Weeks of Stock')
+
+    return actual_values, fig
+
+def check_wos_against_lead_time(wos_list, lead_time):
+    """
+    Compares values in wos_list against lead_time and flags close matches.
+
+    Args:
+        wos_list: A list of floats, potentially containing 0.
+        lead_time: An integer representing the target lead time.
+
+    Returns:
+        A list of messages indicating the comparison results and a boolean indicating
+        whether an immediate order is needed.
+    """
+    # Check if lead_time is a pandas Series and handle it
+    if isinstance(lead_time, pd.Series):
+        lead_time_value = lead_time.iloc[0]
+    else:
+        lead_time_value = lead_time  # If it's already a scalar
+
+
+    messages = []
+    order_immediately = False
+    tolerance = 0.1  # 10% tolerance
+
+    for i, wos in enumerate(wos_list):
+        if wos == 0:
+            #messages.append(f"Index {i}: No value recorded.")
+            continue
+
+        lower_bound = lead_time_value * (1 - tolerance)
+        upper_bound = lead_time_value * (1 + tolerance)
+
+        if wos < lower_bound:
+            messages.append(f"Index {i}: Value {wos} is significantly lower than lead time {lead_time_value}. ALERT!")
+        elif wos > upper_bound:
+            continue
+            #messages.append(f"Index {i}: Value {wos} is slightly higher than lead time {lead_time_value}. Warning.")
+
+    if wos_list and wos_list[-1] != 0:
+        if wos_list[-1] < lead_time_value*0.5: # if the last value is less than half the lead time.
+            order_immediately = True
+            messages.append("Last recorded value is significantly low, consider immediate order.")
+        else:
+            messages.append("Last recorded value does not indicate immediate order is needed.")
+
+    return messages, order_immediately
