@@ -378,17 +378,16 @@ elif tabs == "Waterfall Analysis":
             except zipfile.BadZipFile:
                 st.error("❌ The uploaded file is not a valid ZIP.")
 
-            folder_path = tmp_dir
-            folder_path_zip = tmp_dir + f'\{zip_ext}' # This is what gets passed to your function
+            folder_path_zip = os.path.join(tmp_dir, zip_ext)
 
-            if not os.path.exists(folder_path):
-                st.error(f"❌ Error: Folder '{folder_path}' not found.")
+            if not os.path.exists(folder_path_zip):
+                st.error(f"❌ Error: Folder '{folder_path_zip}' not found.")
 
             xlsx_files = []
-            for root, dirs, files in os.walk(folder_path):
+            for root, dirs, files in os.walk(folder_path_zip):
                 for file in files:
                     if file.endswith(".xlsx"):
-                        xlsx_files.append(os.path.relpath(os.path.join(root, file), folder_path))
+                        xlsx_files.append(os.path.relpath(os.path.join(root, file), folder_path_zip))
 
             if not xlsx_files:
                 st.error("❌ Error: No XLSX files found in the ZIP.")
