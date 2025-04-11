@@ -396,7 +396,7 @@ elif tabs == "Waterfall Analysis":
             all_files = [os.path.basename(f) for f in xlsx_files]
 
             # Optional: Store full paths if needed later
-            file_paths = {os.path.basename(f): os.path.join(folder_path, f) for f in xlsx_files}
+            file_paths = {os.path.basename(f): os.path.join(folder_path_zip, f) for f in xlsx_files}
 
             # Expected 52 week files
             expected_files = [f"WW{i}.xlsx" for i in range(1, 53)]
