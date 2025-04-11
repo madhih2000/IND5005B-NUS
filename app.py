@@ -437,56 +437,58 @@ elif tabs == "Waterfall Analysis":
 
                             # Submit button to extract & display data
                             if st.button("Run Waterfall Analysis"):
-                                result_df, lead_value = waterfall_analysis.extract_and_aggregate_weekly_data(
-                                    folder_path_zip, material_number, plant, site, start_week, int(num_weeks)
-                                )
-
-                                if result_df is not None and not result_df.empty:
-                                    st.success("✅ Data extracted successfully!")
-                                    st.markdown(
-                                        """
-                                        <style>
-                                            .gradient-line {
-                                                height: 10px;
-                                                background: linear-gradient(to right, #0000FF, #008000);
-                                                border: none;
-                                                margin: 10px 0;
-                                            }
-                                        </style>
-                                        <hr class="gradient-line">
-                                        """,
-                                        unsafe_allow_html=True
-                                    )
-                                    st.write("### Material Level Analysis:")
-
-                                    st.dataframe(result_df)
-
-                                    #wos_list, analysis_plot = waterfall_analysis.plot_stock_prediction_plotly(result_df, start_week, lead_value, num_weeks)
-                                    #st.plotly_chart(analysis_plot)
-
-                                    #messages, order_needed = waterfall_analysis.check_wos_against_lead_time(wos_list, lead_value)
-
-                                    #for message in messages:
-                                        #st.write(message)
-
-                                    #st.write(f"Immediate order needed: {order_needed}")
-
-                                    # Download button
-                                    output = BytesIO()
-                                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                                        result_df.to_excel(writer, index=False, sheet_name='Sheet1')
-                                    output.seek(0)
-
-                                    # Display download button
-                                    st.download_button(
-                                        label="📥 Download Excel File",
-                                        data=output,
-                                        file_name="waterfall_analysis.xlsx",
-                                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                with st.spinner("Running Analysis..."):
+                                    result_df, lead_value = waterfall_analysis.extract_and_aggregate_weekly_data(
+                                        folder_path_zip, material_number, plant, site, start_week, int(num_weeks)
                                     )
 
-                                else:
-                                    st.warning("No data returned from the extraction.")
+
+                                    if result_df is not None and not result_df.empty:
+                                        st.success("✅ Data extracted successfully!")
+                                        st.markdown(
+                                            """
+                                            <style>
+                                                .gradient-line {
+                                                    height: 10px;
+                                                    background: linear-gradient(to right, #0000FF, #008000);
+                                                    border: none;
+                                                    margin: 10px 0;
+                                                }
+                                            </style>
+                                            <hr class="gradient-line">
+                                            """,
+                                            unsafe_allow_html=True
+                                        )
+                                        st.write("### Material Level Analysis:")
+
+                                        st.dataframe(result_df)
+
+                                        #wos_list, analysis_plot = waterfall_analysis.plot_stock_prediction_plotly(result_df, start_week, lead_value, num_weeks)
+                                        #st.plotly_chart(analysis_plot)
+
+                                        #messages, order_needed = waterfall_analysis.check_wos_against_lead_time(wos_list, lead_value)
+
+                                        #for message in messages:
+                                            #st.write(message)
+
+                                        #st.write(f"Immediate order needed: {order_needed}")
+
+                                        # Download button
+                                        output = BytesIO()
+                                        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                                            result_df.to_excel(writer, index=False, sheet_name='Sheet1')
+                                        output.seek(0)
+
+                                        # Display download button
+                                        st.download_button(
+                                            label="📥 Download Excel File",
+                                            data=output,
+                                            file_name="waterfall_analysis.xlsx",
+                                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                        )
+
+                                    else:
+                                        st.warning("No data returned from the extraction.")
             
 elif tabs == "Inventory Simulation":
     st.title("Inventory Simulation")
