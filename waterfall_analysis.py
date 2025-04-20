@@ -2,6 +2,9 @@ import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
 import os
+from io import BytesIO
+from openpyxl import load_workbook
+from openpyxl.styles import PatternFill
 
 def generate_weeks_range(start_week, num_weeks=12):
     #weeks_range = [f"WW{str((start_week + i - num_weeks) % 52 or 52).zfill(2)}" for i in range(2 * num_weeks + 1)]
@@ -253,3 +256,44 @@ def check_wos_against_lead_time(wos_list, lead_time):
             messages.append("Last recorded value does not indicate immediate order is needed.")
 
     return messages, order_immediately
+
+def apply_coloring_to_output(excel_buffer, lead_time):
+    # Rewind buffer and load workbook
+    excel_buffer.seek(0)
+    wb = load_workbook(excel_buffer)
+    ws = wb['Sheet1']
+
+    # Define colors
+    red_fill = PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+    yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+    green_fill = PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+
+    # Identify relevant columns
+    header = [cell.value for cell in next(ws.iter_rows(min_row=1, max_row=1))]
+    measures_col_idx = header.index('Measures') + 1
+    ww_col_indices = [i + 1 for i, h in enumerate(header) if str(h).startswith("WW")]
+
+    # Apply coloring logic
+    for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+        if row[measures_col_idx - 1].value == 'Weeks of Stock':
+            for idx in ww_col_indices:
+                cell = row[idx - 1]
+                raw_val = cell.value
+                try:
+                    val = float(raw_val)
+                except (TypeError, ValueError):
+                    continue  # Skip non-numeric
+
+                
+                if val < 0:
+                    cell.fill = red_fill
+                if val < lead_time.iloc[0]:
+                    cell.fill = yellow_fill
+                else:
+                    cell.fill = green_fill
+
+    # Save again to a new BytesIO
+    colored_output = BytesIO()
+    wb.save(colored_output)
+    colored_output.seek(0)
+    return colored_output

@@ -463,15 +463,15 @@ elif tabs == "Waterfall Analysis":
 
                                         st.dataframe(result_df)
 
-                                        #wos_list, analysis_plot = waterfall_analysis.plot_stock_prediction_plotly(result_df, start_week, lead_value, num_weeks)
-                                        #st.plotly_chart(analysis_plot)
+                                        wos_list, analysis_plot = waterfall_analysis.plot_stock_prediction_plotly(result_df, start_week, lead_value, num_weeks)
+                                        st.plotly_chart(analysis_plot)
 
-                                        #messages, order_needed = waterfall_analysis.check_wos_against_lead_time(wos_list, lead_value)
+                                        messages, order_needed = waterfall_analysis.check_wos_against_lead_time(wos_list, lead_value)
 
-                                        #for message in messages:
-                                            #st.write(message)
+                                        for message in messages:
+                                            st.write(message)
 
-                                        #st.write(f"Immediate order needed: {order_needed}")
+                                        st.write(f"Immediate order needed: {order_needed}")
 
                                         # Download button
                                         output = BytesIO()
@@ -479,10 +479,13 @@ elif tabs == "Waterfall Analysis":
                                             result_df.to_excel(writer, index=False, sheet_name='Sheet1')
                                         output.seek(0)
 
+                                        # Apply coloring
+                                        colored_output = waterfall_analysis.apply_coloring_to_output(output, lead_time=lead_value)
+
                                         # Display download button
                                         st.download_button(
                                             label="📥 Download Excel File",
-                                            data=output,
+                                            data=colored_output,
                                             file_name="waterfall_analysis.xlsx",
                                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                                         )
