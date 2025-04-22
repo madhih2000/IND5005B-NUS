@@ -653,18 +653,24 @@ elif tabs == "Inventory Simulation":
             demand_surge_weeks_input = st.multiselect("Demand Surge Weeks", demand_surge_weeks_options)
             st.info("Select the weeks where you want to simulate a sudden increase in demand.")
 
+            min_order_qty = st.number_input("Minimum Order Quantity", min_value=1, max_value=10000, value=50)
+            st.info("Select the minimum order quantity for this material number to prevent small orders during simulation.")
+
             # Order Quantity Input
             order_quantity_type = st.radio("Order Quantity Type", ["Fixed", "Distribution"])
             order_quantity = 0
             order_distribution_params = None
             order_distribution_best = "Fixed Distribution"
+            
+
 
             if order_quantity_type == "Fixed":
-                order_quantity = st.number_input("Order Quantity", min_value=10, max_value=10000, value=50)
+                order_quantity = st.number_input("Order Quantity", min_value=10, max_value=10000, value=min_order_qty)
             else:  # Order Quantity Type is "Distribution"
                 order_values = filtered_orders.iloc[:, 3:].values.flatten()
                 order_distribution_params, order_distribution_best = DES.fit_distribution(order_values, "Order Quantity")
 
+            
         with col3:
             lead_time_std_dev = st.number_input("Lead Time Std Dev (weeks)", min_value=0.0, max_value=10.0, value=float(std_lead_time))
             st.info("The standard deviation of the lead time, representing variability.")
@@ -672,12 +678,12 @@ elif tabs == "Inventory Simulation":
             demand_surge_factor = st.number_input("Demand Surge Factor", min_value=0.5, max_value=5.0, value=2.0, step=0.1)
             st.info("Enter the factor by which demand will increase during the selected weeks. (e.g., 2.0 doubles demand)")
 
-            N = st.number_input("Number of Monte Carlo Simulations", min_value=1, max_value=10000, value=10)
+            N = st.number_input("Number of Monte Carlo Simulations", min_value=1, max_value=10000, value=1)
             st.info("The number of Monte Carlo simulations to run. A higher number provides more accurate results but requires more computation.")
 
         if st.button("Run Simulation"):
             with st.spinner("Running simulation..."):
-                args = (filtered_consumption, filtered_orders, filtered_receipts, initial_inventory, reorder_point, order_quantity, lead_time, lead_time_std_dev, demand_surge_weeks_input, demand_surge_factor, consumption_distribution_params, consumption_type, consumption_best_distribution, consumption_values, num_weeks, order_distribution_params, order_distribution_best, order_quantity_type)
+                args = (filtered_consumption, filtered_orders, filtered_receipts, initial_inventory, reorder_point, order_quantity, lead_time, lead_time_std_dev, demand_surge_weeks_input, demand_surge_factor, consumption_distribution_params, consumption_type, consumption_best_distribution, consumption_values, num_weeks, order_distribution_params, order_distribution_best, order_quantity_type, min_order_qty)
 
                 # Run Monte Carlo simulation
                 

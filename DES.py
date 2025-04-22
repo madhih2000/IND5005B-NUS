@@ -11,7 +11,6 @@ import logging
 import zipfile 
 import tempfile
 import os
-import logging
 
 from scipy.stats import cauchy, chi2, expon, exponpow, gamma, lognorm, norm, powerlaw, rayleigh, uniform
 from statsmodels.genmod.families import Poisson, NegativeBinomial
@@ -890,8 +889,7 @@ def simulate_ordering(order_distribution_name, order_distribution_params, num_si
         return None
 
 # Inventory Simulation
-def simulate_inventory(filtered_consumption, filtered_orders, filtered_receipts, initial_inventory, reorder_point, order_quantity, lead_time, lead_time_std_dev, demand_surge_weeks, demand_surge_factor, consumption_distribution_params, consumption_type, consumption_best_distribution, consumption_values, num_weeks, order_distribution_params,order_distribution_best, order_quantity_type):
-
+def simulate_inventory(filtered_consumption, filtered_orders, filtered_receipts, initial_inventory, reorder_point, order_quantity, lead_time, lead_time_std_dev, demand_surge_weeks, demand_surge_factor, consumption_distribution_params, consumption_type, consumption_best_distribution, consumption_values, num_weeks, order_distribution_params,order_distribution_best, order_quantity_type, min_order_qty):
     inventory = initial_inventory
     orders_pending = {}
     inventory_history = []
@@ -921,12 +919,16 @@ def simulate_inventory(filtered_consumption, filtered_orders, filtered_receipts,
             logging.warning(f"Reactive Order of {orders_pending[week]} arrived.")
             event_description += f"Reactive Order of {orders_pending[week]} arrived.\n"
             del orders_pending[week]
+        
+        event_description += f"Interim Inventory (Reactive): {inventory}\n"
 
         if week in proactive_orders_pending:
             proactive_inventory += proactive_orders_pending[week]
             logging.warning(f"Proactive Order of {proactive_orders_pending[week]} arrived.")
             event_description += f"Proactive Order of {proactive_orders_pending[week]} arrived.\n"
             del proactive_orders_pending[week]
+        
+        event_description += f"Interim Inventory (Proactive): {proactive_inventory}\n"
 
 
         # Consumption
@@ -986,13 +988,14 @@ def simulate_inventory(filtered_consumption, filtered_orders, filtered_receipts,
         # Check for reorder
         if proactive_inventory  <= sum_of_forecasted_values:
             order_quantity_to_use = sum_of_forecasted_values - proactive_inventory
-            order_quantity_to_use = max(1, int(order_quantity_to_use))  # Ensure minimum order of 1
+            order_quantity_to_use = max(min_order_qty, int(order_quantity_to_use)) 
 
             order_arrival = int(i + lead_time + variation)
             if order_arrival < num_weeks:
                 proactive_orders_pending[weeks[order_arrival]] = order_quantity_to_use
                 logging.warning(f"Proactive Order of {order_quantity_to_use} placed for week {weeks[order_arrival]}.")
                 event_description += f"Proactive Order of {order_quantity_to_use} placed due to forecasted consumption. Arrival in week {weeks[order_arrival]}.\n"
+                event_description += f"Proactive Order will arrive in week {weeks[order_arrival]}.\n"
                 proactive_forecast = True
         else:
             event_description += "No Proactive Order placed due to forecasting this week.\n"
@@ -1021,10 +1024,11 @@ def simulate_inventory(filtered_consumption, filtered_orders, filtered_receipts,
             order_values = filtered_orders.iloc[:, 3:].values.flatten()
             if order_quantity_type == "Distribution" and order_distribution_params:
                 order_quantity_to_use = simulate_ordering(order_distribution_best, order_distribution_params)
+                order_quantity_to_use = max(min_order_qty, int(order_quantity_to_use))
                 if order_quantity_to_use is None:
                     order_quantity_to_use = 0
             average_consumption = np.max(order_values)
-            order_quantity_to_use = min(average_consumption, int(order_quantity_to_use))
+            order_quantity_to_use = max(average_consumption, int(order_quantity_to_use))
             order_arrival = int(i + lead_time + variation)
 
             if order_arrival < num_weeks:
@@ -1035,8 +1039,9 @@ def simulate_inventory(filtered_consumption, filtered_orders, filtered_receipts,
                     proactive_orders_pending[weeks[order_arrival]] = order_quantity_to_use
                     logging.warning(f"Proactive Order of {order_quantity_to_use} placed for week {weeks[order_arrival]} due to reorder point.")
                     event_description += f"Proactive Order of {order_quantity_to_use} placed due to reorder point. Arrival in week {weeks[order_arrival]}.\n"
-                
+                    event_description += f"Proactive Order will arrive in week {weeks[order_arrival]}.\n"
                 event_description += f"Reactive Order of {order_quantity_to_use} placed due to reorder point. Arrival in week {weeks[order_arrival]}.\n"
+                event_description += f"Reactive Order will arrive in week {weeks[order_arrival]}.\n"
         else:
             event_description += "No Reactive Order placed this week.\n"
 
@@ -1160,12 +1165,18 @@ def extract_weekly_table(weekly_events):
             'Week Number': i,
             'Initial Inventory (Reactive)': 0,
             'Initial Inventory (Proactive)': 0,
+            'Reactive Order Arrived': None,
+            'Proactive Order Arrived': None,
+            'Interim Inventory (Reactive)': None,
+            'Interim Inventory (Proactive)': None,
             'Predicted Consumption for Next Few Weeks (Sum)': 0,
             'Consumption': 0,
             'End of Week Inventory (Proactive)': 0,
             'End of Week Inventory (Reactive)': 0,
             'Proactive Order Placed': 0,
+            'Reactive Order Arrival Week': None,
             'Reactive Order Placed': 0,
+            'Proactive Order Arrival Week': None,
             'Stockout': False  
         }
 
@@ -1180,6 +1191,30 @@ def extract_weekly_table(weekly_events):
                     week_data['Initial Inventory (Proactive)'] = int(float(re.search(r": (\d+\.?\d*)", line).group(1)))
                 except (ValueError, AttributeError):
                     print(f"Error extracting 'Starting Inventory (Proactive)' from line: {line}")
+            elif "Reactive Order of" in line and "arrived" in line:
+                try:
+                    arrival_quantity = float(re.search(r"Reactive Order of (\d+\.?\d*) arrived", line).group(1))
+                    week_data['Reactive Order Arrived'] = int(arrival_quantity)
+                except (ValueError, AttributeError):
+                    print(f"Error extracting 'Reactive Order arrived' from line: {line}")
+            elif "Proactive Order of" in line and "arrived" in line:
+                try:
+                    arrival_quantity = float(re.search(r"Proactive Order of (\d+\.?\d*) arrived", line).group(1))
+                    week_data['Proactive Order Arrived'] = int(arrival_quantity)
+                except (ValueError, AttributeError):
+                    print(f"Error extracting 'Proactive Order arrived' from line: {line}")
+            elif "Interim Inventory (Reactive):" in line:
+                    try:
+                        inventory_level = int(float(re.search(r"Interim Inventory \(Reactive\): (\d+\.?\d*)", line).group(1)))
+                        week_data['Interim Inventory (Reactive)'] = inventory_level
+                    except (ValueError, AttributeError):
+                        print(f"Error extracting 'Interim Inventory (Reactive)' from line: {line}")
+            elif "Interim Inventory (Proactive):" in line:
+                try:
+                    inventory_level = int(float(re.search(r"Interim Inventory \(Proactive\): (\d+\.?\d*)", line).group(1)))
+                    week_data['Interim Inventory (Proactive)'] = inventory_level
+                except (ValueError, AttributeError):
+                    print(f"Error extracting 'Interim Inventory (Proactive)' from line: {line}")
             elif "Forecasted consumption for next" in line:
                 try:
                     forecasted_value = re.search(r"is (\d+\.?\d*)", line).group(1)
@@ -1213,6 +1248,18 @@ def extract_weekly_table(weekly_events):
                     week_data['Reactive Order Placed'] = int(float(order_value))
                 except (ValueError, AttributeError):
                     print(f"Error extracting 'Reactive Order of' from line: {line}")
+            elif "Reactive Order will arrive in week" in line:
+                try:
+                    arrival_week = int(re.search(r"week (\d+)", line).group(1))
+                    week_data['Reactive Order Arrival Week'] = arrival_week
+                except (ValueError, AttributeError):
+                    print(f"Error extracting 'Reactive Order arrival week' from line: {line}")
+            elif "Proactive Order will arrive in week" in line:
+                try:
+                    arrival_week = int(re.search(r"week (\d+)", line).group(1))
+                    week_data['Proactive Order Arrival Week'] = arrival_week
+                except (ValueError, AttributeError):
+                    print(f"Error extracting 'Proactive Order arrival week' from line: {line}")
             elif "Stockout occurred" in line:
                 week_data['Stockout'] = True
 
