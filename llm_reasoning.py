@@ -4,6 +4,7 @@ import pandas as pd
 
 API_KEY = st.secrets["groq"]["API_KEY"]
 
+
 def explain_box_plot_with_groq_consumption(df, material_column="Material Number"):
     """
     Explains boxplot or variance of a DataFrame column using Groq LLM.
@@ -221,6 +222,67 @@ def explain_box_plot_with_groq_goods_receipt(df, material_column="Material Numbe
         )
 
         explanation = chat_completion.choices[0].message.content
+        st.write(explanation)
+
+    except Exception as e:
+        st.error(f"Error during Groq API call: {e}")
+
+def explain_waterfall_chart_with_groq(df):
+    """
+    Explains the root cause analysis of a waterfall chart.
+
+    Args:
+        df (pd.DataFrame): The DataFrame containing the data.
+        material_column (str): The name of the column containing material numbers.
+    """
+    measures = df.columns[3:]  # Assuming the first three columns are not measures
+    df_string = ", ".join(measures)
+    client = Groq(api_key=API_KEY)
+
+    system_prompt = """
+    You are an expert supply chain analyst specializing in the semiconductor industry with extensive experience in data analysis and interpretation. Your role is to analyze statistical data and provide actionable insights based on your findings.
+
+    Your task is to interpret a string description of waterfall chart dataframe representing supply chain values at the material number level which are from past historical data.
+
+    Provide key insights and interpretations of the waterfall chart data in bullet points.
+
+    Focus on:
+
+    - Analyze how key supply chain measures evolve over time and highlight key inflection points (weeks with major changes or divergences).
+    - Identify the primary drivers of negative or positive changes in EOH values over the weeks.
+    - Explain why inventory continues to decline (if applicable) even when PO/PR requests are present.
+    - Distinguish between the effects of demand variability and supply-side delays or gaps.
+    - Detect any abnormal or unexpected behaviors, such as:
+        - Persistent negative EOH and worsening over time
+        - No supply input despite growing demand
+        - Late PO/PR Requests and possible implications on fulfillment
+    - Provide contextual interpretations—do not just state values.
+    - Infer root causes for observed issues, particularly:
+        * Why EOH turns negative and remains negative (e.g., zero supply, poor planning, or missed lead times)
+        * Why demand buffers do not mitigate shortages
+        * Why PO/PR requests are concentrated late (e.g., WW27), and whether they are reactive or part of a flawed forecast cycle
+    - Integrate into your analysis the understanding that while the waterfall chart visually represents the cumulative effect of sequential changes, the actual root causes should be inferred from the underlying data and context. Do not simply state this explanation as a separate point; weave it into your analysis.
+    - Do not give me generic explanations. Everything has to be backed with the data you have seen. No generic ifs and hows.
+    Important: Use the sequential weekly data to derive temporal insights. Understand that the waterfall-style cumulative effect seen in EOH charts reflects decisions made in earlier weeks. Your analysis must go beyond visualization and into operational logic.
+
+    Do not include any introductory phrases or preambles. Start directly with the bullet points.
+    """
+
+    user_prompt = f"""
+    Explain the root cause analysis for the following waterfall chart data:\n\n{df_string}
+    """
+
+    try:
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            model="llama-3.3-70b-versatile",
+        )
+
+        explanation = chat_completion.choices[0].message.content
+        st.header("Root Cause Analysis")
         st.write(explanation)
 
     except Exception as e:

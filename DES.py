@@ -1095,16 +1095,6 @@ def run_monte_carlo_simulation(N, *args):
         all_weekly_events
     )
 
-# def compute_averages(all_inventory_histories, all_stockout_weeks, all_wos_histories, all_consumption_histories):
-#     avg_inventory = np.mean(all_inventory_histories, axis=0)
-#     avg_wos = np.mean(all_wos_histories, axis=0)
-#     avg_consumption = np.mean(all_consumption_histories, axis=0)
-
-#     # Stockout frequency: Percentage of runs where a stockout occurred in each week
-#     stockout_frequency = np.mean([len(stockout_weeks) > 0 for stockout_weeks in all_stockout_weeks])
-
-#     return avg_inventory, avg_wos, avg_consumption, stockout_frequency
-
 def compute_averages(all_inventory_histories, all_proactive_inventory_histories, all_stockout_weeks, all_proactive_stockout_weeks, all_wos_histories, all_proactive_wos_histories, all_consumption_histories):
     avg_inventory = np.mean(all_inventory_histories, axis=0)
     avg_proactive_inventory = np.mean(all_proactive_inventory_histories, axis=0)

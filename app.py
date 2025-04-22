@@ -490,6 +490,8 @@ elif tabs == "Waterfall Analysis":
                                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                                         )
 
+                                        llm_reasoning.explain_waterfall_chart_with_groq(result_df)
+
                                     else:
                                         st.warning("No data returned from the extraction.")
             
