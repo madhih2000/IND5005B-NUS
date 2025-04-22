@@ -500,14 +500,21 @@ elif tabs == "Inventory Simulation":
     uploaded_consumption = st.file_uploader("Upload Consumption File", type="xlsx")
     uploaded_goods_receipt = st.file_uploader("Upload Goods Receipt Excel File", type="xlsx")
     uploaded_order_placement = st.file_uploader("Upload Order Placement Excel File", type="xlsx")
-    uploaded_merged = st.file_uploader("Upload Merged Shortage Excel File", type="xlsx")
-
+    uploaded_merged = st.file_uploader("Upload Shortage Zip File",  type=["zip"])
+               
     # Load files only when they are first uploaded
-    DES.load_and_store_file(uploaded_consumption, "consumption_df")
-    DES.load_and_store_file(uploaded_goods_receipt, "gr_df")
-    DES.load_and_store_file(uploaded_order_placement, "order_df")
-    DES.load_and_store_file(uploaded_merged, "merged_df")
+    if uploaded_consumption and "consumption_df" not in st.session_state:
+        DES.load_and_store_file(uploaded_consumption, "consumption_df")
 
+    if uploaded_goods_receipt and "gr_df" not in st.session_state:
+        DES.load_and_store_file(uploaded_goods_receipt, "gr_df")
+
+    if uploaded_order_placement and "order_df" not in st.session_state:
+        DES.load_and_store_file(uploaded_order_placement, "order_df")
+
+    if uploaded_merged and "merged_df" not in st.session_state:
+        DES.load_zip_folder(uploaded_merged, "merged_df")
+    
     # Access stored files without reloading
     if "consumption_df" in st.session_state:
         consumption_df = st.session_state["consumption_df"]
@@ -562,7 +569,7 @@ elif tabs == "Inventory Simulation":
                                     (gr_df['Site'] == selected_site)].reset_index(drop=True)
         filtered_merged = merged_df[(merged_df['Material Number'] == selected_material) & 
                                     (merged_df['Plant'] == selected_plant) & 
-                                    (merged_df['Site'] == selected_site) & (merged_df['Measures'] == 'Supply')].reset_index(drop=True)
+                                    (merged_df['Site'] == selected_site)].reset_index(drop=True)
         
         max_lead_time, std_lead_time, dist_name, dist_params = DES.process_lead_time(filtered_merged)
 
@@ -570,7 +577,11 @@ elif tabs == "Inventory Simulation":
             num_weeks = st.number_input("Number of Simulation Weeks", min_value=1, value=52)
             st.info("Set the number of weeks for the simulation.")
 
-            initial_inventory = st.number_input("Initial Inventory", min_value=10, max_value=20000, value=50)
+            if not filtered_consumption.empty and "BUn" in filtered_consumption.columns:
+                unit = filtered_consumption["BUn"].iloc[0]
+            else:
+                unit = ""
+            initial_inventory = st.number_input(f"Initial Inventory (BUn: {unit})", min_value=10, max_value=20000, value=50)
             st.info("The starting inventory level for the simulation.")
 
             # Consumption Input
@@ -601,7 +612,7 @@ elif tabs == "Inventory Simulation":
                 st.info("The inventory level at which a new order is placed.")
 
             else:  # Consumption Type is "Distribution"
-                consumption_values = filtered_consumption.iloc[:, 3:].values.flatten()
+                consumption_values = filtered_consumption.iloc[:, 4:].values.flatten()
                 consumption_distribution_params, consumption_best_distribution  = DES.fit_distribution(consumption_values, "Consumption")
                 mean_consumption = DES.get_mean_from_distribution(consumption_best_distribution, consumption_distribution_params)
                 std_consumption = DES.get_std_from_distribution(consumption_best_distribution, consumption_distribution_params)

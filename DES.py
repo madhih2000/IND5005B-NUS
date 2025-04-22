@@ -8,6 +8,10 @@ import time
 import fitter
 import random
 import logging
+import zipfile 
+import tempfile
+import os
+import logging
 
 from scipy.stats import cauchy, chi2, expon, exponpow, gamma, lognorm, norm, powerlaw, rayleigh, uniform
 from statsmodels.genmod.families import Poisson, NegativeBinomial
@@ -19,6 +23,9 @@ from statsmodels.tsa.stattools import adfuller
 
 import forecast_models
 
+# Configure logging (optional: customize filename, format, etc.)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
 def load_data(uploaded_file):
     """Loads data from an uploaded Excel file."""
     try:
@@ -27,6 +34,90 @@ def load_data(uploaded_file):
     except Exception as e:
         st.error(f"Error loading file: {e}")
         return None
+
+
+def load_zip_folder(zip_file_path, key):
+    with st.spinner("Processing ZIP file. Please wait..."):
+        # Use a temporary directory for extracting ZIP contents
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Extract the ZIP file to the temporary directory
+            with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
+                zip_ref.extractall(temp_dir)
+
+            # Initialize an empty DataFrame to store all data
+            all_data = None
+
+            # Set of detected week numbers
+            week_numbers = []
+
+            # Specify the columns to select
+            columns_to_select = ['Plant', 'Site', 'Material Group', 'Material Number', 'Supplier', 'Measures', 'Inventory On-Hand', 'Lead Time (Week)']
+
+            # Loop through each file in the unzipped directory
+            for root, dirs, files in os.walk(temp_dir):
+                for file_name in files:
+                    if file_name.startswith('WW') and file_name.endswith('.xlsx'):
+                        # Extract week number using regex
+                        match = re.search(r'WW(\d+)', file_name)
+                        if not match:
+                            continue  # Skip if no match found
+
+                        week_number = match.group(1).zfill(2)
+                        week_numbers.append(week_number)
+
+                        # Log progress
+                        logging.info(f"Processing week WW{week_number} - file: {file_name}")
+
+                        # Construct the full path to the file
+                        file_path = os.path.join(root, file_name)
+
+                        # Read Excel file
+                        df = pd.read_excel(file_path)
+
+                        # Clean column names
+                        df.columns = df.columns.str.replace('\n', ' ').str.strip().str.replace('  ', ' ')
+
+                        # Filter and select columns
+                        df = df[df['Measures'] == 'Supply']
+                        df = df[columns_to_select]
+
+                        # Rename columns with week number
+                        df.rename(columns={
+                            'Inventory On-Hand': f'Inventory WW{week_number}',
+                            'Lead Time (Week)': f'Lead Time WW{week_number}'
+                        }, inplace=True)
+
+                        # Drop the Measures column
+                        df.drop(columns=['Measures'], inplace=True)
+
+                        # Merge into all_data
+                        if all_data is None:
+                            all_data = df
+                        else:
+                            all_data = pd.merge(
+                                all_data, df,
+                                on=['Plant', 'Site', 'Material Group', 'Material Number', 'Supplier'],
+                                how='outer'
+                            )
+
+            # Sort week_numbers and build column order
+            week_numbers = sorted(set(week_numbers), key=lambda x: int(x))
+            columns_order = ['Plant', 'Site', 'Material Group', 'Material Number', 'Supplier']
+            for week in week_numbers:
+                columns_order.append(f'Inventory WW{week}')
+                columns_order.append(f'Lead Time WW{week}')
+
+            # Ensure only available columns are selected
+            existing_columns = [col for col in columns_order if col in all_data.columns]
+            all_data = all_data[['Plant', 'Site', 'Material Group', 'Material Number', 'Supplier'] + existing_columns[5:]]
+
+            # Remove any suffixes accidentally added during merge
+            all_data.columns = all_data.columns.str.replace(r'\.\w+', '', regex=True)
+
+            # Save to session state
+            if key not in st.session_state:
+                st.session_state[key] = all_data
+
 
 # Function to load and store files in session state
 def load_and_store_file(file, key):
@@ -230,14 +321,14 @@ def preprocess_data_consumption(df):
     # Step 2: Extract the week number of the year
     df['Week'] = df['Pstng Date'].dt.isocalendar().week
     # Step 3: Group by Material Number, Plant, Site, and Week, then sum the Quantity
-    grouped = df.groupby(['Material Number', 'Plant', 'Site', 'Week'])['Quantity'].sum().reset_index()
+    grouped = df.groupby(['Material Number', 'Plant', 'Site', 'Week','BUn'])['Quantity'].sum().reset_index()
     # Step 4: Pivot the data to get quantities per week as columns
-    pivot_df = grouped.pivot_table(index=['Material Number', 'Plant', 'Site'], columns='Week', values='Quantity', aggfunc='sum').reset_index()
+    pivot_df = grouped.pivot_table(index=['Material Number', 'Plant', 'Site', 'BUn'], columns='Week', values='Quantity', aggfunc='sum').reset_index()
     # Step 5: Rename the columns to include 'WW' for clarity
-    pivot_df.columns = ['Material Number', 'Plant', 'Site'] + [f'WW{int(col)}_Consumption' for col in pivot_df.columns[3:]]
+    pivot_df.columns = ['Material Number', 'Plant', 'Site', 'BUn'] + [f'WW{int(col)}_Consumption' for col in pivot_df.columns[4:]]
     pivot_df = pivot_df.fillna(0)
     # Apply abs() only to the numeric columns (ignoring non-numeric ones)
-    pivot_df.iloc[:, 3:] = pivot_df.iloc[:, 3:].apply(pd.to_numeric, errors='coerce').abs()
+    pivot_df.iloc[:, 4:] = pivot_df.iloc[:, 4:].apply(pd.to_numeric, errors='coerce').abs()
     return pivot_df
 
 def preprocess_data_GR(df_GR):
