@@ -983,11 +983,13 @@ def simulate_inventory(filtered_consumption, filtered_orders, filtered_receipts,
         logging.warning(f"Forecasted consumption for next {lead_time} weeks: {sum_of_forecasted_values}")
         event_description += f"Forecasted consumption for next {lead_time} weeks is {sum_of_forecasted_values}.\n"
 
+        total_proactive_inventory = proactive_inventory + sum(qty for wk, qty in proactive_orders_pending.items() if i < weeks.index(wk) < num_weeks) # Ensure arrival within simulation window
+
         proactive_forecast = False
         variation = round(random.gauss(0, lead_time_std_dev))
         # Check for reorder
-        if proactive_inventory  <= sum_of_forecasted_values:
-            order_quantity_to_use = sum_of_forecasted_values - proactive_inventory
+        if total_proactive_inventory  <= sum_of_forecasted_values:
+            order_quantity_to_use = sum_of_forecasted_values - total_proactive_inventory
             order_quantity_to_use = max(min_order_qty, int(order_quantity_to_use)) 
 
             order_arrival = int(i + lead_time + variation)
@@ -1000,26 +1002,10 @@ def simulate_inventory(filtered_consumption, filtered_orders, filtered_receipts,
         else:
             event_description += "No Proactive Order placed due to forecasting this week.\n"
 
-        # if proactive_inventory <= reorder_point and not proactive_forecast:
-        #     order_quantity_to_use = order_quantity
-        #     order_values = filtered_orders.iloc[:, 3:].values.flatten()
-        #     if order_quantity_type == "Distribution" and order_distribution_params:
-        #         order_quantity_to_use = simulate_ordering(order_distribution_best, order_distribution_params)
-        #         if order_quantity_to_use is None:
-        #             order_quantity_to_use = 0
-            
-        #     average_consumption = np.max(order_values)
-        #     order_quantity_to_use = min(average_consumption, int(order_quantity_to_use))
-        #     order_arrival = int(i + lead_time + round(random.gauss(0, lead_time_std_dev)))
-
-        #     if order_arrival < num_weeks:
-        #         proactive_orders_pending[weeks[order_arrival]] = order_quantity_to_use
-        #         event_description += f" Proactive Order of {order_quantity_to_use} placed due to reorder point. Arrival in week {weeks[order_arrival]}.\n"
-        # else:
-        #     event_description += "No proactive order placed this week.\n"
-
+        # Check if an order is already pending that will bring inventory above the reorder point within the simulation window
+        future_inventory = proactive_inventory + sum(qty for wk, qty in proactive_orders_pending.items() if i < weeks.index(wk) < num_weeks and weeks.index(wk) > i)
         # Check for reorder
-        if (inventory <= reorder_point) or (proactive_inventory <= reorder_point and not proactive_forecast):
+        if (inventory <= reorder_point) or (future_inventory <= reorder_point and not proactive_forecast):
             order_quantity_to_use = order_quantity
             order_values = filtered_orders.iloc[:, 3:].values.flatten()
             if order_quantity_type == "Distribution" and order_distribution_params:
@@ -1033,9 +1019,8 @@ def simulate_inventory(filtered_consumption, filtered_orders, filtered_receipts,
 
             if order_arrival < num_weeks:
                 orders_pending[weeks[order_arrival]] = order_quantity_to_use
-                
                 # Check if the proactive condition is met before adding to proactive_orders_pending
-                if proactive_inventory <= reorder_point and not proactive_forecast:
+                if future_inventory <= reorder_point and not proactive_forecast:
                     proactive_orders_pending[weeks[order_arrival]] = order_quantity_to_use
                     logging.warning(f"Proactive Order of {order_quantity_to_use} placed for week {weeks[order_arrival]} due to reorder point.")
                     event_description += f"Proactive Order of {order_quantity_to_use} placed due to reorder point. Arrival in week {weeks[order_arrival]}.\n"
@@ -1046,7 +1031,7 @@ def simulate_inventory(filtered_consumption, filtered_orders, filtered_receipts,
             event_description += "No Reactive Order placed this week.\n"
 
         # Calculate WoS
-        average_consumption = sum(consumption_history[:i + 1]) / (i + 1) if i >= 0 else 0
+        average_consumption = sum(consumption_history[max(0, i - 5):i + 1]) / len(consumption_history[max(0, i - 5):i + 1])
         wos = inventory / average_consumption if average_consumption > 0 else 0
         wos_history.append(wos)
 
@@ -1093,7 +1078,7 @@ def run_monte_carlo_simulation(N, *args):
         all_weekly_events.append(weekly_events)
 
         # Update progress bar
-        my_bar.progress((i + 1) / N, text=f"Processing simulation: {i + 2} out of {N}")
+        my_bar.progress((i + 1) / N, text=f"Processing simulation: {i + 1} out of {N}")
         
     time.sleep(1)
     # Remove progress bar when done
