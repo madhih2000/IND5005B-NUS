@@ -263,7 +263,7 @@ def explain_waterfall_chart_with_groq(df):
             Do not include any introductory phrases or preambles. Start directly with the bullet points.
             """
 
-        user_prompt = f"""
+    user_prompt = f"""
         Explain the root cause analysis for the following waterfall chart data:\n\n{df_string}
         """
 
