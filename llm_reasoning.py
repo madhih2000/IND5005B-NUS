@@ -234,8 +234,7 @@ def explain_waterfall_chart_with_groq(df):
         df (pd.DataFrame): The DataFrame containing the data.
         material_column (str): The name of the column containing material numbers.
     """
-    measures = df.columns[3:]  # Assuming the first three columns are not measures
-    df_string = ", ".join(measures)
+    df_string = df.to_string(index=False)
     client = Groq(api_key=API_KEY)
 
     system_prompt = """
