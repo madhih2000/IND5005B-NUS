@@ -287,7 +287,7 @@ def apply_coloring_to_output(excel_buffer, lead_time):
                 
                 if val < 0:
                     cell.fill = red_fill
-                if val < lead_time.iloc[0]:
+                elif val < lead_time.iloc[0]:
                     cell.fill = yellow_fill
                 else:
                     cell.fill = green_fill
