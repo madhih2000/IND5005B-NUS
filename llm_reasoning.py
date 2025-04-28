@@ -4,6 +4,7 @@ import pandas as pd
 
 API_KEY = st.secrets["groq"]["API_KEY"]
 
+
 def explain_box_plot_with_groq_consumption(df, material_column="Material Number"):
     """
     Explains boxplot or variance of a DataFrame column using Groq LLM.
@@ -226,61 +227,158 @@ def explain_box_plot_with_groq_goods_receipt(df, material_column="Material Numbe
     except Exception as e:
         st.error(f"Error during Groq API call: {e}")
 
+# def explain_waterfall_chart_with_groq(df):
+#     """
+#     Explains the root cause analysis of a waterfall chart.
+
+#     Args:
+#         df (pd.DataFrame): The DataFrame containing the data.
+#         material_column (str): The name of the column containing material numbers.
+#     """
+#     df_string = df.to_string(index=False)
+#     client = Groq(api_key=API_KEY)
+
+#     system_prompt = """
+#             You are an expert supply chain analyst specializing in the semiconductor industry with extensive experience in data analysis and interpretation. Your role is to analyze statistical data and provide actionable insights based on your findings.
+            
+#             Your task is to interpret a string description of waterfall chart dataframe representing supply chain values at the material number level which are from past historical data. The data is structured in a weekly format labelled as “WW” and the respective week number.
+            
+#             Provide key insights and interpretations of the waterfall chart data in bullet points.
+            
+#             Focus on:
+#             1.  Identify any negative values in the rows 'Weeks of Stock', and highlight if there are significant differences of more than 4 weeks. 
+#             2.  Identify any major differences between the row 'Demand w/o Buffer' under the 'Measures' row for the material number across the different weeks in the first column.
+#             3.  Distinguish between the effects of demand variability and supply-side delays or gaps.
+#             4.  If there are any negative values for the 'EOH w/o Buffer', validate within the same week if there are any supply issues or negative inventory or demand requirements.
+#             5.  Provide contextual interpretations—do not just state values.
+#             6.  Provide recommendations focusing on improving the overall supply to meet demand fluctuations.
+#             7.  Infer root causes for observed issues, particularly:
+#             * Why does the inventory on hand - 'EOH w/o Buffer' - turn negative and remains negative (e.g., zero supply, poor planning, or missed lead times, unexpected demand)
+            
+#             Integrate into your analysis the understanding that while the waterfall chart visually represents the cumulative effect of sequential changes, the actual root causes should be inferred from the underlying data and context. Do not simply state this explanation as a separate point; weave it into your analysis.
+#             Do not give me generic explanations. Everything has to be backed with the data you have seen. No generic ifs and hows.
+            
+#             Important: Use the sequential weekly data to derive temporal insights. Understand that the waterfall-style cumulative effect seen in EOH charts reflects decisions made in earlier weeks. Your analysis must go beyond visualization and into operational logic.
+
+#             Do not include any introductory phrases or preambles. Start directly with the bullet points.
+#             """
+
+#     user_prompt = f"""
+#         Explain the root cause analysis for the following waterfall chart data:\n\n{df_string}
+#         """
+
+#     try:
+#         chat_completion = client.chat.completions.create(
+#             messages=[
+#                 {"role": "system", "content": system_prompt},
+#                 {"role": "user", "content": user_prompt},
+#             ],
+#             model="llama-3.3-70b-versatile",
+#         )
+
+#         explanation = chat_completion.choices[0].message.content
+#         st.header("Root Cause Analysis")
+#         st.write(explanation)
+
+#     except Exception as e:
+#         st.error(f"Error during Groq API call: {e}")
+
 def explain_waterfall_chart_with_groq(df):
     """
-    Explains the root cause analysis of a waterfall chart.
+    Explains the root cause analysis of a waterfall chart, with chunking for large inputs.
 
     Args:
         df (pd.DataFrame): The DataFrame containing the data.
-        material_column (str): The name of the column containing material numbers.
     """
     df_string = df.to_string(index=False)
     client = Groq(api_key=API_KEY)
 
     system_prompt = """
-            You are an expert supply chain analyst specializing in the semiconductor industry with extensive experience in data analysis and interpretation. Your role is to analyze statistical data and provide actionable insights based on your findings.
-            
-            Your task is to interpret a string description of waterfall chart dataframe representing supply chain values at the material number level which are from past historical data. The data is structured in a weekly format labelled as “WW” and the respective week number.
-            
-            Provide key insights and interpretations of the waterfall chart data in bullet points.
-            
-            Focus on:
-            1.  Identify any negative values in the rows 'Weeks of Stock', and highlight if there are significant differences of more than 4 weeks. 
-            2.  Identify any major differences between the row 'Demand w/o Buffer' under the 'Measures' row for the material number across the different weeks in the first column.
-            3.  Distinguish between the effects of demand variability and supply-side delays or gaps.
-            4.  If there are any negative values for the 'EOH w/o Buffer', validate within the same week if there are any supply issues or negative inventory or demand requirements.
-            5.  Provide contextual interpretations—do not just state values.
-            6.  Provide recommendations focusing on improving the overall supply to meet demand fluctuations.
-            7.  Infer root causes for observed issues, particularly:
-            * Why does the inventory on hand - 'EOH w/o Buffer' - turn negative and remains negative (e.g., zero supply, poor planning, or missed lead times, unexpected demand)
-            
-            Integrate into your analysis the understanding that while the waterfall chart visually represents the cumulative effect of sequential changes, the actual root causes should be inferred from the underlying data and context. Do not simply state this explanation as a separate point; weave it into your analysis.
-            Do not give me generic explanations. Everything has to be backed with the data you have seen. No generic ifs and hows.
-            
-            Important: Use the sequential weekly data to derive temporal insights. Understand that the waterfall-style cumulative effect seen in EOH charts reflects decisions made in earlier weeks. Your analysis must go beyond visualization and into operational logic.
+        You are an expert supply chain analyst specializing in the semiconductor industry with extensive experience in data analysis and interpretation. Your role is to analyze statistical data and provide actionable insights based on your findings.
+        
+        Your task is to interpret a string description of waterfall chart dataframe representing supply chain values at the material number level which are from past historical data. The data is structured in a weekly format labelled as “WW” and the respective week number.
+        
+        Provide key insights and interpretations of the waterfall chart data in bullet points.
+        
+        Focus on:
+        1.  Identify any negative values in the rows 'Weeks of Stock', and highlight if there are significant differences of more than 4 weeks. 
+        2.  Identify any major differences between the row 'Demand w/o Buffer' under the 'Measures' row for the material number across the different weeks in the first column.
+        3.  Distinguish between the effects of demand variability and supply-side delays or gaps.
+        4.  If there are any negative values for the 'EOH w/o Buffer', validate within the same week if there are any supply issues or negative inventory or demand requirements.
+        5.  Provide contextual interpretations—do not just state values.
+        6.  Provide recommendations focusing on improving the overall supply to meet demand fluctuations.
+        7.  Infer root causes for observed issues, particularly:
+           * Why does the inventory on hand - 'EOH w/o Buffer' - turn negative and remains negative (e.g., zero supply, poor planning, or missed lead times, unexpected demand)
+        
+        Integrate into your analysis the understanding that while the waterfall chart visually represents the cumulative effect of sequential changes, the actual root causes should be inferred from the underlying data and context. Do not simply state this explanation as a separate point; weave it into your analysis.
+        Do not give generic explanations. Everything must be backed with the provided data.
+        
+        Important: Use the sequential weekly data to derive temporal insights. Understand that the waterfall-style cumulative effect seen in EOH charts reflects decisions made in earlier weeks. Your analysis must go beyond visualization and into operational logic.
+        
+        Do not include any introductory phrases or preambles. Start directly with bullet points.
+    """
 
-            Do not include any introductory phrases or preambles. Start directly with the bullet points.
-            """
-
-    user_prompt = f"""
-        Explain the root cause analysis for the following waterfall chart data:\n\n{df_string}
-        """
+    def process_chunk(chunk_text):
+        """Helper function to process a chunk of the dataframe text."""
+        user_prompt = f"Explain the root cause analysis for the following waterfall chart data:\n\n{chunk_text}"
+        try:
+            chat_completion = client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                model="llama-3.3-70b-versatile",
+            )
+            return chat_completion.choices[0].message.content
+        except Exception as e:
+            return f"Error during Groq API call: {e}"
 
     try:
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            model="llama-3.3-70b-versatile",
-        )
-
-        explanation = chat_completion.choices[0].message.content
-        st.header("Root Cause Analysis")
-        st.write(explanation)
+        # First, try to process the entire data
+        explanation = process_chunk(df_string)
+        if "Error during Groq API call" not in explanation:
+            st.header("Root Cause Analysis")
+            st.write(explanation)
+        else:
+            raise Exception("Large input, need chunking.")
 
     except Exception as e:
-        st.error(f"Error during Groq API call: {e}")
+        # Handle large inputs by chunking
+        st.warning("Large input detected. Chunking the data for processing...")
+
+        # Chunk the dataframe text by number of rows
+        max_divisor = 10  # Max chunks to attempt
+        df_rows = df.shape[0]
+        
+        for divisor in range(2, max_divisor + 1):
+            chunk_size = df_rows // divisor
+            chunks = [df.iloc[i:i + chunk_size] for i in range(0, df_rows, chunk_size)]
+            
+            chunk_results = []
+            chunk_failed = False
+
+            for chunk in chunks:
+                chunk_text = chunk.to_string(index=False)
+                chunk_result = process_chunk(chunk_text)
+
+                if "Error during Groq API call" in chunk_result:
+                    chunk_failed = True
+                    break  # This divisor size fails, try smaller chunks
+                else:
+                    chunk_results.append(chunk_result)
+
+            if not chunk_failed:
+                # All chunks processed successfully
+                break
+
+        if chunk_results:
+            # Consolidate the results into a cohesive output
+            st.header("Root Cause Analysis (Consolidated)")
+            for idx, result in enumerate(chunk_results, 1):
+                st.subheader(f"Chunk {idx}")
+                st.write(result)
+        else:
+            st.error("Failed to process the data even after chunking.")
 
 def explain_inventory_events(representative_weekly_events, reorder_point, lead_time, lead_time_std_dev, consumption_distribution_params, consumption_type, consumption_best_distribution, order_distribution_params, order_quantity_type, order_distribution_best):
     """
