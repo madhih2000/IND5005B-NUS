@@ -1,8 +1,6 @@
 # Micron SupplySense
 
-Micron SupplySense is a data-driven dashboard application designed to provide insights into supply chain metrics using interactive visualizations. Built with Python and Streamlit, it allows users to explore key trends, simulation, and analytics in an intuitive interface. 
-
-Testing github integration.
+Micron SupplySense is a data-driven dashboard application designed to provide insights into supply chain metrics using interactive visualizations. Built with Python and Streamlit, it allows users to explore key trends, simulation, and analytics in an intuitive interface.
 
 
 ## 🛠️ Getting Started
