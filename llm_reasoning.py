@@ -495,7 +495,7 @@ def explain_waterfall_chart_with_groq(df):
         else:
             st.error("Failed to process the data even after chunking.")
 
-            
+
 
 def explain_inventory_events(representative_weekly_events, reorder_point, lead_time, lead_time_std_dev, consumption_distribution_params, consumption_type, consumption_best_distribution, order_distribution_params, order_quantity_type, order_distribution_best):
     """
@@ -593,7 +593,7 @@ def explain_inventory_events(representative_weekly_events, reorder_point, lead_t
         st.write(result)
     except Exception as e:
         # If an exception occurs, split the events into chunks and process each chunk separately
-        max_divisor = 10  # Maximum divisor to split the data
+        max_divisor = 50  # Maximum divisor to split the data
         for divisor in range(2, max_divisor + 1):
             chunk_size = len(representative_weekly_events) // divisor
             chunks = [representative_weekly_events[i:i + chunk_size] for i in range(0, len(representative_weekly_events), chunk_size)]
