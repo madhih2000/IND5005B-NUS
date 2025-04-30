@@ -421,6 +421,7 @@ def analyze_week_to_week_demand_changes(result_df):
 
     for index, row in filtered_df.iterrows():
         col_name = row["Snapshot"]
+        st.write(index, col_name)
         if col_name in filtered_df.columns:
             value = row[col_name]
             st.write(value)  # or store/use it as needed
