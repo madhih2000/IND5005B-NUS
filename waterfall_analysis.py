@@ -407,7 +407,8 @@ def check_demand(df):
 def analyze_diagonal_week_to_week_demand_changes(result_df):
     """
     Filters for 'Demand w/o Buffer', calculates week-to-week changes diagonally,
-    and generates detailed change analysis for a waterfall chart.
+    and generates detailed change analysis for a waterfall chart.  The first week
+    is considered 'actual', and subsequent weeks are compared to that actual.
 
     Returns:
         - week_to_week_diff: raw difference values
@@ -428,6 +429,8 @@ def analyze_diagonal_week_to_week_demand_changes(result_df):
 
     # Step 3: Compute differences diagonally
     week_to_week_diff = {}
+    first_week_value = None  # Store the actual value from the first week
+
     for week_col in week_cols:
         # Extract the week number from the column name (e.g., 'WW20' becomes 20)
         try:
@@ -438,24 +441,17 @@ def analyze_diagonal_week_to_week_demand_changes(result_df):
         # Find the row where the 'Snapshot' value matches the week number
         matching_row = filtered_df[filtered_df['Snapshot'].str.contains(f"WW{week_number}")].index
         if len(matching_row) > 0:
-            #Get the first row.
+            # Get the first row.
             matching_row_index = matching_row[0]
             # Get the value from the week column for the matching row
             current_value = filtered_df.loc[matching_row_index, week_col]
 
-            #Find the previous week.
-            previous_week_number = week_number - 1
-            previous_week_col = f"WW{previous_week_number}"
-            if previous_week_col in week_cols:
-                previous_matching_row = filtered_df[filtered_df['Snapshot'].str.contains(f"WW{previous_week_number}")].index
-                if len(previous_matching_row) > 0:
-                    previous_value = filtered_df.loc[previous_matching_row[0], previous_week_col]
-                    week_to_week_diff[week_col] = current_value - previous_value
-                else:
-                    week_to_week_diff[week_col] = current_value - 0 #If there is no previous week, assume 0
+            if first_week_value is None:
+                # If this is the first week, store its value as the 'actual'
+                first_week_value = current_value
+                week_to_week_diff[week_col] = 0  # Difference for the first week is 0
             else:
-                 week_to_week_diff[week_col] = current_value - 0 #If there is no previous week, assume 0
+                # Calculate the difference from the 'actual' (first week's value)
+                week_to_week_diff[week_col] = current_value - first_week_value
         else:
             week_to_week_diff[week_col] = 0  # If no matching snapshot, the difference is 0
-
-    return pd.DataFrame(week_to_week_diff, index=[0]) # Return as a DataFrame
