@@ -86,7 +86,7 @@ def explain_box_plot_with_groq_consumption(df, material_column="Material Number"
             st.write(explanation)
             break  # Success, exit loop
         except Exception as e:
-            st.warning(f"Model {model} failed: {e}")
+            # st.warning(f"Model {model} failed: {e}")
             continue
     else:
         st.error("All model attempts failed.")
@@ -163,7 +163,7 @@ def explain_box_plot_with_groq_orderplacement(df, material_column="Material Numb
             st.write(explanation)
             break  # Success, exit loop
         except Exception as e:
-            st.warning(f"Model {model} failed: {e}")
+            # st.warning(f"Model {model} failed: {e}")
             continue
     else:
         st.error("All model attempts failed.")
@@ -240,7 +240,7 @@ def explain_box_plot_with_groq_goods_receipt(df, material_column="Material Numbe
             st.write(explanation)
             break  # Success, exit loop
         except Exception as e:
-            st.warning(f"Model {model} failed: {e}")
+            # st.warning(f"Model {model} failed: {e}")
             continue
     else:
         st.error("All model attempts failed.")
@@ -343,7 +343,7 @@ def explain_scenario_4_with_groq(df):
             st.write(explanation)
             break  # Success, exit loop
         except Exception as e:
-            st.warning(f"Model {model} failed: {e}")
+            # st.warning(f"Model {model} failed: {e}")
             continue
     else:
         st.error("All model attempts failed.")
@@ -424,7 +424,7 @@ def explain_waterfall_chart_with_groq(df):
                     )
                     return chat_completion.choices[0].message.content
                 except Exception as e:
-                    st.warning(f"Model {model} failed: {e}")
+                    # st.warning(f"Model {model} failed: {e}")
                     continue
             return "All model attempts failed."
 
@@ -436,7 +436,7 @@ def explain_waterfall_chart_with_groq(df):
         else:
             raise Exception("Large input or model limits reached. Chunking required.")
     except Exception:
-        st.warning("Large input detected or failure occurred. Chunking the data for processing...")
+        # st.warning("Large input detected or failure occurred. Chunking the data for processing...")
 
         max_divisor = 10
         df_rows = df.shape[0]
@@ -489,7 +489,7 @@ def explain_waterfall_chart_with_groq(df):
                     st.write(final_summary)
                     break
                 except Exception as e:
-                    st.warning(f"Final consolidation model {model} failed: {e}")
+                    # st.warning(f"Final consolidation model {model} failed: {e}")
             else:
                 st.error("All model attempts failed for final consolidation.")
         else:
@@ -580,7 +580,7 @@ def explain_inventory_events(representative_weekly_events, reorder_point, lead_t
                 return chat_completion.choices[0].message.content
             except Exception as e:
                 if hasattr(e, "status_code") and e.status_code == 429:
-                    st.warning(f"Rate limit hit on model {model}. Trying next model...")
+                    #st.warning(f"Rate limit hit on model {model}. Trying next model...")
                     continue  # Try next model
                 else:
                     raise e  # Trigger chunking if it's any other error
@@ -598,7 +598,7 @@ def explain_inventory_events(representative_weekly_events, reorder_point, lead_t
 
     except Exception as main_error:
         # Fallback to chunking
-        st.warning("Falling back to chunking due to input size or model error.")
+        # st.warning("Falling back to chunking due to input size or model error.")
 
         max_divisor = 50
         successful = False
