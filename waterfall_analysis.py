@@ -404,15 +404,14 @@ def check_demand(df):
 
     return pd.DataFrame(standout_weeks_info)
 
-# Scenario 5; Identifying irregular consumption patterns
-def analyze_week_to_week_demand_changes(result_df):
+# Scenario 5: Identifying irregular consumption patterns
+def analyze_week_to_week_demand_changes(result_df, abs_threshold=10, pct_threshold=0.3):
     """
-    Filters for 'Demand w/o Buffer', calculates week-to-week changes diagonally,
-    and generates detailed change analysis for a waterfall chart.  The first week
-    is considered 'actual', and subsequent weeks are compared to that actual.
+    Filters for 'Demand w/o Buffer', calculates demand values based on snapshot columns,
+    and detects week-to-week anomalies such as spikes or drops.
 
     Returns:
-        - week_to_week_diff: raw difference values
+        - output_df: DataFrame with demand values and irregular pattern flags
     """
     # Step 1: Filter
     filtered_df = result_df[result_df['Measures'] == 'Demand w/o Buffer'].copy()
@@ -433,7 +432,19 @@ def analyze_week_to_week_demand_changes(result_df):
                 "Demand w/o Buffer": demand_value
             })
 
+    # Step 2: Create base output DataFrame
     output_df = pd.DataFrame(output_rows)
-    return output_df
 
+    # Step 3: Sort and calculate week-over-week changes
+    output_df = output_df.sort_values(by="Snapshot").reset_index(drop=True)
+    output_df["WoW Change"] = output_df["Demand w/o Buffer"].diff()
+    output_df["WoW % Change"] = output_df["Demand w/o Buffer"].pct_change()
+
+    # Step 4: Flag irregularities
+    output_df["Spike"] = output_df["WoW Change"] > abs_threshold
+    output_df["Drop"] = output_df["WoW Change"] < -abs_threshold
+    output_df["Sudden % Spike"] = output_df["WoW % Change"] > pct_threshold
+    output_df["Sudden % Drop"] = output_df["WoW % Change"] < -pct_threshold
+
+    return output_df
         
