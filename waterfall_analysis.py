@@ -427,32 +427,34 @@ def analyze_week_to_week_demand_changes(result_df):
     # Step 3: Compute differences
     week_to_week_diff = filtered_df[week_cols].diff(axis=1)
 
-    # Step 4: Generate detailed summary
-    change_summary = []
+    return week_to_week_diff
 
-    for index, row in filtered_df.iterrows():
-        snapshot = row["Snapshot"]
-        material = row["MaterialNumber"]
-        changes = []
+    # # Step 4: Generate detailed summary
+    # change_summary = []
 
-        diff_row = week_to_week_diff.loc[index]
+    # for index, row in filtered_df.iterrows():
+    #     snapshot = row["Snapshot"]
+    #     material = row["MaterialNumber"]
+    #     changes = []
 
-        for i in range(1, len(week_cols)):
-            prev_week = week_cols[i - 1]
-            curr_week = week_cols[i]
-            change = diff_row[curr_week]
+    #     diff_row = week_to_week_diff.loc[index]
 
-            if pd.notna(change) and change != 0:
-                direction = "Increase" if change > 0 else "Decrease"
-                changes.append(f"{direction} of {abs(change)} from {prev_week} to {curr_week}")
+    #     for i in range(1, len(week_cols)):
+    #         prev_week = week_cols[i - 1]
+    #         curr_week = week_cols[i]
+    #         change = diff_row[curr_week]
 
-        change_summary.append({
-            "Snapshot": snapshot,
-            "MaterialNumber": material,
-            "Total_Changes": len(changes),
-            "Change_Details": "; ".join(changes) if changes else "No significant changes"
-        })
+    #         if pd.notna(change) and change != 0:
+    #             direction = "Increase" if change > 0 else "Decrease"
+    #             changes.append(f"{direction} of {abs(change)} from {prev_week} to {curr_week}")
 
-    change_details_df = pd.DataFrame(change_summary)
+    #     change_summary.append({
+    #         "Snapshot": snapshot,
+    #         "MaterialNumber": material,
+    #         "Total_Changes": len(changes),
+    #         "Change_Details": "; ".join(changes) if changes else "No significant changes"
+    #     })
 
-    return week_to_week_diff, change_details_df
+    # change_details_df = pd.DataFrame(change_summary)
+
+    # return week_to_week_diff, change_details_df
