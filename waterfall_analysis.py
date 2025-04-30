@@ -347,7 +347,7 @@ def lead_time_check(result_df):
             return False, "No change"
 
     # Apply the function to create new columns
-    leadtime_changes[["Changed", "ChangeDetails"]] = leadtime_changes.apply(
+    leadtime_changes[["Changed", "Change Details"]] = leadtime_changes.apply(
         detect_changes, axis=1, result_type="expand"
     )
 
@@ -449,6 +449,6 @@ def analyze_week_to_week_demand_changes(result_df, abs_threshold=10, pct_thresho
     # Step 5: Display explanation
     st.info(f"A spike or drop is flagged if the week-over-week change exceeds ±{abs_threshold} units "
             f"or ±{int(pct_threshold * 100)}%.")
-            
+
     return output_df
         
