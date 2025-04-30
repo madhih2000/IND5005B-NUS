@@ -397,6 +397,7 @@ elif tabs == "Waterfall Analysis":
                                         condition4 = waterfall_analysis.lead_time_check(result_df)
                                         st.subheader('Scenario 4 - Longer Delivery Lead Time')
                                         st.dataframe(condition4)
+                                        llm_reasoning.explain_scenario_4_with_groq(condition4)
 
                                         #RCA Condition 5
                                         st.subheader('Scenario 5 - Irregular Consumption Patterns')
