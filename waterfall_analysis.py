@@ -427,8 +427,9 @@ def analyze_week_to_week_demand_changes(result_df):
             demand_value = row[snapshot_col]
             output_rows.append({
                 "Snapshot": snapshot_col,
-                "Material Number": row["Material Number"],
-                "Plant Site": row["Plant Site"],
+                "Material Number": row["MaterialNumber"],
+                "Plant": row["Plant"],
+                "Site": row["Site"],
                 "Demand w/o Buffer": demand_value
             })
 
