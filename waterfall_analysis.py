@@ -419,13 +419,20 @@ def analyze_week_to_week_demand_changes(result_df):
     if filtered_df.empty:
         raise ValueError("No rows found with Measures == 'Demand w/o Buffer'")
 
-    st.dataframe(filtered_df)
+    output_rows = []
+
     for index, row in filtered_df.iterrows():
-        col_name = row["Snapshot"]
-        if col_name in filtered_df.columns:
-            value = row[col_name]
-            st.write(col_name, value)  # or store/use it as needed
-    
-    return None
+        snapshot_col = row["Snapshot"]
+        if snapshot_col in filtered_df.columns:
+            demand_value = row[snapshot_col]
+            output_rows.append({
+                "Snapshot": snapshot_col,
+                "Material Number": row["Material Number"],
+                "Plant Site": row["Plant Site"],
+                "Demand w/o Buffer": demand_value
+            })
+
+    output_df = pd.DataFrame(output_rows)
+    return output_df
 
         
