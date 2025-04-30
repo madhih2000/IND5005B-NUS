@@ -404,16 +404,14 @@ def check_demand(df):
     return pd.DataFrame(standout_weeks_info)
 
 # Scenario 5; Identifying irregular consumption patterns
-def analyze_week_to_week_demand_changes(result_df):
+def analyze_diagonal_week_to_week_demand_changes(result_df):
     """
-    Filters for 'Demand w/o Buffer', calculates week-to-week changes,
-    and generates detailed change analysis.
+    Filters for 'Demand w/o Buffer', calculates week-to-week changes diagonally,
+    and generates detailed change analysis for a waterfall chart.
 
     Returns:
         - week_to_week_diff: raw difference values
-        - change_summary: DataFrame with row-level change details
     """
-
     # Step 1: Filter
     filtered_df = result_df[result_df['Measures'] == 'Demand w/o Buffer'].copy()
     if filtered_df.empty:
@@ -424,37 +422,40 @@ def analyze_week_to_week_demand_changes(result_df):
     if not week_cols:
         raise ValueError("No week columns found")
 
-    # Step 3: Compute differences
-    week_to_week_diff = filtered_df[week_cols].diff(axis=1)
+    # Ensure 'Snapshot' column exists
+    if 'Snapshot' not in filtered_df.columns:
+        raise ValueError("Column 'Snapshot' not found.")
 
-    return week_to_week_diff
+    # Step 3: Compute differences diagonally
+    week_to_week_diff = {}
+    for week_col in week_cols:
+        # Extract the week number from the column name (e.g., 'WW20' becomes 20)
+        try:
+            week_number = int(week_col[2:])  # Get the number after "WW"
+        except ValueError:
+            raise ValueError(f"Invalid week column name: {week_col}.  Expected format is 'WW##'.")
 
-    # # Step 4: Generate detailed summary
-    # change_summary = []
+        # Find the row where the 'Snapshot' value matches the week number
+        matching_row = filtered_df[filtered_df['Snapshot'].str.contains(f"WW{week_number}")].index
+        if len(matching_row) > 0:
+            #Get the first row.
+            matching_row_index = matching_row[0]
+            # Get the value from the week column for the matching row
+            current_value = filtered_df.loc[matching_row_index, week_col]
 
-    # for index, row in filtered_df.iterrows():
-    #     snapshot = row["Snapshot"]
-    #     material = row["MaterialNumber"]
-    #     changes = []
+            #Find the previous week.
+            previous_week_number = week_number - 1
+            previous_week_col = f"WW{previous_week_number}"
+            if previous_week_col in week_cols:
+                previous_matching_row = filtered_df[filtered_df['Snapshot'].str.contains(f"WW{previous_week_number}")].index
+                if len(previous_matching_row) > 0:
+                    previous_value = filtered_df.loc[previous_matching_row[0], previous_week_col]
+                    week_to_week_diff[week_col] = current_value - previous_value
+                else:
+                    week_to_week_diff[week_col] = current_value - 0 #If there is no previous week, assume 0
+            else:
+                 week_to_week_diff[week_col] = current_value - 0 #If there is no previous week, assume 0
+        else:
+            week_to_week_diff[week_col] = 0  # If no matching snapshot, the difference is 0
 
-    #     diff_row = week_to_week_diff.loc[index]
-
-    #     for i in range(1, len(week_cols)):
-    #         prev_week = week_cols[i - 1]
-    #         curr_week = week_cols[i]
-    #         change = diff_row[curr_week]
-
-    #         if pd.notna(change) and change != 0:
-    #             direction = "Increase" if change > 0 else "Decrease"
-    #             changes.append(f"{direction} of {abs(change)} from {prev_week} to {curr_week}")
-
-    #     change_summary.append({
-    #         "Snapshot": snapshot,
-    #         "MaterialNumber": material,
-    #         "Total_Changes": len(changes),
-    #         "Change_Details": "; ".join(changes) if changes else "No significant changes"
-    #     })
-
-    # change_details_df = pd.DataFrame(change_summary)
-
-    # return week_to_week_diff, change_details_df
+    return pd.DataFrame(week_to_week_diff, index=[0]) # Return as a DataFrame
