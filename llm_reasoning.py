@@ -591,7 +591,7 @@ def explain_inventory_events(representative_weekly_events, reorder_point, lead_t
         # Try full message first
         result = process_chunk(representative_weekly_events)
         if "All model attempts failed." not in result:
-            # st.write(result)
+            print(result)
             return
         else:
             raise Exception("Model fallback failed.")
