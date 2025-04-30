@@ -459,33 +459,37 @@ elif tabs == "Waterfall Analysis":
                                             """,
                                             unsafe_allow_html=True
                                         )
-                                        st.write("### Material Level Analysis:")
+                                        st.subheader("Waterfall Chart")
 
                                         st.dataframe(result_df)
 
+                                        st.header("Root Cause Analysis")
+
                                         #RCA Condition 1
-                                        st.write('Condition 1 of RCA')
+                                        st.subheader('Scenario 1 - PO Coverage is Inadequate')
 
                                         #RCA Condition 2
-                                        st.write('Condition 2 of RCA')
+                                        st.subheader('Scenario 2 - POs push out or pull in due to changes in demand forecasts')
                                         wos_list, analysis_plot, comparison_table = waterfall_analysis.plot_stock_prediction_plotly(result_df, start_week, lead_value, num_weeks)
                                         st.plotly_chart(analysis_plot)
                                         st.dataframe(comparison_table)
 
                                         #RCA Condition 3
-                                        st.write('Condition 3 of RCA')
+                                        st.subheader('Scenario 3 - Adjustment to POs')
                                         
                                         #RCA Condition 4
                                         condition4 = waterfall_analysis.lead_time_check(result_df)
-                                        st.write('Condition 4 of RCA')
+                                        st.subheader('Scenario 4 - Longer Delivery Lead Time')
                                         st.dataframe(condition4)
 
                                         #RCA Condition 5
-                                        st.write('Condition 5 of RCA')
+                                        condition5 = waterfall_analysis.analyze_week_to_week_demand_changes(result_df)
+                                        st.subheader('Scenario 5 - Irregular Consumption Patterns')
+                                        st.dataframe(condition5)
 
                                         #RCA Condition 6
                                         condition6 = waterfall_analysis.check_demand(result_df)
-                                        st.write('Condition 6 of RCA')
+                                        st.subheader('Scenario 6 - Demand Spikes within Lead Time')
                                         st.dataframe(condition6)
 
                                         # Download button

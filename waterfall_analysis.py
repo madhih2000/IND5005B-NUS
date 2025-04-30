@@ -402,3 +402,57 @@ def check_demand(df):
                 })
 
     return pd.DataFrame(standout_weeks_info)
+
+# Scenario 5; Identifying irregular consumption patterns
+def analyze_week_to_week_demand_changes(result_df):
+    """
+    Filters for 'Demand w/o Buffer', calculates week-to-week changes,
+    and generates detailed change analysis.
+
+    Returns:
+        - week_to_week_diff: raw difference values
+        - change_summary: list of dictionaries with row-level change details
+    """
+
+    # Step 1: Filter
+    filtered_df = result_df[result_df['Measures'] == 'Demand w/o Buffer'].copy()
+    if filtered_df.empty:
+        raise ValueError("No rows found with Measures == 'Demand w/o Buffer'")
+
+    # Step 2: Week columns
+    week_cols = [col for col in filtered_df.columns if col.startswith("WW")]
+    if not week_cols:
+        raise ValueError("No week columns found")
+
+    # Step 3: Diff computation
+    demand_data = filtered_df[week_cols]
+    week_to_week_diff = demand_data.diff(axis=1)
+
+    # Step 4: Detailed change summary
+    change_summary = []
+
+    for idx, row in week_to_week_diff.iterrows():
+        snapshot = filtered_df.iloc[idx]["Snapshot"]
+        material = filtered_df.iloc[idx]["MaterialNumber"]
+        changes = []
+
+        for i in range(1, len(week_cols)):
+            prev_week = week_cols[i - 1]
+            curr_week = week_cols[i]
+            change = row[curr_week]
+
+            if pd.notna(change) and change != 0:
+                direction = "Increase" if change > 0 else "Decrease"
+                changes.append(f"{direction} of {abs(change)} from {prev_week} to {curr_week}")
+
+        change_summary.append({
+            "Snapshot": snapshot,
+            "MaterialNumber": material,
+            "Total_Changes": len(changes),
+            "Change_Details": "; ".join(changes) if changes else "No significant changes"
+        })
+
+    change_details_df = pd.DataFrame(change_summary)
+
+    # Return both the raw diff and readable summary
+    return week_to_week_diff, change_details_df
