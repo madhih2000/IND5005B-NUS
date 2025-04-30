@@ -489,6 +489,7 @@ def explain_waterfall_chart_with_groq(df):
                     st.write(final_summary)
                     break
                 except Exception as e:
+                    print(f"Final consolidation model {model} failed: {e}")
                     # st.warning(f"Final consolidation model {model} failed: {e}")
             else:
                 st.error("All model attempts failed for final consolidation.")
