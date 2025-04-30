@@ -665,7 +665,7 @@ def explain_inventory_events(representative_weekly_events, reorder_point, lead_t
         successful = False
         results = []
 
-        for divisor in range(2, max_divisor + 1):
+        for divisor in range(5, max_divisor + 1):
             chunk_size = len(representative_weekly_events) // divisor
             chunks = [representative_weekly_events[i:i + chunk_size]
                       for i in range(0, len(representative_weekly_events), chunk_size)]
