@@ -418,40 +418,12 @@ def analyze_week_to_week_demand_changes(result_df):
     if filtered_df.empty:
         raise ValueError("No rows found with Measures == 'Demand w/o Buffer'")
 
-    # Step 2: Week columns
-    week_cols = [col for col in filtered_df.columns if col.startswith("WW")]
-    if not week_cols:
-        raise ValueError("No week columns found")
+    for index, row in filtered_df.iterrows():
+        col_name = row["Snapshot"]
+        if col_name in filtered_df.columns:
+            value = row[col_name]
+            st.write(value)  # or store/use it as needed
+    
+    return None
 
-    # Ensure 'Snapshot' column exists
-    if 'Snapshot' not in filtered_df.columns:
-        raise ValueError("Column 'Snapshot' not found.")
-
-    # Step 3: Compute differences diagonally
-    week_to_week_diff = {}
-    first_week_value = None  # Store the actual value from the first week
-
-    for week_col in week_cols:
-        # Extract the week number from the column name (e.g., 'WW20' becomes 20)
-        try:
-            week_number = int(week_col[2:])  # Get the number after "WW"
-        except ValueError:
-            raise ValueError(f"Invalid week column name: {week_col}.  Expected format is 'WW##'.")
-
-        # Find the row where the 'Snapshot' value matches the week number
-        matching_row = filtered_df[filtered_df['Snapshot'].str.contains(f"WW{week_number}")].index
-        if len(matching_row) > 0:
-            # Get the first row.
-            matching_row_index = matching_row[0]
-            # Get the value from the week column for the matching row
-            current_value = filtered_df.loc[matching_row_index, week_col]
-
-            if first_week_value is None:
-                # If this is the first week, store its value as the 'actual'
-                first_week_value = current_value
-                week_to_week_diff[week_col] = 0  # Difference for the first week is 0
-            else:
-                # Calculate the difference from the 'actual' (first week's value)
-                week_to_week_diff[week_col] = current_value - first_week_value
-        else:
-            week_to_week_diff[week_col] = 0  # If no matching snapshot, the difference is 0
+        
