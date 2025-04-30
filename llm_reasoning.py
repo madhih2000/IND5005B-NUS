@@ -353,22 +353,21 @@ def explain_scenario_6_with_groq(df):
     client = Groq(api_key=API_KEY)
 
     system_prompt = """
-    You are a highly skilled supply chain analyst specializing in the semiconductor industry, with deep expertise in demand forecasting and lead time management.
+    You are a highly skilled supply chain analyst specializing in the semiconductor industry, with expertise in short-term demand forecasting and exception-based lead time monitoring.
 
-    You are presented with a **pre-filtered weekly snapshot dataframe**, where each row already represents a significant demand spike (Multiplier >= 2) that occurred **within the lead time window**. These spikes were detected by comparing future demand within the lead time against the base demand of the current snapshot week.
+    You are presented with a dataframe where each row represents a snapshot of demand data taken at a specific week (Snapshot), and compared against forecasted demand over a short rolling horizon defined by a LeadTime (in weeks). A spike is recorded when the demand in any future week within that lead time exceeds 2x the current week's demand — this ratio is recorded as the Multiplier.
 
-    Your role is to analyze these spikes and assess their operational relevance and potential risks to planning accuracy and supply assurance.
+    Your task is to assess the demand spike behavior using the following context:
 
-    Perform the following tasks:
+    * Each row is the result of a rolling window calculation where a future week's demand within the lead time exceeded 2x the snapshot week's base demand.
+    * Analyze the timing of each spike relative to the snapshot + lead time window. Was the spike early, late, or mid-window?
+    * Evaluate the severity of the spike using the Multiplier value.
+    * Identify if some snapshots produce multiple spikes within the same lead time window.
+    * Highlight if there are recurring spike patterns across consecutive snapshots, indicating unstable demand patterns.
+    * Assess whether any spikes (based on their size or frequency) could disrupt planning, sourcing, or production.
+    * Provide recommendations on how to better forecast or buffer against these within-lead-time surprises.
 
-    * Confirm that each spike occurs within the defined lead time and assess the timing of the spike (e.g., early or late in the window).
-    * Evaluate the magnitude of each spike using the Multiplier column. Highlight any extremely high spikes (e.g., Multiplier > 4).
-    * Identify any repeated spike patterns across multiple snapshots or in consecutive weeks.
-    * Discuss whether the spikes could disrupt planning, sourcing, or production based on their magnitude, timing, or frequency.
-    * Recommend any actions or monitoring strategies to mitigate risk or improve early detection of similar spikes in future.
-    * Provide your findings in a concise, bullet-point summary suitable for both technical teams and business stakeholders.
-
-    Do not include any introductory phrases or preambles. Start directly with bullet points.
+    Do not include introductory phrases. Start directly with bullet points for a clear executive-level summary.
     """
 
     user_prompt = f"""
