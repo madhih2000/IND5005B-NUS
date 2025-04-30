@@ -411,7 +411,7 @@ def analyze_week_to_week_demand_changes(result_df):
 
     Returns:
         - week_to_week_diff: raw difference values
-        - change_summary: list of dictionaries with row-level change details
+        - change_summary: DataFrame with row-level change details
     """
 
     # Step 1: Filter
@@ -424,22 +424,23 @@ def analyze_week_to_week_demand_changes(result_df):
     if not week_cols:
         raise ValueError("No week columns found")
 
-    # Step 3: Diff computation
-    demand_data = filtered_df[week_cols]
-    week_to_week_diff = demand_data.diff(axis=1)
+    # Step 3: Compute differences
+    week_to_week_diff = filtered_df[week_cols].diff(axis=1)
 
-    # Step 4: Detailed change summary
+    # Step 4: Generate detailed summary
     change_summary = []
 
-    for idx, row in week_to_week_diff.iterrows():
-        snapshot = filtered_df.iloc[idx]["Snapshot"]
-        material = filtered_df.iloc[idx]["MaterialNumber"]
+    for index, row in filtered_df.iterrows():
+        snapshot = row["Snapshot"]
+        material = row["MaterialNumber"]
         changes = []
+
+        diff_row = week_to_week_diff.loc[index]
 
         for i in range(1, len(week_cols)):
             prev_week = week_cols[i - 1]
             curr_week = week_cols[i]
-            change = row[curr_week]
+            change = diff_row[curr_week]
 
             if pd.notna(change) and change != 0:
                 direction = "Increase" if change > 0 else "Decrease"
@@ -454,5 +455,4 @@ def analyze_week_to_week_demand_changes(result_df):
 
     change_details_df = pd.DataFrame(change_summary)
 
-    # Return both the raw diff and readable summary
     return week_to_week_diff, change_details_df
