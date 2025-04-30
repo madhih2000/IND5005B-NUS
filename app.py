@@ -408,7 +408,7 @@ elif tabs == "Waterfall Analysis":
                                         condition6 = waterfall_analysis.check_demand(result_df)
                                         st.subheader('Scenario 6 - Demand Spikes within Lead Time')
                                         st.dataframe(condition6)
-                                        llm_reasoning.explain_scenario_6_with_groq(condition4)
+                                        llm_reasoning.explain_scenario_6_with_groq(condition6)
 
                                         # Download button
                                         output = BytesIO()
