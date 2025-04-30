@@ -68,7 +68,7 @@ def extract_and_aggregate_weekly_data(folder_path, material_number, plant, site,
     selected_weeks = []
 
     #Columns to add to the final df
-    initial_columns = ["MaterialNumber", "Plant", "Site", "Measures", "InventoryOn-Hand"]
+    initial_columns = ["MaterialNumber", "Plant", "Site", "Measures", "InventoryOn-Hand", "LeadTime(Week)"]
     weeks_range = generate_weeks_range(start_week,num_weeks)
     #print(weeks_range)
 
@@ -202,6 +202,35 @@ def plot_stock_prediction_plotly(df, start_week, lead_time, weeks_range):
         predicted_values.append(predicted_value)
         plot_weeks_predicted.append(week)
 
+    # Create comparison DataFrame
+    comparison = pd.DataFrame({
+        'Week': plot_weeks_actual,
+        'Actual': actual_values,
+        'Predicted': predicted_values[:len(plot_weeks_actual)]  # Align lengths
+    })
+
+    # Add Deviation Flag
+    def check_deviation_detail(row):
+        if row['Actual'] == 0 and row['Predicted'] == 0:
+            return False, ""
+        elif row['Actual'] == 0 and row['Predicted'] != 0:
+            return True, "Actual demand is 0, but forecasted is not"
+        elif row['Actual'] != 0 and row['Predicted'] == 0:
+            return True, "Forecasted demand expected to be 0, but actual is not"
+        ratio = row['Predicted'] / row['Actual']
+        if ratio >= 1.5:
+            percent = round((ratio - 1) * 100, 1)
+            return True, f"Overestimate by {percent}%"
+        elif ratio <= (1 / 1.5):
+            percent = round((1 - ratio) * 100, 1)
+            return True, f"Underestimate by {percent}%"
+        else:
+            return False, ""
+
+    deviation_results = comparison.apply(check_deviation_detail, axis=1, result_type='expand')
+    comparison['Deviation_Flag'] = deviation_results[0]
+    comparison['Deviation_Detail'] = deviation_results[1]
+
     fig.add_trace(go.Scatter(x=plot_weeks_actual, y=actual_values, mode='lines+markers', name='Actual Weeks of Stock'))
     fig.add_trace(go.Scatter(x=plot_weeks_predicted, y=predicted_values, mode='lines+markers', name='Predicted Weeks of Stock'))
 
@@ -209,7 +238,7 @@ def plot_stock_prediction_plotly(df, start_week, lead_time, weeks_range):
                       xaxis_title='Week',
                       yaxis_title='Weeks of Stock')
 
-    return actual_values, fig
+    return actual_values, fig, comparison
 
 def check_wos_against_lead_time(wos_list, lead_time):
     """
@@ -297,3 +326,79 @@ def apply_coloring_to_output(excel_buffer, lead_time):
     wb.save(colored_output)
     colored_output.seek(0)
     return colored_output
+
+#Condition 4: Longer delivery lead time
+def lead_time_check(result_df):
+    # First, group by Snapshot and collect the unique LeadTime(Week) values per snapshot
+    leadtime_changes = ( 
+    result_df.groupby("Snapshot")["LeadTime(Week)"]
+    .unique()
+    .reset_index()
+    )
+
+    # function to check for changes and generate a string of changes
+    def detect_changes(row):
+        leadtimes = row["LeadTime(Week)"]
+        if len(leadtimes) > 1:
+            change_str = f"Lead time changes detected: {', '.join(map(str, leadtimes))}"
+            return True, change_str
+        else:
+            return False, "No change"
+
+    # Apply the function to create new columns
+    leadtime_changes[["Changed", "ChangeDetails"]] = leadtime_changes.apply(
+        detect_changes, axis=1, result_type="expand"
+    )
+
+    return leadtime_changes
+
+#Condition 6: Immediate demand increase within lead time
+def check_demand(df):
+    # Prepare for analysis: Convert snapshots and WW column names to align
+    ww_columns = [col for col in df.columns if col.startswith("WW")]
+    snapshots = df["Snapshot"].unique()
+
+    #Algo check
+    standout_weeks_info = []
+
+    for snapshot in snapshots:
+        # Filter for current snapshot and specifically the "Demand w/o Buffer"
+        snapshot_df = df[(df["Snapshot"] == snapshot) & (df["Measures"] == "Demand w/o Buffer")]
+
+        if snapshot_df.empty:
+            continue  # Skip if no relevant data
+        
+        # Extract lead time and demand value from the respective WW column
+        lead_time = int(snapshot_df["LeadTime(Week)"].values[0])
+        ww_value = snapshot_df[snapshot].values[0]
+
+        if pd.isna(ww_value):
+            continue  # Skip if demand data for snapshot week is NaN
+
+        # Determine index of snapshot week (e.g., WW07 → index in ww_columns list)
+        try:
+            current_index = ww_columns.index(snapshot)
+        except ValueError:
+            continue  # Skip if snapshot doesn't match WW column
+
+        # Calculate the forward-looking range within bounds
+        end_index = min(current_index + lead_time, len(ww_columns))
+        future_weeks = ww_columns[current_index+1:end_index+1]
+
+        # Extract future demand values
+        future_values = snapshot_df[future_weeks].values.flatten()
+
+        # Compare each future week's demand with current snapshot week's value
+        for week, future_demand in zip(future_weeks, future_values):
+            if pd.notna(future_demand) and ww_value > 0 and future_demand / ww_value >= 2:
+                standout_weeks_info.append({
+                    "Snapshot": snapshot,
+                    "Current_Week": snapshot,
+                    "LeadTime": lead_time,
+                    "BaseDemand": ww_value,
+                    "SpikeWeek": week,
+                    "SpikeDemand": future_demand,
+                    "Multiplier": round(future_demand / ww_value, 2)
+                })
+
+    return pd.DataFrame(standout_weeks_info)

@@ -433,7 +433,7 @@ elif tabs == "Waterfall Analysis":
                             )
                             site = st.selectbox("Select Site", site_options)
 
-                            num_weeks = st.number_input("Number of Weeks", min_value=1, max_value=52, value=12)
+                            num_weeks = st.number_input("Number of Weeks", min_value=1, max_value=26, value=12)
 
                             # Submit button to extract & display data
                             if st.button("Run Waterfall Analysis"):
@@ -463,15 +463,30 @@ elif tabs == "Waterfall Analysis":
 
                                         st.dataframe(result_df)
 
-                                        wos_list, analysis_plot = waterfall_analysis.plot_stock_prediction_plotly(result_df, start_week, lead_value, num_weeks)
+                                        #RCA Condition 1
+                                        st.write('Condition 1 of RCA')
+
+                                        #RCA Condition 2
+                                        st.write('Condition 2 of RCA')
+                                        wos_list, analysis_plot, comparison_table = waterfall_analysis.plot_stock_prediction_plotly(result_df, start_week, lead_value, num_weeks)
                                         st.plotly_chart(analysis_plot)
+                                        st.dataframe(comparison_table)
 
-                                        messages, order_needed = waterfall_analysis.check_wos_against_lead_time(wos_list, lead_value)
+                                        #RCA Condition 3
+                                        st.write('Condition 3 of RCA')
+                                        
+                                        #RCA Condition 4
+                                        condition4 = waterfall_analysis.lead_time_check(result_df)
+                                        st.write('Condition 4 of RCA')
+                                        st.dataframe(condition4)
 
-                                        for message in messages:
-                                            st.write(message)
+                                        #RCA Condition 5
+                                        st.write('Condition 5 of RCA')
 
-                                        st.write(f"Immediate order needed: {order_needed}")
+                                        #RCA Condition 6
+                                        condition6 = waterfall_analysis.check_demand(result_df)
+                                        st.write('Condition 6 of RCA')
+                                        st.dataframe(condition6)
 
                                         # Download button
                                         output = BytesIO()
