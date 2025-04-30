@@ -565,11 +565,8 @@ def explain_inventory_events(representative_weekly_events, reorder_point, lead_t
 
     def process_chunk(chunk):
         weekly_events_text = "\n\n".join(chunk)
-        user_prompt = f"""
-        Explain the weekly inventory events and recommend inventory policies to prevent stockout or excess inventory:
+        user_prompt = f"Explain the weekly inventory events and recommend inventory policies to prevent stockout or excess inventory:\n\n{weekly_events_text}"
 
-        {weekly_events_text}
-        """
         for model in models:
             try:
                 client = Groq(api_key=API_KEY)
@@ -582,34 +579,60 @@ def explain_inventory_events(representative_weekly_events, reorder_point, lead_t
                 )
                 return chat_completion.choices[0].message.content
             except Exception as e:
-                st.warning(f"Model {model} failed: {e}")
-                continue
+                if hasattr(e, "status_code") and e.status_code == 429:
+                    st.warning(f"Rate limit hit on model {model}. Trying next model...")
+                    continue  # Try next model
+                else:
+                    raise e  # Trigger chunking if it's any other error
 
         return "All model attempts failed."
 
     try:
-        # Attempt to process the entire list of events
+        # Try full message first
         result = process_chunk(representative_weekly_events)
-        st.write(result)
-    except Exception as e:
-        # If an exception occurs, split the events into chunks and process each chunk separately
-        max_divisor = 50  # Maximum divisor to split the data
+        if "All model attempts failed." not in result:
+            st.write(result)
+            return
+        else:
+            raise Exception("Model fallback failed.")
+
+    except Exception as main_error:
+        # Fallback to chunking
+        st.warning("Falling back to chunking due to input size or model error.")
+
+        max_divisor = 50
+        successful = False
+        results = []
+
         for divisor in range(2, max_divisor + 1):
             chunk_size = len(representative_weekly_events) // divisor
-            chunks = [representative_weekly_events[i:i + chunk_size] for i in range(0, len(representative_weekly_events), chunk_size)]
+            chunks = [representative_weekly_events[i:i + chunk_size]
+                      for i in range(0, len(representative_weekly_events), chunk_size)]
 
-            results = []
+            results.clear()
+            chunk_failed = False
+
             for chunk in chunks:
-                result = process_chunk(chunk)
-                if "Error during Groq API call" not in result:
-                    results.append(result)
-                else:
-                    break  # If any chunk fails, break and try a smaller chunk size
+                try:
+                    result = process_chunk(chunk)
+                    if "All model attempts failed." in result:
+                        chunk_failed = True
+                        break
+                    else:
+                        results.append(result)
+                except Exception as e:
+                    chunk_failed = True
+                    break
 
-            if len(results) == len(chunks):  # If all chunks processed successfully
-                break  # Exit the loop
+            if not chunk_failed:
+                successful = True
+                break
 
-        # Consolidate the results into a single cohesive report
+        if not successful:
+            st.error("Failed to process the data even after chunking.")
+            return
+
+        # Consolidate analysis
         consolidated_analysis = {
             "Stockout/Near-Stockout Events": [],
             "Consumption Patterns": [],
@@ -623,22 +646,11 @@ def explain_inventory_events(representative_weekly_events, reorder_point, lead_t
         for result in results:
             sections = result.split("\n\n")
             for section in sections:
-                if "Stockout/Near-Stockout Events" in section:
-                    consolidated_analysis["Stockout/Near-Stockout Events"].append(section)
-                elif "Consumption Patterns" in section:
-                    consolidated_analysis["Consumption Patterns"].append(section)
-                elif "Inventory Levels" in section:
-                    consolidated_analysis["Inventory Levels"].append(section)
-                elif "Proactive vs. Reactive Inventory" in section:
-                    consolidated_analysis["Proactive vs. Reactive Inventory"].append(section)
-                elif "Inventory Policy Recommendations" in section:
-                    consolidated_analysis["Inventory Policy Recommendations"].append(section)
-                elif "Ordering Strategy Improvements" in section:
-                    consolidated_analysis["Ordering Strategy Improvements"].append(section)
-                elif "Summary of Key Insights and Recommendations" in section:
-                    consolidated_analysis["Summary of Key Insights and Recommendations"].append(section)
+                for key in consolidated_analysis:
+                    if key in section:
+                        consolidated_analysis[key].append(section)
+                        break
 
-        # Merge the sections into a single cohesive report
         final_report = ""
         for section, content in consolidated_analysis.items():
             final_report += f"{section}:\n"
