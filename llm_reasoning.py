@@ -533,6 +533,8 @@ def explain_waterfall_chart_with_groq(df):
 
             Data Insights:
             {combined_insights}
+
+            Do not provide introductions,preambles, summaries, or explanations beyond this format.
             """
 
             for model in models:
