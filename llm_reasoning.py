@@ -348,6 +348,53 @@ def explain_scenario_4_with_groq(df):
     else:
         st.error("All model attempts failed.")
 
+def explain_scenario_6_with_groq(df):
+    df_string = df.to_string(index=False)
+    client = Groq(api_key=API_KEY)
+
+    system_prompt = """
+    You are a highly skilled supply chain analyst specializing in the semiconductor industry, with deep expertise in demand forecasting and lead time management.
+
+    You are presented with a weekly snapshot dataframe that captures scenarios where demand spikes occur within the lead time. The columns include Snapshot, Current_Week, LeadTime, BaseDemand, SpikeWeek, SpikeDemand, and Multiplier.
+
+    Your role is to analyze the data and assess if these spikes are meaningful, potentially problematic, or signal operational concerns such as poor forecasting, missed signals, or reaction delays.
+
+    Perform the following tasks:
+
+    * Determine if the spike occurs *within* the lead time window and whether it significantly exceeds the base demand (Multiplier >= 2).
+    
+    * Assess whether the spike trends show increasing volatility or unexpected timing (e.g., too early or late in lead time).
+
+    * Highlight any repeated patterns (e.g., multiple spikes from the same snapshot).
+
+    * Clearly explain whether the demand spike could disrupt planning, sourcing, or production, and why.
+
+    * Deliver a concise, bullet-point summary that can be consumed by both technical teams and supply chain executives.
+
+    Do not include any introductory phrases or preambles. Start directly with bullet points.
+    """
+
+    user_prompt = f"""
+    Analyse the following weekly snapshot dataframe:\n\n{df_string}
+    """
+        
+    for model in models:
+        try:
+            chat_completion = client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                model=model,
+            )
+            explanation = chat_completion.choices[0].message.content
+            st.write(explanation)
+            break
+        except Exception as e:
+            continue
+    else:
+        st.error("All model attempts failed.")
+
 def explain_waterfall_chart_with_groq(df):
     """
     Explains the root cause analysis of a waterfall chart, with chunking for large inputs.
