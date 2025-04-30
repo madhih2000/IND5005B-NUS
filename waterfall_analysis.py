@@ -445,5 +445,10 @@ def analyze_week_to_week_demand_changes(result_df, abs_threshold=10, pct_thresho
     output_df["Drop"] = output_df["WoW Change"] < -abs_threshold
     output_df["Sudden % Spike"] = output_df["WoW % Change"] > pct_threshold
     output_df["Sudden % Drop"] = output_df["WoW % Change"] < -pct_threshold
+
+    # Step 5: Display explanation
+    st.info(f"A spike or drop is flagged if the week-over-week change exceeds ±{abs_threshold} units "
+            f"or ±{int(pct_threshold * 100)}%.")
+            
     return output_df
         

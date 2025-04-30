@@ -398,8 +398,8 @@ elif tabs == "Waterfall Analysis":
                                         st.dataframe(condition4)
 
                                         #RCA Condition 5
-                                        condition5 = waterfall_analysis.analyze_week_to_week_demand_changes(result_df)
                                         st.subheader('Scenario 5 - Irregular Consumption Patterns')
+                                        condition5 = waterfall_analysis.analyze_week_to_week_demand_changes(result_df)
                                         st.dataframe(condition5)
 
                                         #RCA Condition 6
