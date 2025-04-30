@@ -445,6 +445,6 @@ def analyze_week_to_week_demand_changes(result_df, abs_threshold=10, pct_thresho
     output_df["Drop"] = output_df["WoW Change"] < -abs_threshold
     output_df["Sudden % Spike"] = output_df["WoW % Change"] > pct_threshold
     output_df["Sudden % Drop"] = output_df["WoW % Change"] < -pct_threshold
-
+    st.dataframe(output_df)
     return output_df
         
