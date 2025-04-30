@@ -4,6 +4,16 @@ import pandas as pd
 
 API_KEY = st.secrets["groq"]["API_KEY"]
 
+models = [
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+    "gemma2-9b-it",
+    "llama-guard-3-8b",
+    "llama3-70b-8192",
+    "llama3-8b-8192"
+]
+
+
 def explain_box_plot_with_groq_consumption(df, material_column="Material Number"):
     """
     Explains boxplot or variance of a DataFrame column using Groq LLM.
@@ -63,20 +73,23 @@ def explain_box_plot_with_groq_consumption(df, material_column="Material Number"
     Explain the boxplot for the following data:\n\n{data_description}
     """
 
-    try:
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            model="llama-3.3-70b-versatile",
-        )
-
-        explanation = chat_completion.choices[0].message.content
-        st.write(explanation)
-
-    except Exception as e:
-        st.error(f"Error during Groq API call: {e}")
+    for model in models:
+        try:
+            chat_completion = client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                model=model,
+            )
+            explanation = chat_completion.choices[0].message.content
+            st.write(explanation)
+            break  # Success, exit loop
+        except Exception as e:
+            st.warning(f"Model {model} failed: {e}")
+            continue
+    else:
+        st.error("All model attempts failed.")
 
 def explain_box_plot_with_groq_orderplacement(df, material_column="Material Number"):
     """
@@ -137,20 +150,23 @@ def explain_box_plot_with_groq_orderplacement(df, material_column="Material Numb
     Explain the boxplot for the following data:\n\n{data_description}
     """
 
-    try:
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            model="llama-3.3-70b-versatile",
-        )
-
-        explanation = chat_completion.choices[0].message.content
-        st.write(explanation)
-
-    except Exception as e:
-        st.error(f"Error during Groq API call: {e}")
+    for model in models:
+        try:
+            chat_completion = client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                model=model,
+            )
+            explanation = chat_completion.choices[0].message.content
+            st.write(explanation)
+            break  # Success, exit loop
+        except Exception as e:
+            st.warning(f"Model {model} failed: {e}")
+            continue
+    else:
+        st.error("All model attempts failed.")
 
 def explain_box_plot_with_groq_goods_receipt(df, material_column="Material Number"):
     """
@@ -211,20 +227,23 @@ def explain_box_plot_with_groq_goods_receipt(df, material_column="Material Numbe
     Explain the boxplot for the following data:\n\n{data_description}
     """
 
-    try:
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            model="llama-3.3-70b-versatile",
-        )
-
-        explanation = chat_completion.choices[0].message.content
-        st.write(explanation)
-
-    except Exception as e:
-        st.error(f"Error during Groq API call: {e}")
+    for model in models:
+        try:
+            chat_completion = client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                model=model,
+            )
+            explanation = chat_completion.choices[0].message.content
+            st.write(explanation)
+            break  # Success, exit loop
+        except Exception as e:
+            st.warning(f"Model {model} failed: {e}")
+            continue
+    else:
+        st.error("All model attempts failed.")
 
 # def explain_waterfall_chart_with_groq(df):
 #     """
@@ -310,20 +329,24 @@ def explain_scenario_4_with_groq(df):
     user_prompt = f"""
         Analyse the following weekly snapshot dataframe:\n\n{df_string}
         """
-    try:
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            model="llama-3.1-8b-instant",
-        )
-
-        explanation = chat_completion.choices[0].message.content
-        st.write(explanation)
-
-    except Exception as e:
-        st.error(f"Error during Groq API call: {e}")
+        
+    for model in models:
+        try:
+            chat_completion = client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                model=model,
+            )
+            explanation = chat_completion.choices[0].message.content
+            st.write(explanation)
+            break  # Success, exit loop
+        except Exception as e:
+            st.warning(f"Model {model} failed: {e}")
+            continue
+    else:
+        st.error("All model attempts failed.")
 
 def explain_waterfall_chart_with_groq(df):
     """
@@ -388,91 +411,91 @@ def explain_waterfall_chart_with_groq(df):
     # """
 
     def process_chunk(chunk_text):
-        """Helper function to process a chunk of the dataframe text."""
-        user_prompt = f"Explain the root cause analysis for the following waterfall chart data:\n\n{chunk_text}"
-        try:
-            chat_completion = client.chat.completions.create(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                model="llama-3.3-70b-versatile",
-            )
-            return chat_completion.choices[0].message.content
-        except Exception as e:
-            return f"Error during Groq API call: {e}"
+            user_prompt = f"Explain the root cause analysis for the following waterfall chart data:\n\n{chunk_text}"
+            for model in models:
+                try:
+                    client = Groq(api_key=API_KEY)
+                    chat_completion = client.chat.completions.create(
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt},
+                        ],
+                        model=model,
+                    )
+                    return chat_completion.choices[0].message.content
+                except Exception as e:
+                    st.warning(f"Model {model} failed: {e}")
+                    continue
+            return "All model attempts failed."
 
     try:
-        # First, try to process the entire data
         explanation = process_chunk(df_string)
-        if "Error during Groq API call" not in explanation:
+        if "All model attempts failed." not in explanation:
             st.header("Root Cause Analysis")
             st.write(explanation)
         else:
-            raise Exception("Large input, need chunking.")
+            raise Exception("Large input or model limits reached. Chunking required.")
+    except Exception:
+        st.warning("Large input detected or failure occurred. Chunking the data for processing...")
 
-    except Exception as e:
-        # Handle large inputs by chunking
-        st.warning("Large input detected. Chunking the data for processing...")
-
-        # Chunk the dataframe text by number of rows
-        max_divisor = 10  # Max chunks to attempt
+        max_divisor = 10
         df_rows = df.shape[0]
-        
+        chunk_results = []
+
         for divisor in range(2, max_divisor + 1):
             chunk_size = df_rows // divisor
             chunks = [df.iloc[i:i + chunk_size] for i in range(0, df_rows, chunk_size)]
-            
-            chunk_results = []
+            chunk_results.clear()
             chunk_failed = False
 
             for chunk in chunks:
                 chunk_text = chunk.to_string(index=False)
                 chunk_result = process_chunk(chunk_text)
-
-                if "Error during Groq API call" in chunk_result:
+                if "All model attempts failed." in chunk_result:
                     chunk_failed = True
-                    break  # This divisor size fails, try smaller chunks
+                    break
                 else:
                     chunk_results.append(chunk_result)
 
             if not chunk_failed:
-                # All chunks processed successfully
-                break
+                break  # All chunks succeeded
 
         if chunk_results:
-            # Combine the results and summarize with one final LLM call
             combined_insights = "\n".join(chunk_results)
 
             final_prompt = f"""
-        You are a supply chain analyst. Consolidate the following root cause analyses into a clean, non-redundant summary.
-        Ensure:
+            You are a supply chain analyst. Consolidate the following root cause analyses into a clean, non-redundant summary.
+            Ensure:
+            - Insights are merged logically.
+            - Redundant bullet points are combined.
+            - Only one root cause conclusion is stated at the end.
+            - Follow the original format: bullet points followed by a single root cause.
 
-        - Insights are merged logically.
-        - Redundant bullet points are combined.
-        - Only one root cause conclusion is stated at the end.
-        - Follow the original format: bullet points followed by a single root cause.
+            Data Insights:
+            {combined_insights}
+            """
 
-        Data Insights:
-        {combined_insights}
-        """
-
-            try:
-                final_summary = client.chat.completions.create(
-                    messages=[
-                        {"role": "system", "content": "You are a senior supply chain analyst. Output clear, concise insights as requested."},
-                        {"role": "user", "content": final_prompt}
-                    ],
-                    model="llama-3.3-70b-versatile",
-                ).choices[0].message.content
-
-                st.header("Root Cause Analysis (Final Summary)")
-                st.write(final_summary)
-
-            except Exception as e:
-                st.error(f"Error generating consolidated summary: {e}")
+            for model in models:
+                try:
+                    client = Groq(api_key=API_KEY)
+                    final_summary = client.chat.completions.create(
+                        messages=[
+                            {"role": "system", "content": "You are a senior supply chain analyst. Output clear, concise insights as requested."},
+                            {"role": "user", "content": final_prompt},
+                        ],
+                        model=model,
+                    ).choices[0].message.content
+                    st.header("Root Cause Analysis (Final Summary)")
+                    st.write(final_summary)
+                    break
+                except Exception as e:
+                    st.warning(f"Final consolidation model {model} failed: {e}")
+            else:
+                st.error("All model attempts failed for final consolidation.")
         else:
             st.error("Failed to process the data even after chunking.")
+
+            
 
 def explain_inventory_events(representative_weekly_events, reorder_point, lead_time, lead_time_std_dev, consumption_distribution_params, consumption_type, consumption_best_distribution, order_distribution_params, order_quantity_type, order_distribution_best):
     """
@@ -547,18 +570,22 @@ def explain_inventory_events(representative_weekly_events, reorder_point, lead_t
 
         {weekly_events_text}
         """
-        try:
-            client = Groq(api_key=API_KEY)
-            chat_completion = client.chat.completions.create(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                model="llama-3.3-70b-versatile",
-            )
-            return chat_completion.choices[0].message.content
-        except Exception as e:
-            return f"Error during Groq API call: {e}"
+        for model in models:
+            try:
+                client = Groq(api_key=API_KEY)
+                chat_completion = client.chat.completions.create(
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    model=model,
+                )
+                return chat_completion.choices[0].message.content
+            except Exception as e:
+                st.warning(f"Model {model} failed: {e}")
+                continue
+
+        return "All model attempts failed."
 
     try:
         # Attempt to process the entire list of events
