@@ -404,7 +404,7 @@ def check_demand(df):
     return pd.DataFrame(standout_weeks_info)
 
 # Scenario 5; Identifying irregular consumption patterns
-def analyze_diagonal_week_to_week_demand_changes(result_df):
+def analyze_week_to_week_demand_changes(result_df):
     """
     Filters for 'Demand w/o Buffer', calculates week-to-week changes diagonally,
     and generates detailed change analysis for a waterfall chart.  The first week
