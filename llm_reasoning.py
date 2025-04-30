@@ -316,7 +316,7 @@ def explain_scenario_4_with_groq(df):
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
         )
 
         explanation = chat_completion.choices[0].message.content
