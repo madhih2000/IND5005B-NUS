@@ -278,7 +278,7 @@ elif tabs == "Lead Time Analysis":
 
 elif tabs == "Waterfall Analysis":
     st.title("Waterfall Analysis")
-    uploaded_file = st.file_uploader("Upload ZIP file with 52 weeks of data (WW1.xlsx to WW52.xlsx)", type=["zip"])
+    uploaded_file = st.file_uploader("Upload Zip file with Shortage Data (e.g. WW1.xlsx to WW52.xlsx)", type=["zip"])
     uploaded_file_op = st.file_uploader("Upload Order Placement Excel File", type="xlsx")
     uploaded_file_gr = st.file_uploader("Upload Goods Receipt Excel File", type="xlsx")
 
@@ -389,7 +389,7 @@ elif tabs == "Waterfall Analysis":
 
                                         #RCA Condition 1
                                         st.subheader('Scenario 1 - PO Coverage is Inadequate')
-                                        PO_df = utils.merged_order_gr_PO_analysis(op_df, gr_df)
+                                        PO_df = merged_order_gr_PO_analysis(op_df, gr_df)
                                         PO_df_filtered = PO_df[
                                             (PO_df['Material Number'] == material_number) &
                                             (PO_df['Plant'] == plant) &
