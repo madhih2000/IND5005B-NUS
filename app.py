@@ -169,6 +169,39 @@ elif tabs == "Forecast Demand":
                         st.write("ARIMA Forecast Results:")
                         st.plotly_chart(plt)
                         st.write(forecast_results)
+                
+                # Prepare parameters dataframe
+                params_data = {
+                    "Selected Material Number": [selected_material_number],
+                    "Model Used": [model_choice],
+                    "Forecast Weeks": [forecast_weeks],
+                    "Seasonality": [seasonality],
+                }
+                params_df = pd.DataFrame(params_data)
+
+                # Sanitize values for filename
+                safe_material = str(selected_material_number).replace(" ", "_")
+                safe_model = model_choice.replace(" ", "_")
+                safe_seasonality = seasonality.lower()
+                filename = f"forecast_{safe_material}_{safe_model}_{forecast_weeks}w_{safe_seasonality}.xlsx"
+
+                # Create in-memory buffer
+                output = BytesIO()
+
+                # Write to Excel with two sheets
+                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                    forecast_results.to_excel(writer, sheet_name='Forecast Results', index=False)
+                    params_df.to_excel(writer, sheet_name='Parameters', index=False)
+
+                output.seek(0)  # Rewind the buffer
+
+                # Provide download button
+                st.download_button(
+                    label="Download Forecast Excel",
+                    data=output,
+                    file_name=filename,
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
 
         elif df is not None:
             if 'Material Number' not in df.columns:
