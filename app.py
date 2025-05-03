@@ -145,63 +145,58 @@ elif tabs == "Forecast Demand":
     uploaded_file = st.file_uploader("Upload Consumption Data Excel File for Analysis", type="xlsx")
 
     if uploaded_file:
-        df = load_forecast_consumption_data(uploaded_file)  # Read the file
+        df = load_forecast_consumption_data(uploaded_file)
 
-        # Check if 'Material Number' column exists
         if df is not None and 'Material Number' in df.columns:
             material_numbers = df['Material Number'].unique()
             selected_material_number = st.selectbox("Select Material Number", material_numbers)
-            filtered_df = df[df['Material Number'] == selected_material_number].copy() #Make a copy to avoid SettingWithCopyWarning
+            filtered_df = df[df['Material Number'] == selected_material_number].copy()
 
             model_choice = st.selectbox("Select Model", ["XGBoost", "ARIMA"])
             forecast_weeks = st.number_input("Forecast Weeks", min_value=1, value=6)
             seasonality = st.selectbox("Seasonality", ["Yes", "No"])
 
+            # Run forecast only if button is clicked
             if st.button("Run Forecast"):
                 with st.spinner("Running forecast, please wait..."):
                     if model_choice == "XGBoost":
-                        forecast_results,plt = forecast_models.forecast_weekly_consumption_xgboost_plotly(filtered_df, forecast_weeks_ahead=forecast_weeks, seasonality=seasonality)
-                        st.write("XGBoost Forecast Results:")
-                        st.plotly_chart(plt)
-                        st.write(forecast_results)
-                    elif model_choice == "ARIMA":
-                        forecast_results,plt = forecast_models.forecast_weekly_consumption_arima_plotly(filtered_df, forecast_weeks_ahead=forecast_weeks, seasonality=seasonality)
-                        st.write("ARIMA Forecast Results:")
-                        st.plotly_chart(plt)
-                        st.write(forecast_results)
-                
-                    # Prepare parameters dataframe
-                    params_data = {
+                        forecast_results, plt = forecast_models.forecast_weekly_consumption_xgboost_plotly(
+                            filtered_df, forecast_weeks_ahead=forecast_weeks, seasonality=seasonality)
+                    else:
+                        forecast_results, plt = forecast_models.forecast_weekly_consumption_arima_plotly(
+                            filtered_df, forecast_weeks_ahead=forecast_weeks, seasonality=seasonality)
+
+                    # Store in session_state
+                    st.session_state.forecast_results = forecast_results
+                    st.session_state.plot = plt
+                    st.session_state.params_df = pd.DataFrame({
                         "Selected Material Number": [selected_material_number],
                         "Model Used": [model_choice],
                         "Forecast Weeks": [forecast_weeks],
                         "Seasonality": [seasonality],
-                    }
-                    params_df = pd.DataFrame(params_data)
+                    })
+                    st.session_state.filename = f"forecast_{str(selected_material_number).replace(' ', '_')}_{model_choice}_{forecast_weeks}w_{seasonality.lower()}.xlsx"
 
-                    # Sanitize values for filename
-                    safe_material = str(selected_material_number).replace(" ", "_")
-                    safe_model = model_choice.replace(" ", "_")
-                    safe_seasonality = seasonality.lower()
-                    filename = f"forecast_{safe_material}_{safe_model}_{forecast_weeks}w_{safe_seasonality}.xlsx"
+        # Display forecast and download only if session state has results
+        if "forecast_results" in st.session_state:
+            st.write(f"{st.session_state.params_df['Model Used'][0]} Forecast Results:")
+            st.plotly_chart(st.session_state.plot)
+            st.write(st.session_state.forecast_results)
 
-                    # Create in-memory buffer
-                    output = BytesIO()
+            # Write to Excel in memory
+            output = BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                st.session_state.forecast_results.to_excel(writer, sheet_name='Forecast Results', index=False)
+                st.session_state.params_df.to_excel(writer, sheet_name='Parameters', index=False)
+            output.seek(0)
 
-                    # Write to Excel with two sheets
-                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                        forecast_results.to_excel(writer, sheet_name='Forecast Results', index=False)
-                        params_df.to_excel(writer, sheet_name='Parameters', index=False)
-
-                    output.seek(0)  # Rewind the buffer
-
-                    # Provide download button
-                    st.download_button(
-                        label="Download Forecast Excel",
-                        data=output,
-                        file_name=filename,
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    )
+            # Download button
+            st.download_button(
+                label="Download Forecast Excel",
+                data=output,
+                file_name=st.session_state.filename,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
 
         elif df is not None:
             if 'Material Number' not in df.columns:
