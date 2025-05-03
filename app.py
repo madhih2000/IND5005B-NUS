@@ -279,8 +279,14 @@ elif tabs == "Lead Time Analysis":
 elif tabs == "Waterfall Analysis":
     st.title("Waterfall Analysis")
     uploaded_file = st.file_uploader("Upload ZIP file with 52 weeks of data (WW1.xlsx to WW52.xlsx)", type=["zip"])
+    uploaded_file_op = st.file_uploader("Upload Order Placement Excel File", type="xlsx")
+    uploaded_file_gr = st.file_uploader("Upload Goods Receipt Excel File", type="xlsx")
 
-    if uploaded_file:
+    if uploaded_file and uploaded_file_op and uploaded_file_gr:
+        op_df = pd.read_excel(uploaded_file_op)
+        gr_df = pd.read_excel(uploaded_file_gr)
+
+
         with tempfile.TemporaryDirectory() as tmp_dir:
             zip_path = os.path.join(tmp_dir, "data.zip")
             zip_filename = uploaded_file.name
@@ -383,6 +389,13 @@ elif tabs == "Waterfall Analysis":
 
                                         #RCA Condition 1
                                         st.subheader('Scenario 1 - PO Coverage is Inadequate')
+                                        PO_df = utils.merged_order_gr_PO_analysis(op_df, gr_df)
+                                        PO_df_filtered = PO_df[
+                                            (PO_df['Material Number'] == material_number) &
+                                            (PO_df['Plant'] == plant) &
+                                            (PO_df['Site'] == site)
+                                        ]
+                                        st.dataframe(PO_df_filtered)
 
                                         #RCA Condition 2
                                         st.subheader('Scenario 2 - POs push out or pull in due to changes in demand forecasts')

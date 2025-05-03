@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import streamlit as st
 
 def load_data_consumption(file):
     """
@@ -112,3 +113,111 @@ def load_forecast_consumption_data(file):
     result_df = pivot_df.reset_index()
     
     return result_df
+
+def merged_order_gr_PO_analysis(df_order: pd.DataFrame, df_GR: pd.DataFrame) -> pd.DataFrame:
+    """
+    Merges and analyzes Purchase Order (PO) and Goods Receipt (GR) data to compare 
+    order quantities with goods received quantities, aggregated by week.
+
+    Args:
+        df_order (pd.DataFrame): DataFrame containing Purchase Order details.
+        df_GR (pd.DataFrame): DataFrame containing Goods Receipt details.
+
+    Returns:
+        pd.DataFrame: A cleaned and aggregated DataFrame with key ordering and GR insights.
+    """
+
+    required_order_cols = ['Purchasing Document', 'Vendor Number', 'Material Number', 
+                           'Document Date', 'Plant', 'Order Quantity', 
+                           'Stockkeeping unit', 'Material Group']
+    required_GR_cols = ['Purchasing Document', 'Material Number', 
+                        'Pstng Date', 'Site', 'Supplier', 'Quantity']
+
+    # Check if required columns exist in df_order
+    missing_order_cols = [col for col in required_order_cols if col not in df_order.columns]
+    missing_GR_cols = [col for col in required_GR_cols if col not in df_GR.columns]
+
+    if missing_order_cols:
+        st.warning(f"Missing columns in df_order: {missing_order_cols}")
+    if missing_GR_cols:
+        st.warning(f"Missing columns in df_GR: {missing_GR_cols}")
+    if missing_order_cols or missing_GR_cols:
+        st.stop()
+
+    print("Merging PO and GR data...")
+
+    # Merge on 'Purchasing Document' and 'Material Number'
+    merged_df = df_order.merge(
+        df_GR,
+        how='inner',
+        on=['Purchasing Document', 'Material Number'],
+        suffixes=('_order', '_GR')
+    )
+
+    # Strip column names in case of trailing spaces
+    merged_df.columns = merged_df.columns.str.strip()
+
+    # Step 2: Select only the needed columns
+    cleaned_df = merged_df[[
+        'Purchasing Document',
+        'Vendor Number_order',
+        'Material Number',
+        'Document Date',
+        'Pstng Date',
+        'Plant_order',
+        'Site',
+        'Supplier',
+        'Order Quantity',
+        'Quantity',
+        'Stockkeeping unit',
+        'Material Group_order'
+    ]]
+
+    # Step 3: Rename for clarity
+    cleaned_df = cleaned_df.rename(columns={
+        'Vendor Number_order': 'Vendor Number',
+        'Plant_order': 'Plant',
+        'Quantity': 'GR Quantity',
+        'Material Group_order': 'Material Group',
+        'Document Date': 'Order Date',
+        'Pstng Date': 'GR Date'
+    })
+
+    # Convert dates to datetime if not already
+    cleaned_df['Order Date'] = pd.to_datetime(cleaned_df['Order Date'], errors='coerce')
+    cleaned_df['GR Date'] = pd.to_datetime(cleaned_df['GR Date'], errors='coerce')
+
+    # Extract ISO calendar week numbers
+    cleaned_df['Order WW'] = cleaned_df['Order Date'].dt.isocalendar().week
+    cleaned_df['GR WW'] = cleaned_df['GR Date'].dt.isocalendar().week
+
+    # Sort and reset index
+    cleaned_df = cleaned_df.sort_values(
+        by=['Purchasing Document', 'Material Number', 'Order Date', 'GR Date']
+    ).reset_index(drop=True)
+
+    group_cols = ['Purchasing Document', 'Vendor Number', 'Material Number', 'GR Date']
+
+    # Group and aggregate
+    df_grouped = cleaned_df.groupby(group_cols, as_index=False).agg({
+        'Order Date': 'first',
+        'Plant': 'first',
+        'Site': 'first',
+        'Supplier': 'first',
+        'Order Quantity': 'first',
+        'GR Quantity': 'sum',
+        'Stockkeeping unit': 'first',
+        'Material Group': 'first',
+        'Order WW': 'first',
+        'GR WW': 'first'
+    })
+
+    # Final desired column order
+    desired_order = [
+        'Purchasing Document', 'Vendor Number', 'Material Number',
+        'Order Date', 'GR Date', 'Plant', 'Site', 'Supplier',
+        'Order Quantity', 'GR Quantity', 'Stockkeeping unit',
+        'Material Group', 'Order WW', 'GR WW'
+    ]
+
+    return df_grouped[desired_order]
