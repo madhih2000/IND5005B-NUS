@@ -394,7 +394,7 @@ elif tabs == "Waterfall Analysis":
                                             (PO_df['Material Number'] == material_number) &
                                             (PO_df['Plant'] == plant) &
                                             (PO_df['Site'] == site)
-                                        ]
+                                        ].reset_index(drop=True)
                                         st.dataframe(PO_df_filtered)
 
                                         #RCA Condition 2
