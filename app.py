@@ -189,7 +189,7 @@ elif tabs == "Forecast Demand":
                     output = BytesIO()
 
                     # Write to Excel with two sheets
-                    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
                         forecast_results.to_excel(writer, sheet_name='Forecast Results', index=False)
                         params_df.to_excel(writer, sheet_name='Parameters', index=False)
 
