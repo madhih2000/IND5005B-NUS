@@ -135,7 +135,7 @@ def merged_order_gr_PO_analysis(df_order: pd.DataFrame, df_GR: pd.DataFrame) -> 
                            'Document Date', 'Plant', 'Order Quantity', 
                            'Stockkeeping unit', 'Material Group']
     required_GR_cols = ['Purchasing Document', 'Material Number', 
-                        'Pstng Date', 'Site', 'Supplier', 'Quantity']
+                        'Pstng Date', 'Site', 'Quantity']
 
     # Check if required columns exist in df_order
     missing_order_cols = [col for col in required_order_cols if col not in df_order.columns]
