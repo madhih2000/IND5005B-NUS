@@ -127,17 +127,15 @@ def merged_order_gr_PO_analysis(df_order: pd.DataFrame, df_GR: pd.DataFrame) -> 
         pd.DataFrame: A cleaned and aggregated DataFrame with key ordering and GR insights.
     """
 
+    # Strip column names of whitespace
+    df_order.columns = df_order.columns.str.strip()
+    df_GR.columns = df_GR.columns.str.strip()
+
     required_order_cols = ['Purchasing Document', 'Vendor Number', 'Material Number', 
                            'Document Date', 'Plant', 'Order Quantity', 
                            'Stockkeeping unit', 'Material Group']
     required_GR_cols = ['Purchasing Document', 'Material Number', 
                         'Pstng Date', 'Site', 'Supplier', 'Quantity']
-
-        
-    st.write("Order DF")
-    st.dataframe(df_order)
-    st.write("Goods Receipt DF ")
-    st.dataframe(df_GR)
 
     # Check if required columns exist in df_order
     missing_order_cols = [col for col in required_order_cols if col not in df_order.columns]
