@@ -143,6 +143,11 @@ def merged_order_gr_PO_analysis(df_order: pd.DataFrame, df_GR: pd.DataFrame) -> 
         st.warning(f"Missing columns in df_GR: {missing_GR_cols}")
     if missing_order_cols or missing_GR_cols:
         st.stop()
+    
+    st.write("Order DF")
+    st.dataframe(df_order)
+    st.write("Goods Receipt DF ")
+    st.dataframe(df_GR)
 
     print("Merging PO and GR data...")
 
