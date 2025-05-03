@@ -395,7 +395,12 @@ elif tabs == "Waterfall Analysis":
                                             (PO_df['Plant'] == plant) &
                                             (PO_df['Site'] == site)
                                         ].reset_index(drop=True)
-                                        st.dataframe(PO_df_filtered)
+
+                                        if PO_df_filtered.empty:
+                                            st.warning("No matching records found for the selected Material Number, Plant, and Site.")
+
+                                        else:
+                                            st.dataframe(PO_df_filtered)
 
                                         #RCA Condition 2
                                         st.subheader('Scenario 2 - POs push out or pull in due to changes in demand forecasts')
