@@ -11,6 +11,7 @@ from scipy.stats import norm, poisson, nbinom, gamma, weibull_min, lognorm, expo
 from openpyxl import load_workbook
 from openpyxl import load_workbook
 from PIL import Image
+from openpyxl.drawing.image import Image as XLImage  
 
 import plotly.graph_objects as go
 import plotly.subplots as sp
