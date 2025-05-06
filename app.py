@@ -8,10 +8,15 @@ import tempfile
 import scipy.stats as stats
 from scipy.stats import norm, poisson, nbinom, gamma, weibull_min, lognorm, expon, beta, kstest, anderson
 
+from openpyxl import load_workbook
+from openpyxl import load_workbook
+from PIL import Image
+
 import plotly.graph_objects as go
 import plotly.subplots as sp
 import plotly.express as px
 import plotly.figure_factory as ff
+import plotly.io as pio
 
 from utils import *
 import consumption_utils
@@ -183,12 +188,38 @@ elif tabs == "Forecast Demand":
             st.plotly_chart(st.session_state.plot)
             st.write(st.session_state.forecast_results)
 
-            # Write to Excel in memory
+            # Create in-memory Excel file
             output = BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                # Write DataFrames
                 st.session_state.forecast_results.to_excel(writer, sheet_name='Forecast Results', index=False)
                 st.session_state.params_df.to_excel(writer, sheet_name='Parameters', index=False)
+                
+                # Save the workbook object for further editing
+                writer.book  # Trigger openpyxl backend
+                writer.sheets  # Trigger sheet creation
+
+            # Save and reopen to insert image
             output.seek(0)
+            wb = load_workbook(output)
+            ws = wb.create_sheet("Forecast Plot")
+
+            # Save plot to image in memory
+            img_bytes = pio.to_image(st.session_state.plot, format='png', width=1000, height=600)
+            img_stream = BytesIO(img_bytes)
+
+            # Load image into openpyxl Image
+            pil_img = Image.open(img_stream)
+            img_for_excel = XLImage(img_stream)
+            img_for_excel.anchor = 'A1'  # Position on sheet
+
+            # Add image to sheet
+            ws.add_image(img_for_excel)
+
+            # Save final workbook to new BytesIO
+            final_output = BytesIO()
+            wb.save(final_output)
+            final_output.seek(0)
 
             # Download button
             st.download_button(
