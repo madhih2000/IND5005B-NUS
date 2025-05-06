@@ -348,6 +348,48 @@ def explain_scenario_4_with_groq(df):
     else:
         st.error("All model attempts failed.")
 
+def explain_scenario_5_with_groq(df):
+    df_string = df.to_string(index=False)
+    client = Groq(api_key=API_KEY)
+
+    system_prompt = """
+    You are a highly skilled supply chain analyst specializing in the semiconductor industry, with deep experience in analyzing weekly historical data at the material number level. 
+
+    You are presented with a text-based description of a weekly snapshot dataframe that includes columns such as Snapshot (labelled by week numbers, e.g., WW08), Demand w/o Buffer, WoW Change and WoW % Change. These capture the demand for the material on a weekly basis. 
+
+    Your role is to evaluate the trends and anomalies in demand data.
+
+    Your task is to perform the following:
+
+    * Assess whether there are any significant changes in the demand w/o buffer column week on week.
+    * If there are any changes above 30%, highlight it.
+    * If there is no change, confirm the stability and consistency of the demand.
+    * Deliver a clear, concise analysis in plain language that can be easily shared with both technical and business stakeholders.
+
+    Do not include introductory phrases or summaries. Start directly with bullet points.
+    """
+
+    user_prompt = f"""
+    Analyse the following weekly snapshot dataframe:\n\n{df_string}
+    """
+        
+    for model in models:
+        try:
+            chat_completion = client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                model=model,
+            )
+            explanation = chat_completion.choices[0].message.content
+            st.write(explanation)
+            break
+        except Exception as e:
+            continue
+    else:
+        st.error("All model attempts failed.")
+
 def explain_scenario_6_with_groq(df):
     df_string = df.to_string(index=False)
     client = Groq(api_key=API_KEY)
