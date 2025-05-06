@@ -232,10 +232,10 @@ elif tabs == "Forecast Demand":
         elif df is not None:
             if 'Material Number' not in df.columns:
                 st.error("The uploaded file does not contain a 'Material Number' column.")
-            elif 'Week' not in df.columns:
-                st.error("The uploaded file does not contain a 'Week' column.")
-            elif 'Consumption' not in df.columns:
-                st.error("The uploaded file does not contain a 'Consumption' column.")
+            elif 'Pstng Date' not in df.columns:
+                st.error("The uploaded file does not contain a date related column.")
+            elif 'Quantity' not in df.columns:
+                st.error("The uploaded file does not contain a 'Quantity' column.")
 
 elif tabs == "Lead Time Analysis":
     st.title("")
