@@ -197,8 +197,8 @@ elif tabs == "Forecast Demand":
                 st.session_state.params_df.to_excel(writer, sheet_name='Parameters', index=False)
                 
                 # Save the workbook object for further editing
-                writer.book  # Trigger openpyxl backend
-                writer.sheets  # Trigger sheet creation
+                #writer.book  # Trigger openpyxl backend
+                #writer.sheets  # Trigger sheet creation
 
             # Save and reopen to insert image
             output.seek(0)
@@ -225,7 +225,7 @@ elif tabs == "Forecast Demand":
             # Download button
             st.download_button(
                 label="Download Forecast Excel",
-                data=output,
+                data=final_output,  # ← Use this instead of 'output'
                 file_name=st.session_state.filename,
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
