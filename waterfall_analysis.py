@@ -402,7 +402,16 @@ def check_demand(df):
                     "Multiplier": round(future_demand / ww_value, 2)
                 })
 
-    return pd.DataFrame(standout_weeks_info)
+    final_pd = pd.DataFrame(standout_weeks_info)
+    if final_pd.empty():
+        final_msg = "There is no immediate demand increase within lead time of the material number."
+    else:
+        final_msg = "There are instances of immediate demand increase within lead time of the material number."
+
+    # Display explanation
+    st.info(f"A spike is flagged if the demand in any week within the {lead_time}-week lead time exceeds twice the demand of the current week.")
+
+    return  final_pd, final_msg
 
 # Scenario 5: Identifying irregular consumption patterns
 def analyze_week_to_week_demand_changes(result_df, abs_threshold=10, pct_threshold=0.3):

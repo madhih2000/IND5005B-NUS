@@ -159,6 +159,8 @@ def merged_order_gr_PO_analysis(df_order: pd.DataFrame, df_GR: pd.DataFrame) -> 
         suffixes=('_order', '_GR')
     )
 
+    print(merged_df)
+
     # Strip column names in case of trailing spaces
     merged_df.columns = merged_df.columns.str.strip()
 
