@@ -579,30 +579,28 @@ def explain_waterfall_chart_with_groq(df, analysis_1, analysis_2, analysis_3, an
 
     ### Root Cause Determination:
 
-        Based on the bullet-point insights, select **only one** root cause scenario from the list below that best explains the supply chain issue observed in the data.
+    Based on the bullet-point insights, provide a **brief paragraph** explaining why the selected root cause scenario best fits the data trends. Focus on timing, causality, and consistency of patterns.
 
-        Match the selected root cause to the **most strongly supported** pattern of events in the weekly data (e.g., timing of PO shifts, demand spikes, inventory drops, or supply lags).
+    Choose from the following **six predefined scenarios**, using the exact phrasing (including the explanation in braces):
 
-        Choose from the following **six predefined scenarios**, using the exact phrasing (including the explanation in braces):
+    - **Scenario 1: PO Coverage is Inadequate** — {analysis_1}
 
-        - **Scenario 1: PO Coverage is Inadequate** — {analysis_1}
+    - **Scenario 2: POs push out or pull in due to changes in demand forecasts** — {analysis_2}
 
-        - **Scenario 2: POs push out or pull in due to changes in demand forecasts** — {analysis_2}
+    - **Scenario 3: Adjustment to POs** — {analysis_3}
 
-        - **Scenario 3: Adjustment to POs** — {analysis_3}
+    - **Scenario 4: Longer Delivery Lead Time** — {analysis_4}
 
-        - **Scenario 4: Longer Delivery Lead Time** — {analysis_4}
+    - **Scenario 5: Irregular Consumption Patterns** — {analysis_5}
 
-        - **Scenario 5: Irregular Consumption Patterns** — {analysis_5}
+    - **Scenario 6: Demand Spikes within Lead Time** — {analysis_6}
 
-        - **Scenario 6: Demand Spikes within Lead Time** — {analysis_6}
+    ### Output Format:
+    - Bullet points with data-driven observations.
+    - One paragraph justifying the chosen root cause, grounded in trends and data.
+    - A single final line in this format:
 
-        Output Format:
-
-        * Bullet points with data-driven observations.
-        * A single, clearly stated root cause at the end in this exact format:
-
-        **Root Cause:** Scenario X: [scenario name] — [scenario explanation]
+   **Root Cause:** Scenario X: [scenario name] — [scenario explanation]
     """
 
     def process_chunk(chunk_text):
@@ -665,7 +663,8 @@ def explain_waterfall_chart_with_groq(df, analysis_1, analysis_2, analysis_3, an
             - Merge overlapping insights and remove duplicates.
             - Ensure all insights are logically ordered and clearly attributed to specific WW weeks.
             - Preserve a bullet-point format for observations.
-            - Include exactly one root cause at the end — choose the most well-supported scenario.
+            - After the bullet points, include a short paragraph explaining *why* the selected root cause is the most appropriate, grounded in the data trends.
+            - Then, include exactly one root cause at the end — choose the most well-supported scenario.
             - Use the following format for the root cause (no modifications):
 
             **Root Cause:** Scenario X: [scenario name] — [scenario explanation]
