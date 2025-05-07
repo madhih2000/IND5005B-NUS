@@ -317,11 +317,12 @@ def explain_scenario_1_with_groq(df):
     - End Inventory: The resulting inventory at the end of the week.
     - Flags: Root cause analysis or validation messages.
 
-    Your role is to:
-    - Identify and explain inventory health issues.
-    - Highlight whether purchase orders (POs) were sufficient to cover supply commitments.
-    - Point out weeks where the inventory went negative or PO coverage was missing/incomplete.
-    - Assess patterns across multiple weeks and whether the root causes are persistent or one-off.
+    Perform the following tasks:
+
+    * Identify and explain inventory health issues.
+    * Highlight whether purchase orders (POs) were sufficient to cover supply commitments.
+    * Point out weeks where the inventory went negative or PO coverage was missing/incomplete.
+    * Assess patterns across multiple weeks and whether the root causes are persistent or one-off.
 
     Avoid generic comments. Use the table's specific data and flag insights to guide your explanation. Do not include summaries or preambles — start directly with bullet points.
     """
@@ -329,8 +330,6 @@ def explain_scenario_1_with_groq(df):
     user_prompt = f"""
     Analyse the following inventory and PO coverage summary table:\n\n{df_string}
     """
-
-    st.write("Prompt done")
 
     for model in models:
         try:
