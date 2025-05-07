@@ -686,7 +686,7 @@ def scenario_2(waterfall_df, po_df, critical_threshold=5):
             if not pull_candidates.empty:
                 pull_candidates['Diff'] = abs(pull_candidates['Order Quantity'] - shortage)
                 best_pull = pull_candidates.sort_values(by='Diff').iloc[0]
-                pull_units = min(shortage, best_pull['Order Quantity'])
+                pull_units = best_pull['Order Quantity']
 
                 used_po_ids.add(best_pull['Purchasing Document'])
                 end_inventory_calc += pull_units
@@ -714,7 +714,7 @@ def scenario_2(waterfall_df, po_df, critical_threshold=5):
                 if not push_candidates.empty:
                     push_candidates['Diff'] = abs(push_candidates['Order Quantity'] - shortage)
                     best_push = push_candidates.sort_values(by='Diff').iloc[0]
-                    push_units = min(shortage, best_push['Order Quantity'])
+                    push_units = best_push['Order Quantity']
 
                     used_po_ids.add(best_push['Purchasing Document'])
                     end_inventory_calc += push_units
@@ -764,4 +764,3 @@ def scenario_2(waterfall_df, po_df, critical_threshold=5):
         current_inventory_calc = end_inventory_calc
 
     return pd.DataFrame(results), pd.DataFrame(actions_summary)
-
