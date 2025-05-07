@@ -301,6 +301,53 @@ def explain_box_plot_with_groq_goods_receipt(df, material_column="Material Numbe
 #     except Exception as e:
 #         st.error(f"Error during Groq API call: {e}")
 
+def explain_scenario_1_with_groq(df):
+    df_string = df.to_string(index=False)
+    client = Groq(api_key=API_KEY)
+
+    system_prompt = """
+    You are a highly skilled supply chain analyst with deep expertise in semiconductor manufacturing. You have access to a weekly inventory health report, derived from actual demand and supply data.
+
+    The table contains the following columns:
+    - Snapshot Week: The calendar week (e.g., WW08).
+    - Start Inventory (Inventory On Hand): The starting inventory at the beginning of the week.
+    - Demand (Actual): The confirmed demand during the week.
+    - Supply (Waterfall): The expected incoming supply from the planning system.
+    - PO GR Quantity: The actual goods received from purchase orders that week.
+    - End Inventory: The resulting inventory at the end of the week.
+    - Flags: Root cause analysis or validation messages.
+
+    Your role is to:
+    - Identify and explain inventory health issues.
+    - Highlight whether purchase orders (POs) were sufficient to cover supply commitments.
+    - Point out weeks where the inventory went negative or PO coverage was missing/incomplete.
+    - Assess patterns across multiple weeks and whether the root causes are persistent or one-off.
+
+    Avoid generic comments. Use the table's specific data and flag insights to guide your explanation. Do not include summaries or preambles — start directly with bullet points.
+    """
+
+    user_prompt = f"""
+    Analyse the following inventory and PO coverage summary table:\n\n{df_string}
+    """
+
+    for model in models:
+        try:
+            chat_completion = client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                model=model,
+            )
+            explanation = chat_completion.choices[0].message.content
+            st.write(explanation)
+            break
+        except Exception as e:
+            continue
+    else:
+        st.error("All model attempts failed.")
+
+
 def explain_scenario_4_with_groq(df):
     df_string = df.to_string(index=False)
     client = Groq(api_key=API_KEY)
