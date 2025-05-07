@@ -630,7 +630,10 @@ def scenario_2(waterfall_df, po_df, critical_threshold=5):
     )
     snapshots = waterfall_df['Snapshot'].unique()
 
+    st.write(initial_inventory_calc)
+
     current_inventory_calc = initial_inventory_calc
+    st.write(current_inventory_calc)
     used_po_ids = set()
     results = []
     actions_summary = []
@@ -652,8 +655,10 @@ def scenario_2(waterfall_df, po_df, critical_threshold=5):
         inv_val = supply_rows[supply_rows['Snapshot'] == snapshot]['InventoryOn-Hand']
         if snapshot == initial_snapshot:
             start_inventory_waterfall = initial_inventory_calc
+            st.write(start_inventory_waterfall)
         else:
             start_inventory_waterfall = int(inv_val.values[0]) if not inv_val.empty else 0
+            st.write(start_inventory_waterfall)
 
         # PO receipts for this week (excluding used)
         po_received = po_df[
