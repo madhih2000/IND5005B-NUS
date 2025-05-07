@@ -544,42 +544,50 @@ def analyze_week_to_week_demand_changes(result_df, abs_threshold=10, pct_thresho
     return output_df
 
 
+import pandas as pd
+
 def scenario_1(waterfall_df, po_df):
     # Get relevant rows
     supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
     demand_rows = waterfall_df[waterfall_df['Measures'] == 'Demand w/o Buffer']
+    inventory_rows = waterfall_df[waterfall_df['Measures'] == 'InventoryOn-Hand']
 
-    # Start from InventoryOn-Hand in first snapshot with supply info
+    # Initial calculated inventory from the first InventoryOn-Hand entry
     initial_snapshot = supply_rows['Snapshot'].iloc[0]
-    initial_inventory = int(supply_rows[supply_rows['Snapshot'] == initial_snapshot]['InventoryOn-Hand'].values[0])
+    initial_inventory_calc = int(inventory_rows[inventory_rows['Snapshot'] == initial_snapshot]['InventoryOn-Hand'].values[0])
 
-    # Unique snapshots to analyze (e.g., WW08, WW09...)
+    # Unique snapshots
     snapshots = waterfall_df['Snapshot'].unique()
 
-    # Track results
     results = []
-
-    current_inventory = initial_inventory
+    current_inventory_calc = initial_inventory_calc
 
     for snapshot in snapshots:
-        week_col = snapshot  # e.g., WW08
-        week_num = int(week_col.replace("WW", ""))  # numeric week
+        week_col = snapshot
+        week_num = int(snapshot.replace("WW", ""))
 
+        # Demand and Supply from Waterfall
         demand_val = demand_rows[demand_rows['Snapshot'] == snapshot][week_col]
         supply_val = supply_rows[supply_rows['Snapshot'] == snapshot][week_col]
 
         demand = int(demand_val.values[0]) if not demand_val.empty else 0
         supply = int(supply_val.values[0]) if not supply_val.empty else 0
 
-        # Handle PO data
+        # Start Inventory (Waterfall)
+        inventory_val = inventory_rows[inventory_rows['Snapshot'] == snapshot]['InventoryOn-Hand']
+        start_inventory_waterfall = int(inventory_val.values[0]) if not inventory_val.empty else 0
+
+        # PO receipts
         if po_df.empty:
             po_received = 0
         else:
             po_received = po_df[po_df['GR WW'] == week_num]['GR Quantity'].sum()
 
-        end_inventory = current_inventory + supply - demand
+        # Calculated inventory
+        end_inventory_calc = current_inventory_calc + supply - demand
+        end_inventory_waterfall = start_inventory_waterfall + supply - demand
 
-        # Build flag messages
+        # Flags
         flags = []
         if po_df.empty:
             if supply > 0:
@@ -593,28 +601,26 @@ def scenario_1(waterfall_df, po_df):
                 else:
                     flags.append("Supply in Waterfall not backed by PO receipts")
 
-        if end_inventory < 0:
+        if end_inventory_calc < 0:
             flags.append("Inventory went negative — demand exceeded supply and stock")
 
         results.append({
             'Snapshot Week': snapshot,
-            'Start Inventory (Inventory On Hand)': current_inventory,
-            'Demand (Actual)': demand,
+            'Start Inventory (Waterfall)': start_inventory_waterfall,
+            'Start Inventory (Calc)': current_inventory_calc,
+            'Demand (Waterfall)': demand,
             'Supply (Waterfall)': supply,
             'PO GR Quantity': po_received,
-            'End Inventory': end_inventory,
+            'End Inventory (Waterfall)': end_inventory_waterfall,
+            'End Inventory (Calc)': end_inventory_calc,
             'Flags': ", ".join(flags) if flags else "OK"
         })
 
-        current_inventory = end_inventory
+        current_inventory_calc = end_inventory_calc
 
-    # Create result DataFrame
     summary_df = pd.DataFrame(results)
-
     return summary_df
 
-
-import pandas as pd
 
 def scenario_2(waterfall_df, po_df):
     # Ensure the 'Order WW' and 'GR WW' columns are of integer type
