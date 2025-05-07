@@ -630,7 +630,7 @@ def scenario_2(waterfall_df, po_df, critical_threshold=5):
     )
     snapshots = waterfall_df['Snapshot'].unique()
 
-    current_inventory_calc = initial_inventory_calc
+    start_inventory_calc = initial_inventory_calc  # Track starting inventory each week
     used_po_ids = set()
     results = []
     actions_summary = []
@@ -662,7 +662,7 @@ def scenario_2(waterfall_df, po_df, critical_threshold=5):
         ]['GR Quantity'].sum()
 
         # Calculate end inventory
-        end_inventory_calc = current_inventory_calc + supply + po_received - demand
+        end_inventory_calc = start_inventory_calc + supply + po_received - demand
         end_inventory_waterfall = start_inventory_waterfall + supply + po_received - demand
 
         flags = []
@@ -688,7 +688,7 @@ def scenario_2(waterfall_df, po_df, critical_threshold=5):
 
                 used_po_ids.add(best_pull['Purchasing Document'])
                 end_inventory_after_action += pull_units
-                current_inventory_calc += pull_units  # include in calculation
+                start_inventory_calc += pull_units  # include in calculation
                 action_taken = f"Will pull in PO {best_pull['Purchasing Document']} for {pull_units} units (originally WW{best_pull['Order WW']})"
                 actions_summary.append({
                     'Purchasing Document': best_pull['Purchasing Document'],
@@ -716,7 +716,7 @@ def scenario_2(waterfall_df, po_df, critical_threshold=5):
 
                     used_po_ids.add(best_push['Purchasing Document'])
                     end_inventory_after_action += push_units
-                    current_inventory_calc += push_units
+                    start_inventory_calc += push_units
                     action_taken = f"Will push out PO {best_push['Purchasing Document']} for {push_units} units (expected earlier but missing GR)"
                     actions_summary.append({
                         'Purchasing Document': best_push['Purchasing Document'],
@@ -748,7 +748,7 @@ def scenario_2(waterfall_df, po_df, critical_threshold=5):
         results.append({
             'Snapshot Week': snapshot,
             'Start Inventory (Waterfall)': start_inventory_waterfall,
-            'Start Inventory (Calc)': current_inventory_calc,
+            'Start Inventory (Calc)': start_inventory_calc,
             'Demand (Waterfall)': demand,
             'Supply (Waterfall)': supply,
             'PO GR Quantity': po_received,
@@ -760,6 +760,6 @@ def scenario_2(waterfall_df, po_df, critical_threshold=5):
         })
 
         # Update for next loop
-        current_inventory_calc = end_inventory_calc
+        start_inventory_calc = end_inventory_calc
 
     return pd.DataFrame(results), pd.DataFrame(actions_summary)
