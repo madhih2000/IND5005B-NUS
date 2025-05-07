@@ -681,63 +681,43 @@ def scenario_2(waterfall_df, po_df):
         if end_inventory_calc < demand:
             # Inventory is too low, need to push out POs
             needed_po = demand - end_inventory_calc
-            po_candidates = po_df[(po_df['Order WW'] > week_num)]
+            po_candidates = po_df[(po_df['Order WW'] > week_num) & (po_df['Order Quantity'] > 0)]
             if not po_candidates.empty:
                 po_candidates = po_candidates.sort_values(by='Order WW', ascending=True)
                 for index, po in po_candidates.iterrows():
                     if needed_po <= 0:
                         break
-                    if po['Order Quantity'] > needed_po:
-                        actions_needed.append(f"Push out PO {po['Purchasing Document']} for {needed_po} units")
-                        actions_summary.append({
-                            'Purchasing Document': po['Purchasing Document'],
-                            'Week': snapshot,
-                            'Action': 'Push Out',
-                            'Units': needed_po,
-                            'Resulting Inventory': end_inventory_calc + needed_po
-                        })
-                        needed_po = 0
-                    else:
-                        actions_needed.append(f"Push out PO {po['Purchasing Document']} for {po['Order Quantity']} units")
-                        actions_summary.append({
-                            'Purchasing Document': po['Purchasing Document'],
-                            'Week': snapshot,
-                            'Action': 'Push Out',
-                            'Units': po['Order Quantity'],
-                            'Resulting Inventory': end_inventory_calc + po['Order Quantity']
-                        })
-                        needed_po -= po['Order Quantity']
+                    units_to_pull = min(needed_po, po['Order Quantity'])
+                    actions_needed.append(f"Push out PO {po['Purchasing Document']} for {units_to_pull} units")
+                    actions_summary.append({
+                        'Purchasing Document': po['Purchasing Document'],
+                        'Week': snapshot,
+                        'Action': 'Push Out',
+                        'Units': units_to_pull,
+                        'Resulting Inventory': end_inventory_calc + units_to_pull
+                    })
+                    needed_po -= units_to_pull
             else:
                 actions_needed.append("No future POs to push out")
         elif end_inventory_calc > supply + demand:
             # Inventory is too high, need to pull in POs
             excess_inventory = end_inventory_calc - (supply + demand)
-            po_candidates = po_df[(po_df['Order WW'] <= week_num) & (po_df['GR WW'] >= week_num)]
+            po_candidates = po_df[(po_df['Order WW'] <= week_num) & (po_df['GR WW'] >= week_num) & (po_df['Order Quantity'] > 0)]
             if not po_candidates.empty:
                 po_candidates = po_candidates.sort_values(by='Order WW', ascending=False)
                 for index, po in po_candidates.iterrows():
                     if excess_inventory <= 0:
                         break
-                    if po['Order Quantity'] > excess_inventory:
-                        actions_needed.append(f"Pull in PO {po['Purchasing Document']} for {excess_inventory} units")
-                        actions_summary.append({
-                            'Purchasing Document': po['Purchasing Document'],
-                            'Week': snapshot,
-                            'Action': 'Pull In',
-                            'Units': excess_inventory,
-                            'Resulting Inventory': end_inventory_calc - excess_inventory
-                        })
-                        excess_inventory = 0
-                    else:
-                        actions_needed.append(f"Pull in PO {po['Purchasing Document']} for {po['Order Quantity']} units")
-                        actions_summary.append({
-                            'Purchasing Document': po['Purchasing Document'],
-                            'Week': snapshot,
-                            'Action': 'Pull In',
-                            'Units': po['Order Quantity'],
-                            'Resulting Inventory': end_inventory_calc - po['Order Quantity']
-                        })
-                        excess_inventory -= po['Order Quantity']
+                    units_to_pull_in = min(excess_inventory, po['Order Quantity'])
+                    actions_needed.append(f"Pull in PO {po['Purchasing Document']} for {units_to_pull_in} units")
+                    actions_summary.append({
+                        'Purchasing Document': po['Purchasing Document'],
+                        'Week': snapshot,
+                        'Action': 'Pull In',
+                        'Units': units_to_pull_in,
+                        'Resulting Inventory': end_inventory_calc - units_to_pull_in
+                    })
+                    excess_inventory -= units_to_pull_in
             else:
                 actions_needed.append("No available POs to pull in")
 
@@ -765,3 +745,8 @@ def scenario_2(waterfall_df, po_df):
     actions_summary_df = pd.DataFrame(actions_summary)
 
     return results_df, actions_summary_df
+
+# Example usage:
+results_df, actions_summary_df = scenario_2(waterfall_df, po_df)
+print(results_df)
+print(actions_summary_df)
