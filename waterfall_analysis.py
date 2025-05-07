@@ -612,3 +612,111 @@ def scenario_1(waterfall_df, po_df):
     summary_df = pd.DataFrame(results)
 
     return summary_df
+
+
+def scenario_2(waterfall_df, po_df):
+    # Get relevant rows
+    supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
+    demand_rows = waterfall_df[waterfall_df['Measures'] == 'Demand w/o Buffer']
+
+    # Start from InventoryOn-Hand in first snapshot with supply info
+    initial_snapshot = supply_rows['Snapshot'].iloc[0]
+    initial_inventory = int(supply_rows[supply_rows['Snapshot'] == initial_snapshot]['InventoryOn-Hand'].values[0])
+
+    # Unique snapshots to analyze (e.g., WW08, WW09...)
+    snapshots = waterfall_df['Snapshot'].unique()
+
+    # Track results
+    results = []
+
+    current_inventory = initial_inventory
+
+    for snapshot in snapshots:
+        week_col = snapshot  # e.g., WW08
+        week_num = int(week_col.replace("WW", ""))  # numeric week
+
+        demand_val = demand_rows[demand_rows['Snapshot'] == snapshot][week_col]
+        supply_val = supply_rows[supply_rows['Snapshot'] == snapshot][week_col]
+
+        demand = int(demand_val.values[0]) if not demand_val.empty else 0
+        supply = int(supply_val.values[0]) if not supply_val.empty else 0
+
+        # Handle PO data
+        if po_df.empty:
+            po_received = 0
+        else:
+            po_received = po_df[po_df['GR WW'] == week_num]['GR Quantity'].sum()
+
+        end_inventory = current_inventory + supply - demand
+
+        # Build flag messages
+        flags = []
+        if po_df.empty:
+            if supply > 0:
+                flags.append("No PO data available to validate supply")
+        else:
+            if po_received < supply:
+                if po_received == 0 and supply > 0:
+                    flags.append("No PO received for expected supply")
+                elif 0 < po_received < supply:
+                    flags.append(f"Partial PO received: Expected {supply}, Got {po_received}")
+                else:
+                    flags.append("Supply in Waterfall not backed by PO receipts")
+
+        if end_inventory < 0:
+            flags.append("Inventory went negative — demand exceeded supply and stock")
+
+        # Determine actions needed based on inventory levels
+        actions_needed = []
+        if end_inventory < demand:
+            # Inventory is too low, need to push out POs
+            needed_po = demand - end_inventory
+            po_candidates = po_df[(po_df['Order Date'] < snapshot) & (po_df['GR Date'] >= snapshot)]
+            if not po_candidates.empty:
+                po_candidates = po_candidates.sort_values(by='Order Date', ascending=True)
+                for index, po in po_candidates.iterrows():
+                    if needed_po <= 0:
+                        break
+                    if po['Order Quantity'] > needed_po:
+                        actions_needed.append(f"Push out PO {po['Purchasing Document']} for {needed_po} units")
+                        needed_po = 0
+                    else:
+                        actions_needed.append(f"Push out PO {po['Purchasing Document']} for {po['Order Quantity']} units")
+                        needed_po -= po['Order Quantity']
+            else:
+                actions_needed.append("No available POs to push out")
+        elif end_inventory > supply + demand:
+            # Inventory is too high, need to pull in POs
+            excess_inventory = end_inventory - (supply + demand)
+            po_candidates = po_df[(po_df['Order Date'] < snapshot) & (po_df['GR Date'] >= snapshot)]
+            if not po_candidates.empty:
+                po_candidates = po_candidates.sort_values(by='Order Date', ascending=False)
+                for index, po in po_candidates.iterrows():
+                    if excess_inventory <= 0:
+                        break
+                    if po['Order Quantity'] > excess_inventory:
+                        actions_needed.append(f"Pull in PO {po['Purchasing Document']} for {excess_inventory} units")
+                        excess_inventory = 0
+                    else:
+                        actions_needed.append(f"Pull in PO {po['Purchasing Document']} for {po['Order Quantity']} units")
+                        excess_inventory -= po['Order Quantity']
+            else:
+                actions_needed.append("No available POs to pull in")
+
+        results.append({
+            'Snapshot Week': snapshot,
+            'Start Inventory (Inventory On Hand)': current_inventory,
+            'Demand (Actual)': demand,
+            'Supply (Waterfall)': supply,
+            'PO GR Quantity': po_received,
+            'End Inventory': end_inventory,
+            'Flags': ", ".join(flags) if flags else "OK",
+            'Actions Needed': ", ".join(actions_needed) if actions_needed else "None"
+        })
+
+        current_inventory = end_inventory
+
+    # Create result DataFrame
+    summary_df = pd.DataFrame(results)
+
+    return summary_df

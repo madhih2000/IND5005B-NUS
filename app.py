@@ -471,7 +471,7 @@ elif tabs == "Waterfall Analysis":
                                         st.write("Forecast Accuracy Validation Table")
                                         st.dataframe(comparison_table)
                                         st.write("PO Timing Analysis")
-                                        po_analysis_output = waterfall_analysis.identify_specific_po_timing_issues(result_df, PO_df_filtered)
+                                        po_analysis_output = waterfall_analysis.scenario_2(result_df, PO_df_filtered)
                                         st.dataframe(po_analysis_output)
                                         analysis_2 = ""
 
