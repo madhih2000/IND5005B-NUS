@@ -544,6 +544,8 @@ def analyze_week_to_week_demand_changes(result_df, abs_threshold=10, pct_thresho
     return output_df
 
 
+import pandas as pd
+
 def scenario_1(waterfall_df, po_df):
     # Filter relevant rows
     supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
@@ -579,9 +581,9 @@ def scenario_1(waterfall_df, po_df):
         if not po_df.empty:
             po_received = po_df[po_df['GR WW'] == week_num]['GR Quantity'].sum()
 
-        # Calculate end inventories
-        end_inventory_calc = current_inventory_calc + supply - demand
-        end_inventory_waterfall = start_inventory_waterfall + supply - demand
+        # Calculate end inventories INCLUDING PO received
+        end_inventory_calc = current_inventory_calc + supply + po_received - demand
+        end_inventory_waterfall = start_inventory_waterfall + supply + po_received - demand
 
         # Flag logic
         flags = []
@@ -617,6 +619,7 @@ def scenario_1(waterfall_df, po_df):
         current_inventory_calc = end_inventory_calc
 
     return pd.DataFrame(results)
+
 
 
 
