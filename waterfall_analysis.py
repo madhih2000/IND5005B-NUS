@@ -247,14 +247,14 @@ def identify_specific_po_timing_issues(demand_df, po_df):
     and provide actionable push/pull suggestions.
 
     Args:
-        demand_df: DataFrame containing waterfall data with 'Snapshot', 'Measures', 'InventoryOn-Hand', and WW columns.
+        demand_df: DataFrame containing waterfall data with 'Snapshot', 'Measures', and WW columns.
         po_df: DataFrame with ['Purchasing Document', 'Order WW', 'GR WW', 'GR Quantity'].
 
     Returns:
         A DataFrame showing demand coverage, PO matching, unmet demand, and suggested PO timing actions.
     """
     demand_rows = demand_df[demand_df['Measures'] == 'Demand w/o Buffer']
-    inventory_rows = demand_df[demand_df['Measures'] == 'InventoryOn-Hand']
+    supply_rows = demand_df[demand_df['Measures'] == 'Supply']  # corrected to use Supply for inventory
     weeks = sorted([col for col in demand_df.columns if col.startswith("WW")])
     snapshots = demand_rows['Snapshot'].unique()
 
@@ -264,15 +264,15 @@ def identify_specific_po_timing_issues(demand_df, po_df):
     results = []
 
     for snapshot in snapshots:
-        week = snapshot  # Only diagonal — actual week
+        week = snapshot  # e.g., WW08
         week_num = int(week.replace("WW", ""))
 
         # Get demand for this actual week
         demand_val = demand_rows[demand_rows['Snapshot'] == snapshot][week]
         demand = int(demand_val.values[0]) if not demand_val.empty and not pd.isna(demand_val.values[0]) else 0
 
-        # Get Inventory-On-Hand for this snapshot
-        inv_val = inventory_rows[inventory_rows['Snapshot'] == snapshot]['InventoryOn-Hand']
+        # ✅ Corrected: Get Inventory-On-Hand from the 'Supply' row using the week column
+        inv_val = supply_rows[supply_rows['Snapshot'] == snapshot]['InventoryOn-Hand']
         inventory_on_hand = int(inv_val.values[0]) if not inv_val.empty and not pd.isna(inv_val.values[0]) else 0
 
         matched_pos = []
@@ -322,8 +322,6 @@ def identify_specific_po_timing_issues(demand_df, po_df):
         })
 
     return pd.DataFrame(results)
-
-
 
 def check_wos_against_lead_time(wos_list, lead_time):
     """
