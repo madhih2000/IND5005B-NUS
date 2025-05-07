@@ -618,8 +618,6 @@ def scenario_1(waterfall_df, po_df):
 
     return pd.DataFrame(results)
 
-import pandas as pd
-
 def scenario_2(waterfall_df, po_df):
     # Filter relevant rows
     supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
@@ -684,14 +682,19 @@ def scenario_2(waterfall_df, po_df):
                 pulled_po = future_po.iloc[0]
                 suggested_po = pulled_po['Purchasing Document']
                 simulated_po_qty = pulled_po['GR Quantity']
-                adjusted_gr_week = week_num  # Simulate pulling the PO in to current week (lead time adjustment)
-                # Add lead time to GR week (calculate lead time from Order WW to GR WW)
+                
+                # Simulate pulling the PO in by adjusting GR week (taking lead time into account)
                 lead_time = pulled_po['GR WW'] - pulled_po['Order WW']
-                simulated_gr_week = week_num + lead_time
+                adjusted_gr_week = week_num + lead_time  # Adjusted GR week
                 simulated_po_received += simulated_po_qty
-                simulated_end_inventory = current_inventory_sim + simulated_supply + simulated_po_received - demand
+                
+                # The inventory impact will be reflected in the adjusted GR week
                 action = "Pull In"
                 used_po_docs.add(suggested_po)
+
+                # Simulate receiving the PO after lead time
+                if adjusted_gr_week == week_num:
+                    simulated_end_inventory = current_inventory_sim + simulated_supply + simulated_po_received - demand
 
         # Simulate push-out if excess PO not needed
         elif simulated_end_inventory > current_inventory_sim + simulated_supply - demand and po_received > 0:
