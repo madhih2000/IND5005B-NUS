@@ -243,11 +243,11 @@ def plot_stock_prediction_plotly(df, start_week, lead_time, weeks_range):
 
 def identify_specific_po_timing_issues(demand_df, po_df):
     """
-    Enhanced Scenario 2: Match POs to demand with carry-forward and specific PO line actions.
+    Scenario 2: Match POs to demand with carry-forward and specific PO line actions.
     
     Args:
         demand_df: Waterfall-style dataframe with Demand w/o Buffer values.
-        po_df: DataFrame with columns ['Order ID', 'Order WW', 'GR WW', 'GR Quantity'].
+        po_df: DataFrame with columns ['Purchasing Document', 'Order WW', 'GR WW', 'GR Quantity'].
 
     Returns:
         A DataFrame with weekly PO-to-demand matching and push/pull recommendations.
@@ -284,11 +284,11 @@ def identify_specific_po_timing_issues(demand_df, po_df):
                 # Try to match demand with POs in same week
                 available_pos = po_df[(po_df['GR WW'] == week_num) & (po_df['Remaining Qty'] > 0)]
                 for _, po in available_pos.iterrows():
-                    po_id = po['Order ID']
+                    po_id = po['Purchasing Document']
                     qty = po['Remaining Qty']
                     use_qty = min(qty, demand_left)
 
-                    po_df.loc[po_df['Order ID'] == po_id, 'Remaining Qty'] -= use_qty
+                    po_df.loc[po_df['Purchasing Document'] == po_id, 'Remaining Qty'] -= use_qty
                     matched_pos.append(f"{po_id} (Used {use_qty})")
                     demand_left -= use_qty
                     if demand_left <= 0:
@@ -299,13 +299,13 @@ def identify_specific_po_timing_issues(demand_df, po_df):
                 # Look for late POs that could be pulled in
                 late_pos = po_df[(po_df['GR WW'] > week_num) & (po_df['Remaining Qty'] > 0)]
                 for _, po in late_pos.iterrows():
-                    po_id = po['Order ID']
+                    po_id = po['Purchasing Document']
                     flags.append(f"Pull In: {po_id} (ETA WW{po['GR WW']}, Qty {po['Remaining Qty']})")
 
                 # Look for early POs that are not needed yet
                 early_pos = po_df[(po_df['GR WW'] < week_num) & (po_df['Remaining Qty'] > 0)]
                 for _, po in early_pos.iterrows():
-                    po_id = po['Order ID']
+                    po_id = po['Purchasing Document']
                     flags.append(f"Push Out: {po_id} (ETA WW{po['GR WW']}, Qty {po['Remaining Qty']})")
 
             results.append({
@@ -318,7 +318,7 @@ def identify_specific_po_timing_issues(demand_df, po_df):
                 "Actions Needed": "; ".join(flags) if flags else "OK"
             })
 
-            inventory_carry = max(0, inventory_carry + sum([po_df[po_df['Order ID'] == po.split()[0]]['Remaining Qty'].values[0] 
+            inventory_carry = max(0, inventory_carry + sum([po_df[po_df['Purchasing Document'] == po.split()[0]]['Remaining Qty'].values[0] 
                                                             for po in matched_pos if 'Used' not in po]))
 
     return pd.DataFrame(results)
