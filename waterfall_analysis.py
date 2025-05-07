@@ -544,8 +544,6 @@ def analyze_week_to_week_demand_changes(result_df, abs_threshold=10, pct_thresho
     return output_df
 
 
-import pandas as pd
-
 def scenario_1(waterfall_df, po_df):
     # Filter relevant rows
     supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
@@ -622,47 +620,46 @@ def scenario_1(waterfall_df, po_df):
 
 
 
-
 def scenario_2(waterfall_df, po_df):
-    # Ensure the 'Order WW' and 'GR WW' columns are of integer type
-    po_df['Order WW'] = po_df['Order WW'].astype(int)
-    po_df['GR WW'] = po_df['GR WW'].astype(int)
-
-    # Get relevant rows
+    # Filter relevant rows
     supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
     demand_rows = waterfall_df[waterfall_df['Measures'] == 'Demand w/o Buffer']
 
-    # Start from InventoryOn-Hand in first snapshot with supply info
+    # Get initial snapshot and inventory from Supply rows
     initial_snapshot = supply_rows['Snapshot'].iloc[0]
-    initial_inventory = int(supply_rows[supply_rows['Snapshot'] == initial_snapshot]['InventoryOn-Hand'].values[0])
+    initial_inventory_calc = int(supply_rows[supply_rows['Snapshot'] == initial_snapshot]['InventoryOn-Hand'].values[0])
 
-    # Unique snapshots to analyze (e.g., WW08, WW09...)
+    # All snapshots to iterate through
     snapshots = waterfall_df['Snapshot'].unique()
 
-    # Track results
     results = []
-
-    current_inventory = initial_inventory
+    current_inventory_calc = initial_inventory_calc
 
     for snapshot in snapshots:
-        week_col = snapshot  # e.g., WW08
-        week_num = int(week_col.replace("WW", ""))  # numeric week
+        week_col = snapshot
+        week_num = int(snapshot.replace("WW", ""))
 
+        # Get supply and demand values
         demand_val = demand_rows[demand_rows['Snapshot'] == snapshot][week_col]
         supply_val = supply_rows[supply_rows['Snapshot'] == snapshot][week_col]
 
         demand = int(demand_val.values[0]) if not demand_val.empty else 0
         supply = int(supply_val.values[0]) if not supply_val.empty else 0
 
-        # Handle PO data
-        if po_df.empty:
-            po_received = 0
-        else:
+        # Start inventory from Waterfall column
+        inv_val = supply_rows[supply_rows['Snapshot'] == snapshot]['InventoryOn-Hand']
+        start_inventory_waterfall = int(inv_val.values[0]) if not inv_val.empty else 0
+
+        # GR quantity from PO data
+        po_received = 0
+        if not po_df.empty:
             po_received = po_df[po_df['GR WW'] == week_num]['GR Quantity'].sum()
 
-        end_inventory = current_inventory + supply - demand
+        # Calculate end inventories INCLUDING PO received
+        end_inventory_calc = current_inventory_calc + supply + po_received - demand
+        end_inventory_waterfall = start_inventory_waterfall + supply + po_received - demand
 
-        # Build flag messages
+        # Flag logic
         flags = []
         if po_df.empty:
             if supply > 0:
@@ -676,17 +673,17 @@ def scenario_2(waterfall_df, po_df):
                 else:
                     flags.append("Supply in Waterfall not backed by PO receipts")
 
-        if end_inventory < 0:
+        if end_inventory_calc < 0:
             flags.append("Inventory went negative — demand exceeded supply and stock")
 
-        # Determine actions needed based on inventory levels
+        # Determine actions needed
         actions_needed = []
-        if end_inventory < demand:
+        if end_inventory_calc < demand:
             # Inventory is too low, need to push out POs
-            needed_po = demand - end_inventory
+            needed_po = demand - end_inventory_calc
             po_candidates = po_df[(po_df['Order WW'] <= week_num) & (po_df['GR WW'] >= week_num)]
             if not po_candidates.empty:
-                po_candidates = po_candidates.sort_values(by='Order WW', ascending=True)
+                po_candidates = po_candidates.sort_values(by='Order Date', ascending=True)
                 for index, po in po_candidates.iterrows():
                     if needed_po <= 0:
                         break
@@ -698,12 +695,12 @@ def scenario_2(waterfall_df, po_df):
                         needed_po -= po['Order Quantity']
             else:
                 actions_needed.append("No available POs to push out")
-        elif end_inventory > supply + demand:
+        elif end_inventory_calc > supply + demand:
             # Inventory is too high, need to pull in POs
-            excess_inventory = end_inventory - (supply + demand)
+            excess_inventory = end_inventory_calc - (supply + demand)
             po_candidates = po_df[(po_df['Order WW'] <= week_num) & (po_df['GR WW'] >= week_num)]
             if not po_candidates.empty:
-                po_candidates = po_candidates.sort_values(by='Order WW', ascending=False)
+                po_candidates = po_candidates.sort_values(by='Order Date', ascending=False)
                 for index, po in po_candidates.iterrows():
                     if excess_inventory <= 0:
                         break
@@ -716,20 +713,21 @@ def scenario_2(waterfall_df, po_df):
             else:
                 actions_needed.append("No available POs to pull in")
 
+        # Record results
         results.append({
             'Snapshot Week': snapshot,
-            'Start Inventory (Inventory On Hand)': current_inventory,
-            'Demand (Actual)': demand,
+            'Start Inventory (Waterfall)': start_inventory_waterfall,
+            'Start Inventory (Calc)': current_inventory_calc,
+            'Demand (Waterfall)': demand,
             'Supply (Waterfall)': supply,
             'PO GR Quantity': po_received,
-            'End Inventory': end_inventory,
+            'End Inventory (Waterfall)': end_inventory_waterfall,
+            'End Inventory (Calc)': end_inventory_calc,
             'Flags': ", ".join(flags) if flags else "OK",
             'Actions Needed': ", ".join(actions_needed) if actions_needed else "None"
         })
 
-        current_inventory = end_inventory
+        # Update for next loop
+        current_inventory_calc = end_inventory_calc
 
-    # Create result DataFrame
-    summary_df = pd.DataFrame(results)
-
-    return summary_df
+    return pd.DataFrame(results)
