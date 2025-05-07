@@ -488,7 +488,11 @@ elif tabs == "Waterfall Analysis":
                                         #RCA Condition 6
                                         st.subheader('Scenario 6 - Demand Spikes within Lead Time')
                                         condition6, condition6_msg = waterfall_analysis.check_demand(result_df)
-                                        st.dataframe(condition6)
+                                        if condition6.empty:
+                                            st.write(condition6_msg)
+                                        else:
+                                            st.dataframe(condition6)
+                                            
                                         llm_reasoning.explain_scenario_6_with_groq(condition6)
 
                                         # Download button
