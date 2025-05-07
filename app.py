@@ -340,12 +340,7 @@ elif tabs == "Waterfall Analysis":
 
     if uploaded_file and uploaded_file_op and uploaded_file_gr:
         op_df = pd.read_excel(uploaded_file_op)
-
-        st.dataframe(op_df)
-
         gr_df = pd.read_excel(uploaded_file_gr)
-        st.write("GR")
-        st.dataframe(gr_df)
 
 
         with tempfile.TemporaryDirectory() as tmp_dir:
