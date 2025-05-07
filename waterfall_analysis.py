@@ -648,7 +648,7 @@ def scenario_2(waterfall_df, po_df):
         # GR quantity and PO document(s)
         po_received_data = po_df[po_df['GR WW'] == week_num]
         po_received = po_received_data['GR Quantity'].sum()
-        po_docs_received = list(po_received_data['PO Document']) if not po_received_data.empty else []
+        po_docs_received = list(po_received_data['Purchasing Document']) if not po_received_data.empty else []
 
         # End inventory calculation
         end_inventory_calc = current_inventory_calc + supply + po_received - demand
@@ -665,7 +665,7 @@ def scenario_2(waterfall_df, po_df):
             future_po = po_df[po_df['GR WW'] > week_num]
             if not future_po.empty:
                 action = "Pull in PO to avoid stockout"
-                suggested_po = future_po.iloc[0]['PO Document']
+                suggested_po = future_po.iloc[0]['Purchasing Document']
             else:
                 action = "No future PO available to pull in"
         
@@ -681,7 +681,7 @@ def scenario_2(waterfall_df, po_df):
             'Demand (Waterfall)': demand,
             'Supply (Waterfall)': supply,
             'PO GR Quantity': po_received,
-            'PO Document(s)': ", ".join(map(str, po_docs_received)) if po_docs_received else None,
+            'Purchasing Document(s)': ", ".join(map(str, po_docs_received)) if po_docs_received else None,
             'End Inventory (Waterfall)': end_inventory_waterfall,
             'End Inventory (Calc)': end_inventory_calc,
             'Flags': ", ".join(flags) if flags else "OK",
