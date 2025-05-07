@@ -456,9 +456,9 @@ elif tabs == "Waterfall Analysis":
                                             st.warning("No matching PO records found for the selected Material Number, Plant, and Site.")
 
                                         else:
-                                            st.dataframe(PO_df_filtered)
+                                            #st.dataframe(PO_df_filtered)
 
-                                            scen_1_df_output = waterfall_analysis.scenario_1(result_df,PO_df_filtered) 
+                                            scen_1_df_output = waterfall_analysis.scenario_1(result_df, PO_df_filtered) 
 
                                             st.dataframe(scen_1_df_output)
 
