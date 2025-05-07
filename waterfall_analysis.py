@@ -451,4 +451,60 @@ def analyze_week_to_week_demand_changes(result_df, abs_threshold=10, pct_thresho
             f"or ±{int(pct_threshold * 100)}%.")
 
     return output_df
-        
+
+
+def scenario_1(waterfall_df, po_df):
+    # Get relevant rows
+    supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
+    demand_rows = waterfall_df[waterfall_df['Measures'] == 'Demand w/o Buffer']
+
+    # Start from InventoryOn-Hand in first snapshot with supply info
+    initial_snapshot = supply_rows['Snapshot'].iloc[0]
+    initial_col = initial_snapshot
+    initial_inventory = int(supply_rows[supply_rows['Snapshot'] == initial_snapshot]['InventoryOn-Hand'].values[0])
+
+    # Unique snapshots to analyze (e.g., WW08, WW09...)
+    snapshots = waterfall_df['Snapshot'].unique()
+
+    # Track results
+    results = []
+
+    current_inventory = initial_inventory
+
+    for snapshot in snapshots:
+        week_col = snapshot  # e.g., WW08
+        week_num = int(week_col.replace("WW", ""))  # numeric week
+
+        demand_val = demand_rows[demand_rows['Snapshot'] == snapshot][week_col]
+        supply_val = supply_rows[supply_rows['Snapshot'] == snapshot][week_col]
+
+        demand = int(demand_val.values[0]) if not demand_val.empty else 0
+        supply = int(supply_val.values[0]) if not supply_val.empty else 0
+
+        # PO data: Goods received in this week
+        po_received = po_df[po_df['GR WW'] == week_num]['GR Quantity'].sum()
+
+        end_inventory = current_inventory + supply - demand
+
+        flags = []
+        if po_received < supply:
+            flags.append("PO Mismatch")
+        if end_inventory < 0:
+            flags.append("Inventory Negative")
+
+        results.append({
+            'Snapshot Week': snapshot,
+            'Start Inventory': current_inventory,
+            'Demand': demand,
+            'Supply (Waterfall)': supply,
+            'PO GR Quantity': po_received,
+            'End Inventory': end_inventory,
+            'Flags': ", ".join(flags) if flags else "OK"
+        })
+
+        current_inventory = end_inventory
+
+    # Create result DataFrame
+    summary_df = pd.DataFrame(results)
+
+    return summary_df

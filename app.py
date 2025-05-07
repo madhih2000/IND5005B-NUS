@@ -458,6 +458,10 @@ elif tabs == "Waterfall Analysis":
                                         else:
                                             st.dataframe(PO_df_filtered)
 
+                                            scen_1_df_output = waterfall_analysis.scenario_1(result_df,PO_df_filtered) 
+
+                                            st.dataframe(scen_1_df_output)
+
                                         #RCA Condition 2
                                         st.subheader('Scenario 2 - POs push out or pull in due to changes in demand forecasts')
                                         wos_list, analysis_plot, comparison_table = waterfall_analysis.plot_stock_prediction_plotly(result_df, start_week, lead_value, num_weeks)
