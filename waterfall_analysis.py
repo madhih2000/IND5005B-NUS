@@ -630,7 +630,8 @@ def scenario_2(waterfall_df, po_df, critical_threshold=5):
     )
     snapshots = waterfall_df['Snapshot'].unique()
 
-    start_inventory_calc = initial_inventory_calc  # Track starting inventory each week
+    # Initialize start inventory for calc, initially matching the waterfall for the first snapshot
+    start_inventory_calc = initial_inventory_calc  # This will be updated only after the first week
     used_po_ids = set()
     results = []
     actions_summary = []
@@ -688,7 +689,7 @@ def scenario_2(waterfall_df, po_df, critical_threshold=5):
 
                 used_po_ids.add(best_pull['Purchasing Document'])
                 end_inventory_after_action += pull_units
-                start_inventory_calc += pull_units  # include in calculation
+                start_inventory_calc += pull_units  # Include in calculation after action
                 action_taken = f"Will pull in PO {best_pull['Purchasing Document']} for {pull_units} units (originally WW{best_pull['Order WW']})"
                 actions_summary.append({
                     'Purchasing Document': best_pull['Purchasing Document'],
@@ -760,6 +761,7 @@ def scenario_2(waterfall_df, po_df, critical_threshold=5):
         })
 
         # Update for next loop
-        start_inventory_calc = end_inventory_calc
+        if snapshot != initial_snapshot:  # Skip updating for the first week
+            start_inventory_calc = end_inventory_calc
 
     return pd.DataFrame(results), pd.DataFrame(actions_summary)
