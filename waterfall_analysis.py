@@ -745,8 +745,3 @@ def scenario_2(waterfall_df, po_df):
     actions_summary_df = pd.DataFrame(actions_summary)
 
     return results_df, actions_summary_df
-
-# Example usage:
-results_df, actions_summary_df = scenario_2(waterfall_df, po_df)
-print(results_df)
-print(actions_summary_df)
