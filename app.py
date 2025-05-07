@@ -487,8 +487,8 @@ elif tabs == "Waterfall Analysis":
                                         llm_reasoning.explain_scenario_5_with_groq(condition5)
 
                                         #RCA Condition 6
-                                        condition6, condition6_msg = waterfall_analysis.check_demand(result_df)
                                         st.subheader('Scenario 6 - Demand Spikes within Lead Time')
+                                        condition6, condition6_msg = waterfall_analysis.check_demand(result_df)
                                         st.dataframe(condition6)
                                         llm_reasoning.explain_scenario_6_with_groq(condition6)
 
