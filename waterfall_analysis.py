@@ -618,8 +618,6 @@ def scenario_1(waterfall_df, po_df):
 
     return pd.DataFrame(results)
 
-import pandas as pd
-
 def scenario_2(waterfall_df, po_df, critical_threshold=5):
     supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
     demand_rows = waterfall_df[waterfall_df['Measures'] == 'Demand w/o Buffer']
@@ -641,7 +639,10 @@ def scenario_2(waterfall_df, po_df, critical_threshold=5):
         supply = int(supply_rows[supply_rows['Snapshot'] == snapshot][week_col].values[0]) if not supply_rows[supply_rows['Snapshot'] == snapshot][week_col].empty else 0
 
         inv_val = supply_rows[supply_rows['Snapshot'] == snapshot]['InventoryOn-Hand']
-        start_inventory_waterfall = int(inv_val.values[0]) if not inv_val.empty else 0
+        if snapshot == initial_snapshot:
+            start_inventory_waterfall = initial_inventory_calc
+        else:
+            start_inventory_waterfall = int(inv_val.values[0]) if not inv_val.empty else 0
 
         # Get PO receipts for this week (that haven't been used)
         po_received = po_df[
