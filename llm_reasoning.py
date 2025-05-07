@@ -477,7 +477,7 @@ def explain_scenario_6_with_groq(df):
 
         * Since the provided dataframe is empty, just mention that there are no demand spikes occurring within the lead time. Nothing else.
 
-        Do not include introductory phrases or summaries. Start directly with bullet points.
+        Do not include introductory phrases or summaries. Start directly with bullet points. Only one bullet point as output.
         """
 
     else:
