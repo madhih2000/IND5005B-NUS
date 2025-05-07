@@ -614,7 +614,13 @@ def scenario_1(waterfall_df, po_df):
     return summary_df
 
 
+import pandas as pd
+
 def scenario_2(waterfall_df, po_df):
+    # Ensure the 'Order WW' and 'GR WW' columns are of integer type
+    po_df['Order WW'] = po_df['Order WW'].astype(int)
+    po_df['GR WW'] = po_df['GR WW'].astype(int)
+
     # Get relevant rows
     supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
     demand_rows = waterfall_df[waterfall_df['Measures'] == 'Demand w/o Buffer']
@@ -671,9 +677,9 @@ def scenario_2(waterfall_df, po_df):
         if end_inventory < demand:
             # Inventory is too low, need to push out POs
             needed_po = demand - end_inventory
-            po_candidates = po_df[(po_df['Order Date'] < snapshot) & (po_df['GR Date'] >= snapshot)]
+            po_candidates = po_df[(po_df['Order WW'] <= week_num) & (po_df['GR WW'] >= week_num)]
             if not po_candidates.empty:
-                po_candidates = po_candidates.sort_values(by='Order Date', ascending=True)
+                po_candidates = po_candidates.sort_values(by='Order WW', ascending=True)
                 for index, po in po_candidates.iterrows():
                     if needed_po <= 0:
                         break
@@ -688,9 +694,9 @@ def scenario_2(waterfall_df, po_df):
         elif end_inventory > supply + demand:
             # Inventory is too high, need to pull in POs
             excess_inventory = end_inventory - (supply + demand)
-            po_candidates = po_df[(po_df['Order Date'] < snapshot) & (po_df['GR Date'] >= snapshot)]
+            po_candidates = po_df[(po_df['Order WW'] <= week_num) & (po_df['GR WW'] >= week_num)]
             if not po_candidates.empty:
-                po_candidates = po_candidates.sort_values(by='Order Date', ascending=False)
+                po_candidates = po_candidates.sort_values(by='Order WW', ascending=False)
                 for index, po in po_candidates.iterrows():
                     if excess_inventory <= 0:
                         break
