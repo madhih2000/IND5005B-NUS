@@ -348,6 +348,8 @@ def explain_scenario_1_with_groq(df):
     else:
         st.error("All model attempts failed.")
 
+    return explanation
+
 
 def explain_scenario_4_with_groq(df):
     df_string = df.to_string(index=False)
@@ -395,6 +397,8 @@ def explain_scenario_4_with_groq(df):
             continue
     else:
         st.error("All model attempts failed.")
+    
+    return explanation
 
 def explain_scenario_5_with_groq(df):
     df_string = df.to_string(index=False)
@@ -453,6 +457,8 @@ def explain_scenario_5_with_groq(df):
             continue
     else:
         st.error("All model attempts failed.")
+
+    return explanation
 
 def explain_scenario_6_with_groq(df):
     df_string = df.to_string(index=False)
@@ -533,7 +539,9 @@ def explain_scenario_6_with_groq(df):
     else:
         st.error("All model attempts failed.")
 
-def explain_waterfall_chart_with_groq(df):
+    return explanation
+
+def explain_waterfall_chart_with_groq(df, analysis_1, analysis_2, analysis_3, analysis_4, analysis_5, analysis_6):
     """
     Explains the root cause analysis of a waterfall chart, with chunking for large inputs.
 
@@ -569,34 +577,32 @@ def explain_waterfall_chart_with_groq(df):
 
     Avoid generic commentary. All insights must be specific, data-driven, and time-referenced.
 
-    ### Root Cause (select one based on evidence):
+    ### Root Cause Determination:
 
-    Use the following root cause categories. Choose the one that best explains the underlying issue observed in the data:
+        Based on the bullet-point insights, select **only one** root cause scenario from the list below that best explains the supply chain issue observed in the data.
 
-    - **PO Coverage is Inadequate**  
-    Lack of purchase orders to meet expected demand.
+        Match the selected root cause to the **most strongly supported** pattern of events in the weekly data (e.g., timing of PO shifts, demand spikes, inventory drops, or supply lags).
 
-    - **POs push out or pull in due to changes in demand forecasts**  
-    Orders are delayed or accelerated because of updated demand outlooks.
+        Choose from the following **six predefined scenarios**, using the exact phrasing (including the explanation in braces):
 
-    - **Adjustment to POs**  
-    Manual or automated changes to PO quantities or timing, not directly tied to forecast revisions.
+        - **Scenario 1: PO Coverage is Inadequate** — {analysis_1}
 
-    - **Longer Delivery Lead Time**  
-    Delays in supplier delivery affecting availability, despite demand or planning being stable.
+        - **Scenario 2: POs push out or pull in due to changes in demand forecasts** — {analysis_2}
 
-    - **Irregular Consumption Patterns**  
-    Unexpected surges or drops in demand that create mismatches in planned inventory and supply.
+        - **Scenario 3: Adjustment to POs** — {analysis_3}
 
-    - **Demand Spikes within Lead Time**  
-    Significant increases in demand that occur too close to need-by date to be met by standard lead times.
+        - **Scenario 4: Longer Delivery Lead Time** — {analysis_4}
 
-    Output Format:
+        - **Scenario 5: Irregular Consumption Patterns** — {analysis_5}
 
-    * Bullet points with detailed observations.
-    * Root Cause (from the list above, exactly as written).
+        - **Scenario 6: Demand Spikes within Lead Time** — {analysis_6}
 
-    Do not provide introductions, summaries, or explanations beyond this format.
+        Output Format:
+
+        * Bullet points with data-driven observations.
+        * A single, clearly stated root cause at the end in this exact format:
+
+        **Root Cause:** Scenario X: [scenario name] — [scenario explanation]
     """
 
     def process_chunk(chunk_text):

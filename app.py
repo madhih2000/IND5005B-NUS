@@ -462,28 +462,30 @@ elif tabs == "Waterfall Analysis":
                                         st.subheader('Scenario 1 - PO Coverage is Inadequate')
                                         scen_1_df_output = waterfall_analysis.scenario_1(result_df, PO_df_filtered) 
                                         st.dataframe(scen_1_df_output)
-                                        llm_reasoning.explain_scenario_1_with_groq(scen_1_df_output)
+                                        analysis_1 = llm_reasoning.explain_scenario_1_with_groq(scen_1_df_output)
 
                                         #RCA Condition 2
                                         st.subheader('Scenario 2 - POs push out or pull in due to changes in demand forecasts')
                                         wos_list, analysis_plot, comparison_table = waterfall_analysis.plot_stock_prediction_plotly(result_df, start_week, lead_value, num_weeks)
                                         st.plotly_chart(analysis_plot)
                                         st.dataframe(comparison_table)
+                                        analysis_2 = ""
 
                                         #RCA Condition 3
                                         st.subheader('Scenario 3 - Adjustment to POs')
-                                        
+                                        analysis_3 = ""
+
                                         #RCA Condition 4
                                         condition4 = waterfall_analysis.lead_time_check(result_df)
                                         st.subheader('Scenario 4 - Longer Delivery Lead Time')
                                         st.dataframe(condition4)
-                                        llm_reasoning.explain_scenario_4_with_groq(condition4)
+                                        analysis_4 = llm_reasoning.explain_scenario_4_with_groq(condition4)
 
                                         #RCA Condition 5
                                         st.subheader('Scenario 5 - Irregular Consumption Patterns')
                                         condition5 = waterfall_analysis.analyze_week_to_week_demand_changes(result_df)
                                         st.dataframe(condition5)
-                                        llm_reasoning.explain_scenario_5_with_groq(condition5)
+                                        analysis_5 = llm_reasoning.explain_scenario_5_with_groq(condition5)
 
                                         #RCA Condition 6
                                         st.subheader('Scenario 6 - Demand Spikes within Lead Time')
@@ -493,7 +495,7 @@ elif tabs == "Waterfall Analysis":
                                         else:
                                             st.dataframe(condition6)
 
-                                        llm_reasoning.explain_scenario_6_with_groq(condition6)
+                                        analysis_6 = llm_reasoning.explain_scenario_6_with_groq(condition6)
 
                                         # Download button
                                         output = BytesIO()
@@ -512,7 +514,7 @@ elif tabs == "Waterfall Analysis":
                                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                                         )
 
-                                        llm_reasoning.explain_waterfall_chart_with_groq(result_df)
+                                        llm_reasoning.explain_waterfall_chart_with_groq(result_df, analysis_1, analysis_2, analysis_3, analysis_4, analysis_5, analysis_6)
 
                                     else:
                                         st.warning("No data returned from the extraction. The material number does not exist in prior weeks of the shortage data.")
