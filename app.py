@@ -453,7 +453,7 @@ elif tabs == "Waterfall Analysis":
                                         ].reset_index(drop=True)
 
                                         if PO_df_filtered.empty:
-                                            st.warning("No matching records found for the selected Material Number, Plant, and Site.")
+                                            st.warning("No matching PO records found for the selected Material Number, Plant, and Site.")
 
                                         else:
                                             st.dataframe(PO_df_filtered)
