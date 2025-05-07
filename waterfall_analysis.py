@@ -494,8 +494,8 @@ def scenario_1(waterfall_df, po_df):
 
         results.append({
             'Snapshot Week': snapshot,
-            'Start Inventory': current_inventory,
-            'Demand': demand,
+            'Start Inventory (Inventory On Hand)': current_inventory,
+            'Demand (Actual)': demand,
             'Supply (Waterfall)': supply,
             'PO GR Quantity': po_received,
             'End Inventory': end_inventory,

@@ -441,10 +441,8 @@ elif tabs == "Waterfall Analysis":
 
                                         st.dataframe(result_df)
 
-                                        st.header("Root Cause Analysis")
+                                        st.subheader("PO Summary Table")
 
-                                        #RCA Condition 1
-                                        st.subheader('Scenario 1 - PO Coverage is Inadequate')
                                         PO_df = merged_order_gr_PO_analysis(op_df, gr_df)
                                         PO_df_filtered = PO_df[
                                             (PO_df['Material Number'] == material_number) &
@@ -456,11 +454,16 @@ elif tabs == "Waterfall Analysis":
                                             st.warning("No matching PO records found for the selected Material Number, Plant, and Site.")
 
                                         else:
-                                            #st.dataframe(PO_df_filtered)
+                                            st.dataframe(PO_df_filtered)
 
-                                            scen_1_df_output = waterfall_analysis.scenario_1(result_df, PO_df_filtered) 
+                                        st.header("Root Cause Analysis")
 
-                                            st.dataframe(scen_1_df_output)
+                                        #RCA Condition 1
+                                        st.subheader('Scenario 1 - PO Coverage is Inadequate')
+
+                                        scen_1_df_output = waterfall_analysis.scenario_1(result_df, PO_df_filtered) 
+
+                                        st.dataframe(scen_1_df_output)
 
                                         #RCA Condition 2
                                         st.subheader('Scenario 2 - POs push out or pull in due to changes in demand forecasts')
