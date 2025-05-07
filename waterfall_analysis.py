@@ -618,6 +618,8 @@ def scenario_1(waterfall_df, po_df):
 
     return pd.DataFrame(results)
 
+import pandas as pd
+
 def scenario_2(waterfall_df, po_df):
     # Filter relevant rows
     supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
@@ -640,7 +642,7 @@ def scenario_2(waterfall_df, po_df):
 
         # Supply & demand
         demand_val = demand_rows[demand_rows['Snapshot'] == snapshot][week_col]
-        supply_val = supply_rows[supply_rows['Snapshot'] == snapshot][week_col]
+        supply_val = supply_rows[supply_rows['Measures'] == 'Supply'][supply_rows['Snapshot'] == snapshot][week_col]
         demand = int(demand_val.values[0]) if not demand_val.empty else 0
         supply = int(supply_val.values[0]) if not supply_val.empty else 0
 
@@ -653,7 +655,7 @@ def scenario_2(waterfall_df, po_df):
         po_received = po_received_data['GR Quantity'].sum()
         po_docs_received = list(po_received_data['Purchasing Document'])
 
-        # Base calculation
+        # Base calculation (without simulated action)
         end_inventory_calc = current_inventory_calc + supply + po_received - demand
         end_inventory_waterfall = start_inventory_waterfall + supply + po_received - demand
 
@@ -682,7 +684,10 @@ def scenario_2(waterfall_df, po_df):
                 pulled_po = future_po.iloc[0]
                 suggested_po = pulled_po['Purchasing Document']
                 simulated_po_qty = pulled_po['GR Quantity']
-                adjusted_gr_week = week_num  # Pull in to current week
+                adjusted_gr_week = week_num  # Simulate pulling the PO in to current week (lead time adjustment)
+                # Add lead time to GR week (calculate lead time from Order WW to GR WW)
+                lead_time = pulled_po['GR WW'] - pulled_po['Order WW']
+                simulated_gr_week = week_num + lead_time
                 simulated_po_received += simulated_po_qty
                 simulated_end_inventory = current_inventory_sim + simulated_supply + simulated_po_received - demand
                 action = "Pull In"
