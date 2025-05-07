@@ -468,7 +468,9 @@ elif tabs == "Waterfall Analysis":
                                         st.subheader('Scenario 2 - POs push out or pull in due to changes in demand forecasts')
                                         wos_list, analysis_plot, comparison_table = waterfall_analysis.plot_stock_prediction_plotly(result_df, start_week, lead_value, num_weeks)
                                         st.plotly_chart(analysis_plot)
+                                        st.write("Forecast Accuracy Validation Table")
                                         st.dataframe(comparison_table)
+                                        st.write("PO Timing Analysis")
                                         po_analysis_output = waterfall_analysis.identify_specific_po_timing_issues(result_df, PO_df_filtered)
                                         st.dataframe(po_analysis_output)
                                         analysis_2 = ""
