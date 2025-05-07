@@ -448,7 +448,7 @@ elif tabs == "Waterfall Analysis":
                                             (PO_df['Material Number'] == material_number) &
                                             (PO_df['Plant'] == plant) &
                                             (PO_df['Site'] == site)
-                                        ].reset_index(drop=True)
+                                        ].reset_index(drop=True).sort_values(by=['Order Date', 'Purchasing Document']).reset_index(drop=True)
 
                                         if PO_df_filtered.empty:
                                             st.warning("No matching PO records found for the selected Material Number, Plant, and Site.")
