@@ -632,6 +632,7 @@ def scenario_2(waterfall_df, po_df):
     snapshots = waterfall_df['Snapshot'].unique()
 
     results = []
+    actions_summary = []
     current_inventory_calc = initial_inventory_calc
 
     for snapshot in snapshots:
@@ -688,9 +689,23 @@ def scenario_2(waterfall_df, po_df):
                         break
                     if po['Order Quantity'] > needed_po:
                         actions_needed.append(f"Push out PO {po['Purchasing Document']} for {needed_po} units")
+                        actions_summary.append({
+                            'Purchasing Document': po['Purchasing Document'],
+                            'Week': snapshot,
+                            'Action': 'Push Out',
+                            'Units': needed_po,
+                            'Resulting Inventory': end_inventory_calc + needed_po
+                        })
                         needed_po = 0
                     else:
                         actions_needed.append(f"Push out PO {po['Purchasing Document']} for {po['Order Quantity']} units")
+                        actions_summary.append({
+                            'Purchasing Document': po['Purchasing Document'],
+                            'Week': snapshot,
+                            'Action': 'Push Out',
+                            'Units': po['Order Quantity'],
+                            'Resulting Inventory': end_inventory_calc + po['Order Quantity']
+                        })
                         needed_po -= po['Order Quantity']
             else:
                 actions_needed.append("No future POs to push out")
@@ -705,9 +720,23 @@ def scenario_2(waterfall_df, po_df):
                         break
                     if po['Order Quantity'] > excess_inventory:
                         actions_needed.append(f"Pull in PO {po['Purchasing Document']} for {excess_inventory} units")
+                        actions_summary.append({
+                            'Purchasing Document': po['Purchasing Document'],
+                            'Week': snapshot,
+                            'Action': 'Pull In',
+                            'Units': excess_inventory,
+                            'Resulting Inventory': end_inventory_calc - excess_inventory
+                        })
                         excess_inventory = 0
                     else:
                         actions_needed.append(f"Pull in PO {po['Purchasing Document']} for {po['Order Quantity']} units")
+                        actions_summary.append({
+                            'Purchasing Document': po['Purchasing Document'],
+                            'Week': snapshot,
+                            'Action': 'Pull In',
+                            'Units': po['Order Quantity'],
+                            'Resulting Inventory': end_inventory_calc - po['Order Quantity']
+                        })
                         excess_inventory -= po['Order Quantity']
             else:
                 actions_needed.append("No available POs to pull in")
@@ -729,4 +758,10 @@ def scenario_2(waterfall_df, po_df):
         # Update for next loop
         current_inventory_calc = end_inventory_calc
 
-    return pd.DataFrame(results)
+    # Create result DataFrame
+    results_df = pd.DataFrame(results)
+
+    # Create actions summary DataFrame
+    actions_summary_df = pd.DataFrame(actions_summary)
+
+    return results_df, actions_summary_df

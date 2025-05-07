@@ -471,8 +471,9 @@ elif tabs == "Waterfall Analysis":
                                         st.write("Forecast Accuracy Validation Table")
                                         st.dataframe(comparison_table)
                                         st.write("PO Timing Analysis")
-                                        po_analysis_output = waterfall_analysis.scenario_2(result_df, PO_df_filtered)
+                                        po_analysis_output, po_new_summary = waterfall_analysis.scenario_2(result_df, PO_df_filtered)
                                         st.dataframe(po_analysis_output)
+                                        st.dataframe(po_new_summary)
                                         analysis_2 = ""
 
                                         #RCA Condition 3
