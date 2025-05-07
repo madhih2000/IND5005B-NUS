@@ -618,102 +618,97 @@ def scenario_1(waterfall_df, po_df):
 
     return pd.DataFrame(results)
 
-
-def scenario_2(waterfall_df, po_df):
-    # Filter relevant rows
+def scenario_2(waterfall_df, po_df, buffer=20):
     supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
     demand_rows = waterfall_df[waterfall_df['Measures'] == 'Demand w/o Buffer']
 
-    # Get initial snapshot and inventory from Supply rows
     initial_snapshot = supply_rows['Snapshot'].iloc[0]
     initial_inventory_calc = int(supply_rows[supply_rows['Snapshot'] == initial_snapshot]['InventoryOn-Hand'].values[0])
-
-    # All snapshots to iterate through
     snapshots = waterfall_df['Snapshot'].unique()
 
+    current_inventory_calc = initial_inventory_calc
+    used_po_ids = set()
     results = []
     actions_summary = []
-    current_inventory_calc = initial_inventory_calc
 
     for snapshot in snapshots:
         week_col = snapshot
         week_num = int(snapshot.replace("WW", ""))
 
-        # Get supply and demand values
-        demand_val = demand_rows[demand_rows['Snapshot'] == snapshot][week_col]
-        supply_val = supply_rows[supply_rows['Snapshot'] == snapshot][week_col]
-
-        demand = int(demand_val.values[0]) if not demand_val.empty else 0
-        supply = int(supply_val.values[0]) if not supply_val.empty else 0
-
-        # Start inventory from Waterfall column
+        demand = int(demand_rows[demand_rows['Snapshot'] == snapshot][week_col].values[0]) if not demand_rows[demand_rows['Snapshot'] == snapshot][week_col].empty else 0
+        supply = int(supply_rows[supply_rows['Snapshot'] == snapshot][week_col].values[0]) if not supply_rows[supply_rows['Snapshot'] == snapshot][week_col].empty else 0
         inv_val = supply_rows[supply_rows['Snapshot'] == snapshot]['InventoryOn-Hand']
         start_inventory_waterfall = int(inv_val.values[0]) if not inv_val.empty else 0
 
-        # GR quantity from PO data
-        po_received = 0
-        if not po_df.empty:
-            po_received = po_df[po_df['GR WW'] == week_num]['GR Quantity'].sum()
+        # POs received this week
+        po_received = po_df[(po_df['GR WW'] == week_num) & (~po_df['Purchasing Document'].isin(used_po_ids))]['GR Quantity'].sum()
 
-        # Calculate end inventories INCLUDING PO received
         end_inventory_calc = current_inventory_calc + supply + po_received - demand
         end_inventory_waterfall = start_inventory_waterfall + supply + po_received - demand
 
-        # Flag logic
         flags = []
+        action_taken = "None"
+
+        # Supply check
         if po_df.empty:
             if supply > 0:
                 flags.append("No PO data available to validate supply")
         else:
-            if po_received < supply:
-                if po_received == 0 and supply > 0:
+            expected_po = po_df[(po_df['GR WW'] == week_num) & (~po_df['Purchasing Document'].isin(used_po_ids))]['GR Quantity'].sum()
+            if expected_po < supply:
+                if expected_po == 0:
                     flags.append("No PO received for expected supply")
-                elif 0 < po_received < supply:
-                    flags.append(f"Partial PO received: Expected {supply}, Got {po_received}")
                 else:
-                    flags.append("Supply in Waterfall not backed by PO receipts")
+                    flags.append(f"Partial PO received: Expected {supply}, Got {expected_po}")
 
+        # ===== PUSH OUT logic =====
         if end_inventory_calc < 0:
-            flags.append("Inventory went negative — demand exceeded supply and stock")
-
-        # Determine actions needed
-        action_taken = None
-        if end_inventory_calc < demand:
-            # Inventory is too low, need to push out POs
-            needed_po = demand - end_inventory_calc
-            po_candidates = po_df[(po_df['Order WW'] <= week_num) & (po_df['Order Quantity'] > 0)]
-            if not po_candidates.empty:
-                po_candidates = po_candidates.sort_values(by='Order Quantity', key=lambda x: abs(x - needed_po))
-                po = po_candidates.iloc[0]
-                units_to_push_out = min(needed_po, po['Order Quantity'])
-                action_taken = f"Push out PO {po['Purchasing Document']} for {units_to_push_out} units"
+            shortage = abs(end_inventory_calc)
+            candidates = po_df[
+                (po_df['Order WW'] <= week_num) &
+                (~po_df['Purchasing Document'].isin(used_po_ids)) &
+                (po_df['Order Quantity'] > 0)
+            ]
+            if not candidates.empty:
+                candidates = candidates.copy()
+                candidates['Diff'] = abs(candidates['Order Quantity'] - shortage)
+                best = candidates.sort_values(by='Diff').iloc[0]
+                push_units = min(shortage, best['Order Quantity'])
+                used_po_ids.add(best['Purchasing Document'])
+                current_inventory_calc += push_units  # simulate PO push out
+                action_taken = f"Pushed out PO {best['Purchasing Document']} for {push_units} units to resolve negative inventory"
                 actions_summary.append({
-                    'Purchasing Document': po['Purchasing Document'],
+                    'Purchasing Document': best['Purchasing Document'],
                     'Week': snapshot,
                     'Action': 'Push Out',
-                    'Units': units_to_push_out,
-                    'Resulting Inventory': end_inventory_calc + units_to_push_out
+                    'Units': push_units,
+                    'Reason': 'Inventory < 0',
+                    'Resulting Inventory': current_inventory_calc
                 })
-            else:
-                action_taken = "No available POs to push out"
-        elif end_inventory_calc > supply + demand:
-            # Inventory is too high, need to pull in POs
-            excess_inventory = end_inventory_calc - (supply + demand)
-            po_candidates = po_df[(po_df['Order WW'] > week_num) & (po_df['Order Quantity'] > 0)]
-            if not po_candidates.empty:
-                po_candidates = po_candidates.sort_values(by='Order Quantity', key=lambda x: abs(x - excess_inventory))
-                po = po_candidates.iloc[0]
-                units_to_pull_in = min(excess_inventory, po['Order Quantity'])
-                action_taken = f"Pull in PO {po['Purchasing Document']} for {units_to_pull_in} units"
+        # ===== PULL IN logic =====
+        elif end_inventory_calc > (demand + buffer):
+            excess = end_inventory_calc - (demand + buffer)
+            candidates = po_df[
+                (po_df['Order WW'] > week_num) &
+                (~po_df['Purchasing Document'].isin(used_po_ids)) &
+                (po_df['Order Quantity'] > 0)
+            ]
+            if not candidates.empty:
+                candidates = candidates.copy()
+                candidates['Diff'] = abs(candidates['Order Quantity'] - excess)
+                best = candidates.sort_values(by='Diff').iloc[0]
+                pull_units = min(excess, best['Order Quantity'])
+                used_po_ids.add(best['Purchasing Document'])
+                current_inventory_calc -= pull_units  # simulate PO pull in
+                action_taken = f"Pulled in PO {best['Purchasing Document']} for {pull_units} units to reduce excess inventory"
                 actions_summary.append({
-                    'Purchasing Document': po['Purchasing Document'],
+                    'Purchasing Document': best['Purchasing Document'],
                     'Week': snapshot,
                     'Action': 'Pull In',
-                    'Units': units_to_pull_in,
-                    'Resulting Inventory': end_inventory_calc - units_to_pull_in
+                    'Units': pull_units,
+                    'Reason': 'Inventory > demand + buffer',
+                    'Resulting Inventory': current_inventory_calc
                 })
-            else:
-                action_taken = "No future POs to pull in"
 
         # Record results
         results.append({
@@ -726,16 +721,10 @@ def scenario_2(waterfall_df, po_df):
             'End Inventory (Waterfall)': end_inventory_waterfall,
             'End Inventory (Calc)': end_inventory_calc,
             'Flags': ", ".join(flags) if flags else "OK",
-            'Actions Needed': action_taken if action_taken else "None"
+            'Actions Needed': action_taken
         })
 
-        # Update for next loop
+        # Update current inventory for next week
         current_inventory_calc = end_inventory_calc
 
-    # Create result DataFrame
-    results_df = pd.DataFrame(results)
-
-    # Create actions summary DataFrame
-    actions_summary_df = pd.DataFrame(actions_summary)
-
-    return results_df, actions_summary_df
+    return pd.DataFrame(results), pd.DataFrame(actions_summary)
