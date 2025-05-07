@@ -660,16 +660,20 @@ def explain_waterfall_chart_with_groq(df, analysis_1, analysis_2, analysis_3, an
 
             final_prompt = f"""
             You are a supply chain analyst. Consolidate the following root cause analyses into a clean, non-redundant summary.
-            Ensure:
-            - Insights are merged logically.
-            - Redundant bullet points are combined.
-            - Only one root cause conclusion is stated at the end.
-            - Follow the original format: bullet points followed by a single root cause.
+
+            Requirements:
+            - Merge overlapping insights and remove duplicates.
+            - Ensure all insights are logically ordered and clearly attributed to specific WW weeks.
+            - Preserve a bullet-point format for observations.
+            - Include exactly one root cause at the end — choose the most well-supported scenario.
+            - Use the following format for the root cause (no modifications):
+
+            **Root Cause:** Scenario X: [scenario name] — [scenario explanation]
 
             Data Insights:
             {combined_insights}
 
-            Do not provide introductions,preambles, summaries, or explanations beyond this format.
+            Do not include introductions, summaries, or any extra explanation outside the required format.
             """
 
             for model in models:
