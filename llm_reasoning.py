@@ -330,6 +330,8 @@ def explain_scenario_1_with_groq(df):
     Analyse the following inventory and PO coverage summary table:\n\n{df_string}
     """
 
+    st.write("Prompt done")
+
     for model in models:
         try:
             chat_completion = client.chat.completions.create(
