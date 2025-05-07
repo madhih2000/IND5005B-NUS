@@ -619,11 +619,15 @@ def scenario_1(waterfall_df, po_df):
     return pd.DataFrame(results)
 
 def scenario_2(waterfall_df, po_df, critical_threshold=5):
+    # Filter relevant rows
     supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
     demand_rows = waterfall_df[waterfall_df['Measures'] == 'Demand w/o Buffer']
 
+    # Get initial snapshot and inventory
     initial_snapshot = supply_rows['Snapshot'].iloc[0]
-    initial_inventory_calc = int(supply_rows[supply_rows['Snapshot'] == initial_snapshot]['InventoryOn-Hand'].values[0])
+    initial_inventory_calc = int(
+        supply_rows[supply_rows['Snapshot'] == initial_snapshot]['InventoryOn-Hand'].values[0]
+    )
     snapshots = waterfall_df['Snapshot'].unique()
 
     current_inventory_calc = initial_inventory_calc
@@ -635,33 +639,41 @@ def scenario_2(waterfall_df, po_df, critical_threshold=5):
         week_col = snapshot
         week_num = int(snapshot.replace("WW", ""))
 
-        demand = int(demand_rows[demand_rows['Snapshot'] == snapshot][week_col].values[0]) if not demand_rows[demand_rows['Snapshot'] == snapshot][week_col].empty else 0
-        supply = int(supply_rows[supply_rows['Snapshot'] == snapshot][week_col].values[0]) if not supply_rows[supply_rows['Snapshot'] == snapshot][week_col].empty else 0
+        # Demand and Supply
+        demand = int(
+            demand_rows[demand_rows['Snapshot'] == snapshot][week_col].values[0]
+        ) if not demand_rows[demand_rows['Snapshot'] == snapshot][week_col].empty else 0
 
+        supply = int(
+            supply_rows[supply_rows['Snapshot'] == snapshot][week_col].values[0]
+        ) if not supply_rows[supply_rows['Snapshot'] == snapshot][week_col].empty else 0
+
+        # Waterfall inventory for reporting
         inv_val = supply_rows[supply_rows['Snapshot'] == snapshot]['InventoryOn-Hand']
         if snapshot == initial_snapshot:
             start_inventory_waterfall = initial_inventory_calc
         else:
             start_inventory_waterfall = int(inv_val.values[0]) if not inv_val.empty else 0
 
-        # Get PO receipts for this week (that haven't been used)
+        # PO receipts for this week (excluding used)
         po_received = po_df[
             (po_df['GR WW'] == week_num) &
             (~po_df['Purchasing Document'].isin(used_po_ids))
         ]['GR Quantity'].sum()
 
+        # Calculate end inventory
         end_inventory_calc = current_inventory_calc + supply + po_received - demand
         end_inventory_waterfall = start_inventory_waterfall + supply + po_received - demand
 
         flags = []
         action_taken = "None"
 
-        # Only react if inventory is at risk
+        # === Check if inventory is at risk (below threshold) ===
         if end_inventory_calc < critical_threshold:
-            shortage = abs(end_inventory_calc)
+            shortage = critical_threshold - end_inventory_calc
             resolved = False
 
-            # ===== Try Pull-In First (Future POs) =====
+            # === Try Pull In from future POs ===
             pull_candidates = po_df[
                 (po_df['Order WW'] > week_num) &
                 (~po_df['Purchasing Document'].isin(used_po_ids)) &
@@ -674,23 +686,21 @@ def scenario_2(waterfall_df, po_df, critical_threshold=5):
                 pull_units = min(shortage, best_pull['Order Quantity'])
 
                 used_po_ids.add(best_pull['Purchasing Document'])
-                current_inventory_calc += pull_units
                 end_inventory_calc += pull_units
-
-                action_taken = f"Pulled in PO {best_pull['Purchasing Document']} for {pull_units} units (originally due WW{best_pull['Order WW']})"
+                current_inventory_calc += pull_units  # include in calculation
+                action_taken = f"Pulled in PO {best_pull['Purchasing Document']} for {pull_units} units (originally WW{best_pull['Order WW']})"
                 actions_summary.append({
                     'Purchasing Document': best_pull['Purchasing Document'],
                     'Week': snapshot,
                     'Action': 'Pull In',
                     'Units': pull_units,
                     'Original WW': best_pull['Order WW'],
-                    'Reason': 'Inventory shortfall — pulled in future PO',
+                    'Reason': 'Low inventory — pulled in future PO',
                     'Resulting Inventory': end_inventory_calc
                 })
-
                 resolved = True
 
-            # ===== Try Push-Out Next (Past POs that didn't GR) =====
+            # === Try Push Out (assumed missing GRs for POs already ordered) ===
             if not resolved:
                 push_candidates = po_df[
                     (po_df['Order WW'] <= week_num) &
@@ -704,9 +714,8 @@ def scenario_2(waterfall_df, po_df, critical_threshold=5):
                     push_units = min(shortage, best_push['Order Quantity'])
 
                     used_po_ids.add(best_push['Purchasing Document'])
-                    current_inventory_calc += push_units
                     end_inventory_calc += push_units
-
+                    current_inventory_calc += push_units
                     action_taken = f"Pushed out PO {best_push['Purchasing Document']} for {push_units} units (expected earlier but missing GR)"
                     actions_summary.append({
                         'Purchasing Document': best_push['Purchasing Document'],
@@ -714,7 +723,7 @@ def scenario_2(waterfall_df, po_df, critical_threshold=5):
                         'Action': 'Push Out',
                         'Units': push_units,
                         'Original WW': best_push['Order WW'],
-                        'Reason': 'Inventory shortfall — missing GR or delayed receipt',
+                        'Reason': 'Low inventory — late/missing PO receipt',
                         'Resulting Inventory': end_inventory_calc
                     })
                     resolved = True
@@ -722,7 +731,7 @@ def scenario_2(waterfall_df, po_df, critical_threshold=5):
             if not resolved:
                 flags.append("Inventory risk not resolved — no valid POs to pull/push")
 
-        # Validate PO sufficiency
+        # === PO GR validation ===
         expected_po = po_df[
             (po_df['GR WW'] == week_num) &
             (~po_df['Purchasing Document'].isin(used_po_ids))
@@ -734,6 +743,7 @@ def scenario_2(waterfall_df, po_df, critical_threshold=5):
             elif expected_po < supply:
                 flags.append(f"Partial PO received: Expected {supply}, Got {expected_po}")
 
+        # Record results
         results.append({
             'Snapshot Week': snapshot,
             'Start Inventory (Waterfall)': start_inventory_waterfall,
@@ -747,6 +757,7 @@ def scenario_2(waterfall_df, po_df, critical_threshold=5):
             'Actions Needed': action_taken
         })
 
+        # Update for next loop
         current_inventory_calc = end_inventory_calc
 
     return pd.DataFrame(results), pd.DataFrame(actions_summary)
