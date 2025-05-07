@@ -131,6 +131,8 @@ def merged_order_gr_PO_analysis(df_order: pd.DataFrame, df_GR: pd.DataFrame) -> 
     df_order.columns = df_order.columns.str.strip()
     df_GR.columns = df_GR.columns.str.strip()
 
+    st.write(df_GR.columns)
+
     required_order_cols = ['Purchasing Document', 'Vendor Number', 'Material Number', 
                            'Document Date', 'Plant', 'Order Quantity', 
                            'Stockkeeping unit', 'Material Group']
