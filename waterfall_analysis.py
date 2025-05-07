@@ -622,6 +622,7 @@ def scenario_1(waterfall_df, po_df):
     return summary_df
 
 
+
 def scenario_2(waterfall_df, po_df):
     # Ensure the 'Order WW' and 'GR WW' columns are of integer type
     po_df['Order WW'] = po_df['Order WW'].astype(int)
