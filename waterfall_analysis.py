@@ -460,7 +460,6 @@ def scenario_1(waterfall_df, po_df):
 
     # Start from InventoryOn-Hand in first snapshot with supply info
     initial_snapshot = supply_rows['Snapshot'].iloc[0]
-    initial_col = initial_snapshot
     initial_inventory = int(supply_rows[supply_rows['Snapshot'] == initial_snapshot]['InventoryOn-Hand'].values[0])
 
     # Unique snapshots to analyze (e.g., WW08, WW09...)
@@ -481,19 +480,27 @@ def scenario_1(waterfall_df, po_df):
         demand = int(demand_val.values[0]) if not demand_val.empty else 0
         supply = int(supply_val.values[0]) if not supply_val.empty else 0
 
-        # PO data: Goods received in this week
-        po_received = po_df[po_df['GR WW'] == week_num]['GR Quantity'].sum()
+        # Handle PO data
+        if po_df.empty:
+            po_received = 0
+        else:
+            po_received = po_df[po_df['GR WW'] == week_num]['GR Quantity'].sum()
 
         end_inventory = current_inventory + supply - demand
 
+        # Build flag messages
         flags = []
-        if po_received < supply:
-            if po_received == 0 and supply > 0:
-                flags.append("No PO received for expected supply")
-            elif 0 < po_received < supply:
-                flags.append(f"Partial PO received: Expected {supply}, Got {po_received}")
-            else:
-                flags.append("Supply in Waterfall not backed by PO receipts")
+        if po_df.empty:
+            if supply > 0:
+                flags.append("No PO data available to validate supply")
+        else:
+            if po_received < supply:
+                if po_received == 0 and supply > 0:
+                    flags.append("No PO received for expected supply")
+                elif 0 < po_received < supply:
+                    flags.append(f"Partial PO received: Expected {supply}, Got {po_received}")
+                else:
+                    flags.append("Supply in Waterfall not backed by PO receipts")
 
         if end_inventory < 0:
             flags.append("Inventory went negative — demand exceeded supply and stock")
