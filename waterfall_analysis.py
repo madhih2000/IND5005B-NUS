@@ -488,9 +488,15 @@ def scenario_1(waterfall_df, po_df):
 
         flags = []
         if po_received < supply:
-            flags.append("PO Mismatch")
+            if po_received == 0 and supply > 0:
+                flags.append("No PO received for expected supply")
+            elif 0 < po_received < supply:
+                flags.append(f"Partial PO received: Expected {supply}, Got {po_received}")
+            else:
+                flags.append("Supply in Waterfall not backed by PO receipts")
+
         if end_inventory < 0:
-            flags.append("Inventory Negative")
+            flags.append("Inventory went negative — demand exceeded supply and stock")
 
         results.append({
             'Snapshot Week': snapshot,
