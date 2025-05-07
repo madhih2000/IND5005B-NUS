@@ -241,7 +241,7 @@ def plot_stock_prediction_plotly(df, start_week, lead_time, weeks_range):
 
     return actual_values, fig, comparison
 
-def identify_specific_po_timing_issues_smart(demand_df, po_df):
+def identify_specific_po_timing_issues(demand_df, po_df):
     """
     Scenario 2: Match POs to actual weekly demand using Inventory-On-Hand
     and provide actionable push/pull suggestions.
