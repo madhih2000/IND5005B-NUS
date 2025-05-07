@@ -469,6 +469,8 @@ elif tabs == "Waterfall Analysis":
                                         wos_list, analysis_plot, comparison_table = waterfall_analysis.plot_stock_prediction_plotly(result_df, start_week, lead_value, num_weeks)
                                         st.plotly_chart(analysis_plot)
                                         st.dataframe(comparison_table)
+                                        po_analysis_output = waterfall_analysis.identify_specific_po_timing_issues(result_df, PO_df_filtered)
+                                        st.dataframe(po_analysis_output)
                                         analysis_2 = ""
 
                                         #RCA Condition 3

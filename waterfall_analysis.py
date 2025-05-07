@@ -241,6 +241,89 @@ def plot_stock_prediction_plotly(df, start_week, lead_time, weeks_range):
 
     return actual_values, fig, comparison
 
+def identify_specific_po_timing_issues(demand_df, po_df):
+    """
+    Enhanced Scenario 2: Match POs to demand with carry-forward and specific PO line actions.
+    
+    Args:
+        demand_df: Waterfall-style dataframe with Demand w/o Buffer values.
+        po_df: DataFrame with columns ['Order ID', 'Order WW', 'GR WW', 'GR Quantity'].
+
+    Returns:
+        A DataFrame with weekly PO-to-demand matching and push/pull recommendations.
+    """
+    demand_rows = demand_df[demand_df['Measures'] == 'Demand w/o Buffer']
+    weeks = sorted([col for col in demand_df.columns if col.startswith("WW")])
+    snapshots = demand_rows['Snapshot'].unique()
+
+    # Prepare PO copy for tracking matched quantities
+    po_df = po_df.copy()
+    po_df['Remaining Qty'] = po_df['GR Quantity']
+
+    results = []
+    inventory_carry = 0  # Tracks surplus from previous weeks
+
+    for snapshot in snapshots:
+        row = demand_rows[demand_rows['Snapshot'] == snapshot]
+
+        for week in weeks:
+            week_num = int(week.replace("WW", ""))
+            try:
+                demand = int(row[week].values[0])
+            except:
+                demand = 0
+
+            if demand == 0 and inventory_carry == 0:
+                continue
+
+            matched_pos = []
+            demand_left = demand - inventory_carry
+            inventory_carry = max(0, inventory_carry - demand)
+
+            if demand_left > 0:
+                # Try to match demand with POs in same week
+                available_pos = po_df[(po_df['GR WW'] == week_num) & (po_df['Remaining Qty'] > 0)]
+                for _, po in available_pos.iterrows():
+                    po_id = po['Order ID']
+                    qty = po['Remaining Qty']
+                    use_qty = min(qty, demand_left)
+
+                    po_df.loc[po_df['Order ID'] == po_id, 'Remaining Qty'] -= use_qty
+                    matched_pos.append(f"{po_id} (Used {use_qty})")
+                    demand_left -= use_qty
+                    if demand_left <= 0:
+                        break
+
+            flags = []
+            if demand_left > 0:
+                # Look for late POs that could be pulled in
+                late_pos = po_df[(po_df['GR WW'] > week_num) & (po_df['Remaining Qty'] > 0)]
+                for _, po in late_pos.iterrows():
+                    po_id = po['Order ID']
+                    flags.append(f"Pull In: {po_id} (ETA WW{po['GR WW']}, Qty {po['Remaining Qty']})")
+
+                # Look for early POs that are not needed yet
+                early_pos = po_df[(po_df['GR WW'] < week_num) & (po_df['Remaining Qty'] > 0)]
+                for _, po in early_pos.iterrows():
+                    po_id = po['Order ID']
+                    flags.append(f"Push Out: {po_id} (ETA WW{po['GR WW']}, Qty {po['Remaining Qty']})")
+
+            results.append({
+                "Snapshot": snapshot,
+                "Week": week,
+                "Demand": demand,
+                "Inventory Carry-In": inventory_carry,
+                "Matched PO Lines": ", ".join(matched_pos) if matched_pos else "None",
+                "Unmet Demand": max(0, demand_left),
+                "Actions Needed": "; ".join(flags) if flags else "OK"
+            })
+
+            inventory_carry = max(0, inventory_carry + sum([po_df[po_df['Order ID'] == po.split()[0]]['Remaining Qty'].values[0] 
+                                                            for po in matched_pos if 'Used' not in po]))
+
+    return pd.DataFrame(results)
+
+
 def check_wos_against_lead_time(wos_list, lead_time):
     """
     Compares values in wos_list against lead_time and flags close matches.
