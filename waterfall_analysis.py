@@ -403,7 +403,7 @@ def check_demand(df):
                 })
 
     final_pd = pd.DataFrame(standout_weeks_info)
-    if final_pd.empty():
+    if final_pd.empty:
         final_msg = "There is no immediate demand increase within lead time of the material number."
     else:
         final_msg = "There are instances of immediate demand increase within lead time of the material number."
