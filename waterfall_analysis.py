@@ -743,3 +743,133 @@ def scenario_2(waterfall_df, po_df):
         current_inventory_sim = simulated_end_inventory
 
     return pd.DataFrame(results)
+
+
+def scenario_3(waterfall_df, po_df, scenario_1_results_df):
+    """
+    Analyzes future supply vs. demand based on confirmed POs and waterfall,
+    using the final calculated inventory from Scenario 1 results as the starting point,
+    and suggests potential PO adjustments, including relevant PO numbers.
+
+    Args:
+        waterfall_df (pd.DataFrame): DataFrame containing waterfall data
+                                   (Measures: 'Supply', 'Demand w/o Buffer').
+                                   Expected columns: 'Measures', 'Snapshot', 'WWxx' columns.
+        po_df (pd.DataFrame): DataFrame containing PO data with future delivery dates.
+                            Expected columns: 'Delivery WW', 'PO Quantity', 'Purchasing Document'.
+        scenario_1_results_df (pd.DataFrame): The output DataFrame from the scenario_1 function.
+                                            Expected column: 'End Inventory (Calc)'.
+
+    Returns:
+        pd.DataFrame: Analysis results including projected inventory and potential flags/suggestions
+                      with PO numbers.
+    """
+    # --- Extract Starting Inventory from Scenario 1 Results ---
+    starting_inventory = 0 # Default
+    if scenario_1_results_df is None or scenario_1_results_df.empty or 'End Inventory (Calc)' not in scenario_1_results_df.columns:
+        print("Warning: Could not determine starting inventory from scenario_1_results_df. Starting with 0.")
+    else:
+        last_inv_calc = scenario_1_results_df['End Inventory (Calc)'].iloc[-1]
+        if pd.isna(last_inv_calc):
+             print("Warning: Last 'End Inventory (Calc)' from scenario_1_results_df is NaN. Starting with 0.")
+             starting_inventory = 0
+        else:
+             starting_inventory = int(last_inv_calc)
+
+    print(f"Starting Scenario 2 with inventory: {starting_inventory}")
+    # --- End Extraction ---
+
+
+    # Filter relevant rows from waterfall for the latest plan
+    latest_demand_plan_row = waterfall_df[waterfall_df['Measures'] == 'Demand w/o Buffer'].iloc[-1] if not waterfall_df[waterfall_df['Measures'] == 'Demand w/o Buffer'].empty else None
+    latest_supply_plan_row = waterfall_df[waterfall_df['Measures'] == 'Supply'].iloc[-1] if not waterfall_df[waterfall_df['Measures'] == 'Supply'].empty else None
+
+    # Identify future snapshot columns (WWxx) and sort them chronologically
+    snapshot_cols = [col for col in waterfall_df.columns if col.startswith('WW')]
+    snapshot_cols.sort(key=lambda x: int(x.replace('WW', '')))
+
+    results = []
+    current_projected_inventory = starting_inventory
+
+    # Check if necessary PO columns exist
+    po_cols_check = ['Delivery WW', 'PO Quantity', 'Purchasing Document']
+    po_cols_exist = all(col in po_df.columns for col in po_cols_check)
+    if not po_cols_exist:
+        print(f"Warning: Missing one or more required PO columns ({po_cols_check}). PO details will not be included in flags.")
+
+    for snapshot in snapshot_cols:
+        week_num = int(snapshot.replace("WW", ""))
+
+        # --- Get demand and planned supply safely handling NaN ---
+        demand_plan = 0
+        if latest_demand_plan_row is not None and snapshot in latest_demand_plan_row.index:
+            demand_val = latest_demand_plan_row[snapshot]
+            if not pd.isna(demand_val):
+                demand_plan = int(demand_val)
+
+        supply_plan_waterfall = 0
+        if latest_supply_plan_row is not None and snapshot in latest_supply_plan_row.index:
+             supply_val = latest_supply_plan_row[snapshot]
+             if not pd.isna(supply_val):
+                  supply_plan_waterfall = int(supply_val)
+        # --- End safe handling ---
+
+        # --- Get confirmed PO quantity and list of POs for this week ---
+        confirmed_po_qty = 0
+        pos_in_week = []
+        if po_cols_exist:
+            weekly_pos = po_df[po_df['Delivery WW'] == week_num]
+            if not weekly_pos.empty:
+                po_qty_sum = weekly_pos['PO Quantity'].sum()
+                if not pd.isna(po_qty_sum):
+                    confirmed_po_qty = int(po_qty_sum)
+
+                # Get the list of PO numbers, ensuring they are not NaN/None
+                pos_in_week = weekly_pos['Purchasing Document'].dropna().astype(str).tolist()
+                # Add quantities to the list for more detail
+                pos_with_qty = [f"{doc} ({qty})" for doc, qty in zip(weekly_pos['Purchasing Document'].dropna().astype(str), weekly_pos['PO Quantity'].loc[weekly_pos['Purchasing Document'].dropna().index])]
+                pos_info = ", ".join(pos_with_qty) if pos_with_qty else "None"
+
+        # --- End getting PO details ---
+
+
+        # Calculate projected inventory based on confirmed POs
+        projected_inventory = current_projected_inventory + confirmed_po_qty - demand_plan
+
+        # Identify potential issues and suggest adjustments
+        suggestions = []
+
+        # Flag 1: Discrepancy between planned waterfall supply and confirmed PO quantity
+        if confirmed_po_qty != supply_plan_waterfall and (confirmed_po_qty > 0 or supply_plan_waterfall > 0):
+             suggestions.append(f"PO vs Waterfall discrepancy: Planned {supply_plan_waterfall}, Confirmed PO {confirmed_po_qty}. POs in week: [{pos_info}]")
+
+        # Flag 2: Projected shortage (inventory goes negative)
+        if projected_inventory < 0:
+            needed_qty = abs(projected_inventory)
+            suggestions.append(f"Projected shortage of {needed_qty} units.")
+            # Suggestion includes relevant POs for context
+            suggestions.append(f"Suggestion: Consider increasing quantity on POs in or before WW{week_num} ([{pos_info}]) by ~{needed_qty} units total, or expediting later POs.")
+
+        # Flag 3: Potential excess (inventory is building up significantly)
+        if confirmed_po_qty > demand_plan and projected_inventory > demand_plan * 2 and current_projected_inventory >= 0:
+             excess_this_week = confirmed_po_qty - demand_plan
+             suggestions.append(f"Potential for excess inventory. Confirmed PO {confirmed_po_qty} > Demand {demand_plan}. Projected inventory {projected_inventory} is high. POs in week: [{pos_info}]")
+             # Suggestion includes relevant POs for context
+             suggestions.append(f"Suggestion: Consider decreasing quantity on POs in WW{week_num} ([{pos_info}]) by up to {excess_this_week} units total, or delaying delivery.")
+
+        # Record results
+        results.append({
+            'Analysis Week': snapshot,
+            'Starting Projected Inventory': current_projected_inventory,
+            'Demand Plan (Waterfall)': demand_plan,
+            'Supply Plan (Waterfall)': supply_plan_waterfall, # Included for comparison
+            'Confirmed PO Quantity': confirmed_po_qty,
+            'Confirmed POs in Week': pos_info, # New column to list POs clearly
+            'End Projected Inventory (using Confirmed PO)': projected_inventory,
+            'Flags & Suggestions': ", ".join(suggestions) if suggestions else "OK - Appears Balanced based on confirmed POs"
+        })
+
+        # Update for next loop
+        current_projected_inventory = projected_inventory
+
+    return pd.DataFrame(results)
