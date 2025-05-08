@@ -618,7 +618,7 @@ def scenario_1(waterfall_df, po_df):
 
     return pd.DataFrame(results)
 
-def scenario_2_rca(waterfall_df, po_df):
+def scenario_2(waterfall_df, po_df):
     supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
     demand_rows = waterfall_df[waterfall_df['Measures'] == 'Demand w/o Buffer']
 
