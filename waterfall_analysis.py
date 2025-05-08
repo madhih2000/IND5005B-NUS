@@ -629,10 +629,11 @@ def scenario_2(waterfall_df, po_df):
 
     snapshots = waterfall_df['Snapshot'].unique()
     results = []
+
     current_inventory_calc = initial_inventory_calc
     current_inventory_sim = initial_inventory_calc
-
-    used_po_docs = set()  # Track POs used in simulation
+    simulated_gr_schedule = {}  # GR schedule for future arrival after pull-in
+    used_po_docs = set()
 
     for i, snapshot in enumerate(snapshots):
         week_col = snapshot
@@ -640,7 +641,7 @@ def scenario_2(waterfall_df, po_df):
 
         # Supply & demand
         demand_val = demand_rows[demand_rows['Snapshot'] == snapshot][week_col]
-        supply_val = supply_rows[supply_rows['Measures'] == 'Supply'][supply_rows['Snapshot'] == snapshot][week_col]
+        supply_val = supply_rows[supply_rows['Snapshot'] == snapshot][week_col]
         demand = int(demand_val.values[0]) if not demand_val.empty else 0
         supply = int(supply_val.values[0]) if not supply_val.empty else 0
 
@@ -653,77 +654,79 @@ def scenario_2(waterfall_df, po_df):
         po_received = po_received_data['GR Quantity'].sum()
         po_docs_received = list(po_received_data['Purchasing Document'])
 
-        # Base calculation (without simulated action)
+        # Actual inventory calc
         end_inventory_calc = current_inventory_calc + supply + po_received - demand
         end_inventory_waterfall = start_inventory_waterfall + supply + po_received - demand
 
-        # Root cause flag logic
+        # ---- Simulation Setup ----
+        simulated_po_received = sum(simulated_gr_schedule.get(week_num, []))
+        simulated_supply = supply
+        start_inventory_sim = current_inventory_sim + simulated_po_received
+        simulated_end_inventory = start_inventory_sim + simulated_supply + po_received - demand
+
+        # Action planning
         flags = []
         action = "No Action"
         suggested_po = None
         adjusted_gr_week = None
-        simulated_po_qty = 0
+        po_qty_ordered = None
+        po_gr_after_action = None
 
-        # ---------------- SIMULATION ----------------
-
-        # Start with the same inventory in simulation
-        simulated_supply = supply
-        simulated_po_received = po_received
-        simulated_end_inventory = current_inventory_sim + simulated_supply + simulated_po_received - demand
-
-        # Simulate pull-in if inventory went negative
+        # ---- Pull-In Simulation ----
         if simulated_end_inventory < 0:
             flags.append("Inventory went negative — stockout")
             future_po = po_df[
                 (po_df['GR WW'] > week_num) &
                 (~po_df['Purchasing Document'].isin(used_po_docs))
             ]
+
             if not future_po.empty:
                 pulled_po = future_po.iloc[0]
                 suggested_po = pulled_po['Purchasing Document']
-                simulated_po_qty = pulled_po['GR Quantity']
-                
-                # Simulate pulling the PO in by adjusting GR week (taking lead time into account)
+                po_qty_ordered = pulled_po['GR Quantity']
                 lead_time = pulled_po['GR WW'] - pulled_po['Order WW']
-                adjusted_gr_week = week_num + lead_time  # Adjusted GR week
-                simulated_po_received += simulated_po_qty
-                
-                # The inventory impact will be reflected in the adjusted GR week
-                action = "Pull In"
+                adjusted_gr_week = week_num + lead_time
+
+                # Schedule for adjusted GR week
+                simulated_gr_schedule.setdefault(adjusted_gr_week, []).append(po_qty_ordered)
                 used_po_docs.add(suggested_po)
+                action = "Pull In"
 
-                # Simulate receiving the PO after lead time
                 if adjusted_gr_week == week_num:
-                    simulated_end_inventory = current_inventory_sim + simulated_supply + simulated_po_received - demand
+                    po_gr_after_action = po_qty_ordered
+                    simulated_end_inventory = start_inventory_sim + simulated_supply + po_received + po_gr_after_action - demand
 
-        # Simulate push-out if excess PO not needed
-        elif simulated_end_inventory > current_inventory_sim + simulated_supply - demand and po_received > 0:
+        # ---- Push-Out Simulation ----
+        elif simulated_end_inventory > current_inventory_sim + supply - demand and po_received > 0:
             flags.append("Inventory built up unnecessarily — potential overstock")
             suggested_po = po_docs_received[0] if po_docs_received else None
+            po_qty_ordered = po_received_data[po_received_data['Purchasing Document'] == suggested_po]['GR Quantity'].values[0] if suggested_po else None
             adjusted_gr_week = week_num + 1  # Hypothetical push to next week
-            simulated_po_received = 0  # Push out means don't receive it now
-            simulated_end_inventory = current_inventory_sim + simulated_supply - demand
+            po_gr_after_action = 0
+            simulated_end_inventory = current_inventory_sim + supply - demand
             action = "Push Out"
             if suggested_po:
                 used_po_docs.add(suggested_po)
 
-        # ----------------------------------------------------
-
+        # Result row
         results.append({
             'Snapshot Week': snapshot,
             'Start Inventory (Waterfall)': start_inventory_waterfall,
             'Start Inventory (Calc)': initial_inventory_calc if i == 0 else current_inventory_calc,
+            'Start Inventory (Calc after Action)': start_inventory_sim,
             'Demand (Waterfall)': demand,
             'Supply (Waterfall)': supply,
             'PO GR Quantity': po_received,
-            'Purchasing Document(s)': ", ".join(map(str, po_docs_received)) if po_docs_received else None,
+            'PO GR Quantity (After Action)': po_gr_after_action,
             'End Inventory (Waterfall)': end_inventory_waterfall,
             'End Inventory (Calc)': end_inventory_calc,
-            'Flags': ", ".join(flags) if flags else "OK",
-            'RCA Action': action,
+            'End Inventory (Calc after Action)': simulated_end_inventory,
+            'Purchasing Document(s)': ", ".join(map(str, po_docs_received)) if po_docs_received else None,
             'Suggested PO for Action': suggested_po,
-            'Adjusted GR WW': adjusted_gr_week,
-            'End Inventory (Calc after Action)': simulated_end_inventory
+            'PO Quantity Ordered': po_qty_ordered,
+            'Adjusted GR WW': f"WW{adjusted_gr_week}" if adjusted_gr_week else None,
+            'Flags': ", ".join(flags) if flags else "OK",
+            'RCA Action': action
         })
 
         # Advance inventory trackers
