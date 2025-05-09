@@ -745,11 +745,10 @@ def scenario_1(df, po_df):
     # Group po_df by 'GR WW' and aggregate 'Purchasing Document' into comma-separated string
     po_grouped = po_df.groupby('GR WW')['Purchasing Document'] \
                       .apply(lambda x: ', '.join(x.astype(str))) \
-                      .reset_index(name='incoming PO')
+                      .reset_index(name='Incoming PO')
 
     # Merge back into filtered_df on Snapshot == GR WW
     filtered_df = filtered_df.merge(po_grouped, how='left', left_on='Snapshot', right_on='GR WW')
-    filtered_df.drop(columns='GR WW', inplace=True)
 
     return filtered_df
 
