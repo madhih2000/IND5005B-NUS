@@ -163,44 +163,45 @@ def extract_and_aggregate_weekly_data(folder_path, material_number, plant, site,
     return result_df, lead_value
 
 def adding_consumption_data(df):
-    # Filter and sort supply data
+    # Step 1: Filter for Supply rows and sort by Snapshot
     supply_df = df[df['Measures'] == 'Supply'].copy()
     supply_df = supply_df.sort_values('Snapshot').reset_index(drop=True)
 
-    # Calculate consumption
-    supply_df['Consumption'] = supply_df['InventoryOn-Hand'].shift(-1) - supply_df['InventoryOn-Hand']
+    # Step 2: Get list of week columns (e.g., WW12, WW13...)
+    week_cols = [col for col in df.columns if col.startswith('WW')]
 
-    # Create waterfall rows
-    weeks = supply_df['Snapshot'].tolist()
-    waterfall_data = []
+    # Step 3: Prepare output rows
+    output_rows = []
 
-    for i in range(len(weeks) - 1):  # no consumption for last week
-        snapshot = weeks[i]
-        consumption = supply_df.loc[i, 'Consumption']
-        
-        row = {
-            'Snapshot': snapshot,
-            'MaterialNumber': supply_df.loc[i, 'MaterialNumber'],
-            'Plant': supply_df.loc[i, 'Plant'],
-            'Site': supply_df.loc[i, 'Site'],
-            'Measures': 'Consumption',
-            'InventoryOn-Hand': None,
-            'LeadTime(Week)': supply_df.loc[i, 'LeadTime(Week)']
-        }
-        
-        # Populate week columns
-        for w in weeks[:-1]:  # avoid last week since no next-week to compare
-            row[w] = consumption if w == snapshot else 0
+    for i in range(len(supply_df) - 1):  # Skip last since no next week
+        curr_row = supply_df.iloc[i]
+        next_row = supply_df.iloc[i + 1]
 
-        waterfall_data.append(row)
+        snapshot = curr_row['Snapshot']
+        if snapshot not in week_cols:
+            continue  # skip if the Snapshot name isn't a valid week column
 
-    # Convert to DataFrame
-    waterfall_df = pd.DataFrame(waterfall_data)
+        ioh_curr = curr_row['InventoryOn-Hand']
+        supply_val = curr_row.get(snapshot, 0)
+        ioh_next = next_row['InventoryOn-Hand']
 
-    # Append to original df
-    combined_df = pd.concat([df, waterfall_df], ignore_index=True)
+        # Calculate consumption
+        consumption = (ioh_curr + supply_val) - ioh_next
 
-    # Optional: Sort by Snapshot and Measures
+        # Create a new row with same meta data, but Measures = Consumption
+        new_row = curr_row.copy()
+        new_row['Measures'] = 'Consumption'
+        new_row['InventoryOn-Hand'] = None
+
+        # Populate week columns: only current snapshot column has value
+        for col in week_cols:
+            new_row[col] = consumption if col == snapshot else 0
+
+        output_rows.append(new_row)
+
+    # Step 4: Append to original df and sort
+    consumption_df = pd.DataFrame(output_rows)
+    combined_df = pd.concat([df, consumption_df], ignore_index=True)
     combined_df.sort_values(by=['Snapshot', 'Measures'], inplace=True)
     combined_df.reset_index(drop=True, inplace=True)
 
