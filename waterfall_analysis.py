@@ -792,7 +792,7 @@ def scenario_3(waterfall_df, po_df, scenario_1_results_df):
     current_projected_inventory = starting_inventory
 
     # Check if necessary PO columns exist
-    po_cols_check = ['Delivery WW', 'PO Quantity', 'Purchasing Document']
+    po_cols_check = ['GR WW', 'PO Quantity', 'Purchasing Document']
     po_cols_exist = all(col in po_df.columns for col in po_cols_check)
     if not po_cols_exist:
         print(f"Warning: Missing one or more required PO columns ({po_cols_check}). PO details will not be included in flags.")
@@ -819,7 +819,7 @@ def scenario_3(waterfall_df, po_df, scenario_1_results_df):
         pos_in_week = []
         pos_info = "None"
         if po_cols_exist:
-            weekly_pos = po_df[po_df['Delivery WW'] == week_num]
+            weekly_pos = po_df[po_df['GR WW'] == week_num]
             if not weekly_pos.empty:
                 po_qty_sum = weekly_pos['PO Quantity'].sum()
                 if not pd.isna(po_qty_sum):
