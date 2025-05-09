@@ -712,19 +712,8 @@ def scenario_1(df, po_df):
     weeks_df = df[df['Measures'] == 'Weeks of Stock'].copy()
     weeks_df = weeks_df.reset_index(drop=True)
 
-    # Extract unique week identifiers from the Snapshot column
-    snapshot_weeks = sorted({int(snapshot.split('W')[1]) for snapshot in weeks_df['Snapshot'].unique()})
-
-    # Create week column names
-    week_cols = [f'WW{week}' for week in snapshot_weeks]
-
-    # Print the DataFrame before joining
-    print("DataFrame before joining:")
-    print(weeks_df.head())
-    print("\nColumn names in DataFrame:")
-    print(weeks_df.columns)
-    print("\nWeek columns:")
-    print(week_cols)
+    # Get all WW columns and ensure they're ordered
+    week_cols = sorted([col for col in df.columns if col.startswith('WW')])
 
     # Function to get week range per row
     def get_leadtime_cols(snapshot, leadtime, all_weeks):
@@ -732,17 +721,16 @@ def scenario_1(df, po_df):
             return []
         start_idx = all_weeks.index(snapshot)
         end_idx = start_idx + leadtime  # snapshot + (leadtime - 1)
-        return [f'WW{week}' for week in range(start_idx, end_idx + 1)]
+        return all_weeks[start_idx:end_idx]
 
     # Create filtered output
     filtered_rows = []
     for _, row in weeks_df.iterrows():
         leadtime = int(row['LeadTime(Week)'])
         snapshot = row['Snapshot']
-        snapshot_week = int(snapshot.split('W')[1])  # Extract the numeric part of the snapshot
-        cols_to_keep = get_leadtime_cols(snapshot_week, leadtime, snapshot_weeks)
+        cols_to_keep = get_leadtime_cols(snapshot, leadtime, week_cols)
 
-        base_info = row.drop([col for col in week_cols if col in row.index] + ['InventoryOn-Hand'], errors='ignore')  # Keep non-WW fields
+        base_info = row.drop(week_cols + ['InventoryOn-Hand'], errors='ignore')  # Keep non-WW fields
         week_data = row[cols_to_keep]   # Select WW columns in range
         combined = pd.concat([base_info, week_data])
         filtered_rows.append(combined)
@@ -752,7 +740,7 @@ def scenario_1(df, po_df):
 
     # Ensure Snapshot and GR WW are numeric and comparable
     po_df['GR WW'] = po_df['GR WW'].astype(int)
-    filtered_df['Snapshot'] = filtered_df['Snapshot'].apply(lambda x: int(x.split('W')[1]))  # Extract numeric part of snapshot
+    filtered_df['Snapshot'] = filtered_df['Snapshot'].str.extract(r'(\d+)').astype(int)
 
     # Function to filter POs based on lead time
     def filter_pos_by_leadtime(row, leadtime, po_df):
@@ -769,32 +757,30 @@ def scenario_1(df, po_df):
         lambda row: filter_pos_by_leadtime(row, row['LeadTime(Week)'], po_df), axis=1
     )
 
-    # Replace None values with 0
-    filtered_df[week_cols] = filtered_df[week_cols].replace({np.nan: 0, None: 0})
-
     # Flagging logic for Weeks of Supply
     def flag_row(row):
         leadtime = row['LeadTime(Week)']
         has_incoming_po = row['Incoming PO'] != ''
         values = row[[col for col in week_cols if col in row.index]].astype(float)
 
-        # Consider only the weeks within the snapshot plus lead time range
-        relevant_values = values[:len(range(row['Snapshot'], row['Snapshot'] + leadtime))]
+        below_lt = values < leadtime
+        negative = values < 0
+        adequate = (values >= leadtime) & (values >= 0)
 
-        below_lt = relevant_values < leadtime
-        negative = relevant_values < 0
-
-        if below_lt.any() or negative.any():
+        if below_lt.all() or negative.all():
             return 'Inadequate' if not has_incoming_po else 'Adequate'
-        elif (relevant_values >= leadtime).all() and (relevant_values >= 0).all():
-            return 'Applicable'
+        elif adequate.all():
+            return 'Not Applicable'
+        elif below_lt.any() or negative.any():
+            return 'Partially Adequate' if has_incoming_po else 'Partially Inadequate'
         else:
-            return 'Mixed Values'
+            return 'Unknown Case'
 
     # Apply flagging
     filtered_df['Flag'] = filtered_df.apply(flag_row, axis=1)
 
     return filtered_df
+
 
 def scenario_2(waterfall_df, po_df):
     supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
