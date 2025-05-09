@@ -763,7 +763,8 @@ def scenario_1(df, po_df):
         leadtime = row['LeadTime(Week)']
         has_incoming_po = row['Incoming PO'] != ''
         values = row[[col for col in week_cols if col in row.index]].astype(float)
-
+        st.write(row)
+        st.write(values)
         below_lt = values < leadtime
         negative = values < 0
         adequate = (values >= leadtime) & (values >= 0)
