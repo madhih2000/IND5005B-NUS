@@ -707,6 +707,8 @@ def analyze_week_to_week_demand_changes(result_df, abs_threshold=10, pct_thresho
 
 #     return pd.DataFrame(results)
 
+import pandas as pd
+
 def scenario_1(df, po_df):
     # Filter for 'Weeks of Stock' rows
     weeks_df = df[df['Measures'] == 'Weeks of Stock'].copy()
@@ -739,8 +741,8 @@ def scenario_1(df, po_df):
     filtered_df = pd.DataFrame(filtered_rows)
 
     # Ensure Snapshot and GR WW are comparable (same type, casing, etc.)
-    po_df['GR WW'] = po_df['GR WW'].astype(int)  # Convert to integer
-    filtered_df['Snapshot'] = filtered_df['Snapshot'].str.extract('(\d+)').astype(int)  # Extract digits and convert to integer
+    po_df['GR WW'] = po_df['GR WW'].astype(str)
+    filtered_df['Snapshot'] = filtered_df['Snapshot'].astype(str)
 
     # Group po_df by 'GR WW' and aggregate 'Purchasing Document' into comma-separated string
     po_grouped = po_df.groupby('GR WW')['Purchasing Document'] \
@@ -748,11 +750,25 @@ def scenario_1(df, po_df):
                       .reset_index(name='Incoming PO')
 
     # Merge back into filtered_df on Snapshot == GR WW
-    merged_df = filtered_df.merge(po_grouped, how='left', left_on='Snapshot', right_on='GR WW')
-    
-    merged_df['GR WW'] = merged_df['GR WW'].astype(int)
+    merged_df = pd.merge(filtered_df, po_grouped, how='left', left_on='Snapshot', right_on='GR WW')
+
+    # Drop the GR WW column if it's not needed anymore
+    merged_df = merged_df.drop(columns=['GR WW'])
+
+    # Map the week columns to the corresponding GR WW
+    for week_col in week_cols:
+        po_grouped[f'{week_col}_PO'] = po_grouped['Incoming PO']
+        merged_df = pd.merge(merged_df, po_grouped[[week_col, f'{week_col}_PO']], how='left', left_on=week_col, right_on=week_col)
+        merged_df = merged_df.drop(columns=[week_col, week_col + '_PO'])
+
+    # Print the merged DataFrame to check the results
+    print("\nMerged DataFrame Head:")
+    print(merged_df.head())
 
     return merged_df
+
+# Example usage:
+# filtered_df = scenario_1(df, po_df)
 
 def scenario_2(waterfall_df, po_df):
     supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
