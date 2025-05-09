@@ -762,12 +762,15 @@ def scenario_1(df, po_df):
     def flag_row(row):
         leadtime = row['LeadTime(Week)']
         has_incoming_po = row['Incoming PO'] != ''
-        values = row[[col for col in week_cols if col in row.index]].astype(float)
-        st.write(row)
-        st.write(values)
-        below_lt = values < leadtime
-        negative = values < 0
-        adequate = (values >= leadtime) & (values >= 0)
+        week_cols_in_row = [col for col in week_cols if col in row.index]
+        values_series = row[week_cols_in_row]
+        values = values_series[values_series.notna()].astype(float)
+        if numeric_values.empty:  # Handle the case where all values are None
+            return 'Unknown Case - All Weeks Null'  # Or some other appropriate flag
+
+        below_lt = numeric_values < leadtime
+        negative = numeric_values < 0
+        adequate = (numeric_values >= leadtime) & (numeric_values >= 0)
 
         if below_lt.all() or negative.all():
             return 'Inadequate' if not has_incoming_po else 'Adequate'
@@ -776,7 +779,7 @@ def scenario_1(df, po_df):
         elif below_lt.any() or negative.any():
             return 'Partially Adequate' if has_incoming_po else 'Partially Inadequate'
         else:
-            return 'Unknown Case'
+            return 'Unknown Case - Numeric Checks Failed'
 
     # Apply flagging
     filtered_df['Flag'] = filtered_df.apply(flag_row, axis=1)
