@@ -193,9 +193,16 @@ def adding_consumption_data(df):
         new_row['Measures'] = 'Consumption'
         new_row['InventoryOn-Hand'] = None
 
-        # Populate week columns: only current snapshot column has value
+        # Populate week columns
+        set_value = False
         for col in week_cols:
-            new_row[col] = consumption if col == snapshot else 0
+            if col == snapshot:
+                new_row[col] = consumption
+                set_value = True
+            elif not set_value:
+                new_row[col] = None
+            else:
+                new_row[col] = 0
 
         output_rows.append(new_row)
 
