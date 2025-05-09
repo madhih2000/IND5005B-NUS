@@ -489,7 +489,7 @@ elif tabs == "Waterfall Analysis":
                                         analysis_4 = llm_reasoning.explain_scenario_4_with_groq(condition4)
 
                                         #RCA Condition 5
-                                        st.subheader('Scenario 5 - Irregular Consumption Patterns')
+                                        st.subheader('Scenario 5 - Irregular Demand w/o Buffer Patterns')
                                         condition5 = waterfall_analysis.analyze_week_to_week_demand_changes(result_df)
                                         st.dataframe(condition5)
                                         analysis_5 = llm_reasoning.explain_scenario_5_with_groq(condition5)
