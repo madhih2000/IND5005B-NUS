@@ -741,31 +741,33 @@ def scenario_1(df, po_df):
     filtered_df = pd.DataFrame(filtered_rows)
 
     # Ensure Snapshot and GR WW are comparable (same type, casing, etc.)
-    po_df['GR WW'] = po_df['GR WW'].astype(str)
-    filtered_df['Snapshot'] = filtered_df['Snapshot'].astype(str)
+    po_df['GR WW'] = po_df['GR WW'].astype(int)  # Convert to integer
+    filtered_df['Snapshot'] = filtered_df['Snapshot'].str.extract('(\d+)').astype(int)  # Extract digits and convert to integer
 
-    # Group po_df by 'GR WW' and aggregate 'Purchasing Document' into comma-separated string
-    po_grouped = po_df.groupby('GR WW')['Purchasing Document'] \
-                      .apply(lambda x: ', '.join(x.astype(str))) \
-                      .reset_index(name='Incoming PO')
+    # Print the first few rows of filtered_df and po_df to check data types and values
+    print("Filtered DataFrame Head:")
+    print(filtered_df.head())
+    print("\nPO DataFrame Head:")
+    print(po_df.head())
 
-    # Merge back into filtered_df on Snapshot == GR WW
-    merged_df = pd.merge(filtered_df, po_grouped, how='left', left_on='Snapshot', right_on='GR WW')
+    # Function to filter POs based on lead time
+    def filter_pos_by_leadtime(row, leadtime, po_df):
+        snapshot = row['Snapshot']
+        start_week = snapshot
+        end_week = snapshot + leadtime - 1
+        gr_weeks = list(range(start_week, end_week + 1))
+        filtered_po_df = po_df[po_df['GR WW'].isin(gr_weeks)]
+        incoming_po = filtered_po_df['Purchasing Document'].astype(str).apply(lambda x: ', '.join(x)).tolist()
+        return ', '.join(incoming_po)
 
-    # Drop the GR WW column if it's not needed anymore
-    merged_df = merged_df.drop(columns=['GR WW'])
-
-    # Map the week columns to the corresponding GR WW
-    for week_col in week_cols:
-        po_grouped[f'{week_col}_PO'] = po_grouped['Incoming PO']
-        merged_df = pd.merge(merged_df, po_grouped[[week_col, f'{week_col}_PO']], how='left', left_on=week_col, right_on=week_col)
-        merged_df = merged_df.drop(columns=[week_col, week_col + '_PO'])
+    # Apply the function to each row in filtered_df
+    filtered_df['Incoming PO'] = filtered_df.apply(lambda row: filter_pos_by_leadtime(row, row['LeadTime(Week)'], po_df), axis=1)
 
     # Print the merged DataFrame to check the results
     print("\nMerged DataFrame Head:")
-    print(merged_df.head())
+    print(filtered_df.head())
 
-    return merged_df
+    return filtered_df
 
 # Example usage:
 # filtered_df = scenario_1(df, po_df)
