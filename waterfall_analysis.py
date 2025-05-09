@@ -720,7 +720,7 @@ def scenario_1(df, po_df):
         if snapshot not in all_weeks:
             return []
         start_idx = all_weeks.index(snapshot)
-        end_idx = start_idx + leadtime  # inclusive of (snapshot + leadtime - 1)
+        end_idx = start_idx + leadtime  # snapshot + (leadtime - 1)
         return all_weeks[start_idx:end_idx]
 
     # Create filtered output
@@ -730,17 +730,17 @@ def scenario_1(df, po_df):
         snapshot = row['Snapshot']
         cols_to_keep = get_leadtime_cols(snapshot, leadtime, week_cols)
 
-        base_info = row.drop(week_cols + ['InventoryOn-Hand'], errors='ignore')  # keep non-WW fields
-        week_data = row[cols_to_keep]   # select WW columns in range
+        base_info = row.drop(week_cols + ['InventoryOn-Hand'], errors='ignore')  # Keep non-WW fields
+        week_data = row[cols_to_keep]   # Select WW columns in range
         combined = pd.concat([base_info, week_data])
         filtered_rows.append(combined)
 
     # Final filtered DataFrame
     filtered_df = pd.DataFrame(filtered_rows)
 
-    # Ensure Snapshot and GR WW are comparable (same type, casing, etc.)
-    po_df['GR WW'] = po_df['GR WW'].astype(int)  # Convert to integer
-    filtered_df['Snapshot'] = filtered_df['Snapshot'].str.extract('(\d+)').astype(int)  # Extract digits and convert to integer
+    # Ensure Snapshot and GR WW are numeric and comparable
+    po_df['GR WW'] = po_df['GR WW'].astype(int)
+    filtered_df['Snapshot'] = filtered_df['Snapshot'].str.extract(r'(\d+)').astype(int)
 
     # Function to filter POs based on lead time
     def filter_pos_by_leadtime(row, leadtime, po_df):
@@ -752,8 +752,32 @@ def scenario_1(df, po_df):
         incoming_po = ', '.join(filtered_po_df['Purchasing Document'].astype(str).unique())
         return incoming_po
 
-    # Apply the function to each row in filtered_df
-    filtered_df['Incoming PO'] = filtered_df.apply(lambda row: filter_pos_by_leadtime(row, row['LeadTime(Week)'], po_df), axis=1)
+    # Add Incoming PO column
+    filtered_df['Incoming PO'] = filtered_df.apply(
+        lambda row: filter_pos_by_leadtime(row, row['LeadTime(Week)'], po_df), axis=1
+    )
+
+    # Flagging logic for Weeks of Supply
+    def flag_row(row):
+        leadtime = row['LeadTime(Week)']
+        has_incoming_po = row['Incoming PO'] != ''
+        values = row[[col for col in week_cols if col in row.index]].astype(float)
+
+        below_lt = values < leadtime
+        negative = values < 0
+        adequate = (values >= leadtime) & (values >= 0)
+
+        if below_lt.all() or negative.all():
+            return 'Inadequate' if not has_incoming_po else 'Adequate'
+        elif adequate.all():
+            return 'Not Applicable'
+        elif below_lt.any() or negative.any():
+            return 'Partially Adequate' if has_incoming_po else 'Partially Inadequate'
+        else:
+            return 'Unknown Case'
+
+    # Apply flagging
+    filtered_df['Flag'] = filtered_df.apply(flag_row, axis=1)
 
     return filtered_df
 
