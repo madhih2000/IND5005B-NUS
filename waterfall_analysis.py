@@ -730,7 +730,7 @@ def scenario_1(df, po_df):
         snapshot = row['Snapshot']
         cols_to_keep = get_leadtime_cols(snapshot, leadtime, week_cols)
 
-        base_info = row.drop(week_cols)  # keep non-WW fields
+        base_info = row.drop(week_cols + ['InventoryOn-Hand'], errors='ignore')  # keep non-WW fields and drop 'InventoryonHand'
         week_data = row[cols_to_keep]   # select WW columns in range
         combined = pd.concat([base_info, week_data])
         filtered_rows.append(combined)
