@@ -817,6 +817,7 @@ def scenario_3(waterfall_df, po_df, scenario_1_results_df):
         # --- Get confirmed PO quantity and list of POs for this week ---
         confirmed_po_qty = 0
         pos_in_week = []
+        pos_info = "None"
         if po_cols_exist:
             weekly_pos = po_df[po_df['Delivery WW'] == week_num]
             if not weekly_pos.empty:
