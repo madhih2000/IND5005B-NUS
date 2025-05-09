@@ -792,7 +792,8 @@ def scenario_3(waterfall_df, po_df, scenario_1_results_df):
     current_projected_inventory = starting_inventory
 
     # Check if necessary PO columns exist
-    po_cols_check = ['GR WW', 'PO Quantity', 'Purchasing Document']
+    po_cols_check = ['GR WW', 'Order Quantity', 'Purchasing Document']
+    print(po_df.columns)
     po_cols_exist = all(col in po_df.columns for col in po_cols_check)
     if not po_cols_exist:
         print(f"Warning: Missing one or more required PO columns ({po_cols_check}). PO details will not be included in flags.")
@@ -821,14 +822,14 @@ def scenario_3(waterfall_df, po_df, scenario_1_results_df):
         if po_cols_exist:
             weekly_pos = po_df[po_df['GR WW'] == week_num]
             if not weekly_pos.empty:
-                po_qty_sum = weekly_pos['PO Quantity'].sum()
+                po_qty_sum = weekly_pos['Order Quantity'].sum()
                 if not pd.isna(po_qty_sum):
                     confirmed_po_qty = int(po_qty_sum)
 
                 # Get the list of PO numbers, ensuring they are not NaN/None
                 pos_in_week = weekly_pos['Purchasing Document'].dropna().astype(str).tolist()
                 # Add quantities to the list for more detail
-                pos_with_qty = [f"{doc} ({qty})" for doc, qty in zip(weekly_pos['Purchasing Document'].dropna().astype(str), weekly_pos['PO Quantity'].loc[weekly_pos['Purchasing Document'].dropna().index])]
+                pos_with_qty = [f"{doc} ({qty})" for doc, qty in zip(weekly_pos['Purchasing Document'].dropna().astype(str), weekly_pos['Order Quantity'].loc[weekly_pos['Purchasing Document'].dropna().index])]
                 pos_info = ", ".join(pos_with_qty) if pos_with_qty else "None"
 
         # --- End getting PO details ---
