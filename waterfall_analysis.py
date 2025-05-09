@@ -757,6 +757,7 @@ def scenario_1(df, po_df):
         lambda row: filter_pos_by_leadtime(row, row['LeadTime(Week)'], po_df), axis=1
     )
 
+    st.write(filtered_df)
     # Flagging logic for Weeks of Supply
     def flag_row(row):
         leadtime = row['LeadTime(Week)']
