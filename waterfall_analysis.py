@@ -710,6 +710,7 @@ def analyze_week_to_week_demand_changes(result_df, abs_threshold=10, pct_thresho
 def scenario_1(df, po_df):
     # Filter for 'Weeks of Stock' rows
     weeks_df = df[df['Measures'] == 'Weeks of Stock'].copy()
+    
     weeks_df = weeks_df.reset_index(drop=True)
 
     # Get all WW columns and ensure they're ordered
@@ -757,6 +758,9 @@ def scenario_1(df, po_df):
         lambda row: filter_pos_by_leadtime(row, row['LeadTime(Week)'], po_df), axis=1
     )
 
+    # Replace None values with 0
+    filtered_df[week_cols] = filtered_df[week_cols].replace({np.nan: 0, None: 0})
+
     # Flagging logic for Weeks of Supply
     def flag_row(row):
         leadtime = row['LeadTime(Week)']
@@ -767,19 +771,18 @@ def scenario_1(df, po_df):
         negative = values < 0
         adequate = (values >= leadtime) & (values >= 0)
 
-        if below_lt.all() or negative.all():
+        if below_lt.any() or negative.any():
             return 'Inadequate' if not has_incoming_po else 'Adequate'
         elif adequate.all():
-            return 'Not Applicable'
-        elif below_lt.any() or negative.any():
-            return 'Partially Adequate' if has_incoming_po else 'Partially Inadequate'
+            return 'Applicable'
         else:
-            return 'Unknown Case'
+            return 'Mixed Values'
 
     # Apply flagging
     filtered_df['Flag'] = filtered_df.apply(flag_row, axis=1)
 
     return filtered_df
+
 
 def scenario_2(waterfall_df, po_df):
     supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
