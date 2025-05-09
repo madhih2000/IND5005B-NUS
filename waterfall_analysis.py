@@ -749,6 +749,8 @@ def scenario_1(df, po_df):
 
     # Merge back into filtered_df on Snapshot == GR WW
     merged_df = filtered_df.merge(po_grouped, how='left', left_on='Snapshot', right_on='GR WW')
+    
+    merged_df['GR WW'] = merged_df['GR WW'].astype(int)
 
     return merged_df
 
