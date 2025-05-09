@@ -710,7 +710,6 @@ def analyze_week_to_week_demand_changes(result_df, abs_threshold=10, pct_thresho
 def scenario_1(df, po_df):
     # Filter for 'Weeks of Stock' rows
     weeks_df = df[df['Measures'] == 'Weeks of Stock'].copy()
-    
     weeks_df = weeks_df.reset_index(drop=True)
 
     # Get all WW columns and ensure they're ordered
@@ -767,13 +766,15 @@ def scenario_1(df, po_df):
         has_incoming_po = row['Incoming PO'] != ''
         values = row[[col for col in week_cols if col in row.index]].astype(float)
 
-        below_lt = values < leadtime
-        negative = values < 0
-        adequate = (values >= leadtime) & (values >= 0)
+        # Consider only the weeks within the snapshot plus lead time range
+        relevant_values = values[:len(range(row['Snapshot'], row['Snapshot'] + leadtime))]
+
+        below_lt = relevant_values < leadtime
+        negative = relevant_values < 0
 
         if below_lt.any() or negative.any():
             return 'Inadequate' if not has_incoming_po else 'Adequate'
-        elif adequate.all():
+        elif (relevant_values >= leadtime).all() and (relevant_values >= 0).all():
             return 'Applicable'
         else:
             return 'Mixed Values'
