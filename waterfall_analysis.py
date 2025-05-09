@@ -730,13 +730,26 @@ def scenario_1(df, po_df):
         snapshot = row['Snapshot']
         cols_to_keep = get_leadtime_cols(snapshot, leadtime, week_cols)
 
-        base_info = row.drop(week_cols + ['InventoryOn-Hand'], errors='ignore')  # keep non-WW fields and drop 'InventoryonHand'
+        base_info = row.drop(week_cols + ['InventoryOn-Hand'], errors='ignore')  # keep non-WW fields
         week_data = row[cols_to_keep]   # select WW columns in range
         combined = pd.concat([base_info, week_data])
         filtered_rows.append(combined)
 
     # Final filtered DataFrame
     filtered_df = pd.DataFrame(filtered_rows)
+
+    # Ensure Snapshot and GR WW are comparable (same type, casing, etc.)
+    po_df['GR WW'] = po_df['GR WW'].astype(str)
+    filtered_df['Snapshot'] = filtered_df['Snapshot'].astype(str)
+
+    # Group po_df by 'GR WW' and aggregate 'Purchasing Document' into comma-separated string
+    po_grouped = po_df.groupby('GR WW')['Purchasing Document'] \
+                      .apply(lambda x: ', '.join(x.astype(str))) \
+                      .reset_index(name='incoming PO')
+
+    # Merge back into filtered_df on Snapshot == GR WW
+    filtered_df = filtered_df.merge(po_grouped, how='left', left_on='Snapshot', right_on='GR WW')
+    filtered_df.drop(columns='GR WW', inplace=True)
 
     return filtered_df
 
