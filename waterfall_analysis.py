@@ -7,6 +7,39 @@ from io import BytesIO
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
 
+def style_dataframe(filtered_df):
+    # Identify week columns (WW12, WW13, etc.)
+    ww_cols = [col for col in filtered_df.columns if col.startswith('WW')]
+
+    # Define a row-wise styling function
+    def highlight_row(row):
+        lead_time = row['LeadTime(Week)']
+        styles = []
+        for col in row.index:
+            if col in ww_cols:
+                val = row[col]
+                if pd.isna(val):
+                    styles.append('')
+                else:
+                    try:
+                        val = float(val)
+                        if val < 0:
+                            styles.append('background-color: #FF5252')  # Red
+                        elif val < lead_time:
+                            styles.append('background-color: #FFEB3B')  # Yellow
+                        else:
+                            styles.append('background-color: #4CAF50')  # Green
+                    except:
+                        styles.append('')
+            else:
+                styles.append('')
+        return styles
+
+    # Apply styling row by row
+    styled_df = filtered_df.style.apply(highlight_row, axis=1)
+
+    return styled_df
+
 def generate_weeks_range(start_week, num_weeks=12):
     #weeks_range = [f"WW{str((start_week + i - num_weeks) % 52 or 52).zfill(2)}" for i in range(2 * num_weeks + 1)]
     weeks_range = []
@@ -158,7 +191,63 @@ def extract_and_aggregate_weekly_data(folder_path, material_number, plant, site,
     cols = ['Snapshot'] + [col for col in cols if col != 'Snapshot']
     result_df = result_df[cols]
 
+    result_df = adding_consumption_data(result_df)
+
     return result_df, lead_value
+
+def adding_consumption_data(df):
+    # Step 1: Filter for Supply rows and sort by Snapshot
+    supply_df = df[df['Measures'] == 'Supply'].copy()
+    supply_df = supply_df.sort_values('Snapshot').reset_index(drop=True)
+
+    # Step 2: Get list of week columns (e.g., WW12, WW13...)
+    week_cols = [col for col in df.columns if col.startswith('WW')]
+
+    # Step 3: Prepare output rows
+    output_rows = []
+
+    for i in range(len(supply_df) - 1):  # Skip last since no next week
+        curr_row = supply_df.iloc[i]
+        next_row = supply_df.iloc[i + 1]
+
+        snapshot = curr_row['Snapshot']
+        if snapshot not in week_cols:
+            continue  # skip if the Snapshot name isn't a valid week column
+
+        ioh_curr = curr_row['InventoryOn-Hand']
+        supply_val = curr_row.get(snapshot, 0)
+        ioh_next = next_row['InventoryOn-Hand']
+
+        # Calculate consumption
+        consumption = (ioh_curr + supply_val) - ioh_next
+
+        # Create a new row with same meta data, but Measures = Consumption
+        new_row = curr_row.copy()
+        new_row['Measures'] = 'Consumption'
+        new_row['InventoryOn-Hand'] = None
+
+        # Populate week columns
+        set_value = False
+        for col in week_cols:
+            if col == snapshot:
+                new_row[col] = consumption
+                set_value = True
+            elif not set_value:
+                new_row[col] = None
+            else:
+                new_row[col] = 0
+
+        output_rows.append(new_row)
+
+    # Step 4: Append to original df and sort
+    consumption_df = pd.DataFrame(output_rows)
+    combined_df = pd.concat([df, consumption_df], ignore_index=True)
+    combined_df.sort_values(by=['Snapshot', 'Measures'], inplace=True)
+    combined_df.reset_index(drop=True, inplace=True)
+
+    return combined_df
+
+
 
 def plot_stock_prediction_plotly(df, start_week, lead_time, weeks_range):
     """Plots actual and predicted stock values over weeks."""
@@ -544,79 +633,156 @@ def analyze_week_to_week_demand_changes(result_df, abs_threshold=10, pct_thresho
     return output_df
 
 
-def scenario_1(waterfall_df, po_df):
-    # Filter relevant rows
-    supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
-    demand_rows = waterfall_df[waterfall_df['Measures'] == 'Demand w/o Buffer']
+# def scenario_1(waterfall_df, po_df):
+#     # Filter relevant rows
+#     supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
+#     demand_rows = waterfall_df[waterfall_df['Measures'] == 'Demand w/o Buffer']
 
-    # Get initial snapshot and inventory from Supply rows
-    initial_snapshot = supply_rows['Snapshot'].iloc[0]
-    initial_inventory_calc = int(supply_rows[supply_rows['Snapshot'] == initial_snapshot]['InventoryOn-Hand'].values[0])
+#     # Get initial snapshot and inventory from Supply rows
+#     initial_snapshot = supply_rows['Snapshot'].iloc[0]
+#     initial_inventory_calc = int(supply_rows[supply_rows['Snapshot'] == initial_snapshot]['InventoryOn-Hand'].values[0])
 
-    # All snapshots to iterate through
-    snapshots = waterfall_df['Snapshot'].unique()
+#     # All snapshots to iterate through
+#     snapshots = waterfall_df['Snapshot'].unique()
 
-    results = []
-    current_inventory_calc = initial_inventory_calc
+#     results = []
+#     current_inventory_calc = initial_inventory_calc
 
-    for snapshot in snapshots:
-        week_col = snapshot
-        week_num = int(snapshot.replace("WW", ""))
+#     for snapshot in snapshots:
+#         week_col = snapshot
+#         week_num = int(snapshot.replace("WW", ""))
 
-        # Get supply and demand values
-        demand_val = demand_rows[demand_rows['Snapshot'] == snapshot][week_col]
-        supply_val = supply_rows[supply_rows['Snapshot'] == snapshot][week_col]
+#         # Get supply and demand values
+#         demand_val = demand_rows[demand_rows['Snapshot'] == snapshot][week_col]
+#         supply_val = supply_rows[supply_rows['Snapshot'] == snapshot][week_col]
 
-        demand = int(demand_val.values[0]) if not demand_val.empty else 0
-        supply = int(supply_val.values[0]) if not supply_val.empty else 0
+#         demand = int(demand_val.values[0]) if not demand_val.empty else 0
+#         supply = int(supply_val.values[0]) if not supply_val.empty else 0
 
-        # Start inventory from Waterfall column
-        inv_val = supply_rows[supply_rows['Snapshot'] == snapshot]['InventoryOn-Hand']
-        start_inventory_waterfall = int(inv_val.values[0]) if not inv_val.empty else 0
+#         # Start inventory from Waterfall column
+#         inv_val = supply_rows[supply_rows['Snapshot'] == snapshot]['InventoryOn-Hand']
+#         start_inventory_waterfall = int(inv_val.values[0]) if not inv_val.empty else 0
 
-        # GR quantity from PO data
-        po_received = 0
-        if not po_df.empty:
-            po_received = po_df[po_df['GR WW'] == week_num]['GR Quantity'].sum()
+#         # GR quantity from PO data
+#         po_received = 0
+#         if not po_df.empty:
+#             po_received = po_df[po_df['GR WW'] == week_num]['GR Quantity'].sum()
 
-        # Calculate end inventories INCLUDING PO received
-        end_inventory_calc = current_inventory_calc + supply + po_received - demand
-        end_inventory_waterfall = start_inventory_waterfall + supply + po_received - demand
+#         # Calculate end inventories INCLUDING PO received
+#         end_inventory_calc = current_inventory_calc + supply + po_received - demand
+#         end_inventory_waterfall = start_inventory_waterfall + supply + po_received - demand
 
-        # Flag logic
-        flags = []
-        if po_df.empty:
-            if supply > 0:
-                flags.append("No PO data available to validate supply")
+#         # Flag logic
+#         flags = []
+#         if po_df.empty:
+#             if supply > 0:
+#                 flags.append("No PO data available to validate supply")
+#         else:
+#             if po_received < supply:
+#                 if po_received == 0 and supply > 0:
+#                     flags.append("No PO received for expected supply")
+#                 elif 0 < po_received < supply:
+#                     flags.append(f"Partial PO received: Expected {supply}, Got {po_received}")
+#                 else:
+#                     flags.append("Supply in Waterfall not backed by PO receipts")
+
+#         if end_inventory_calc < 0:
+#             flags.append("Inventory went negative — demand exceeded supply and stock")
+
+#         # Record results
+#         results.append({
+#             'Snapshot Week': snapshot,
+#             'Start Inventory (Waterfall)': start_inventory_waterfall,
+#             'Start Inventory (Calc)': current_inventory_calc,
+#             'Demand (Waterfall)': demand,
+#             'Supply (Waterfall)': supply,
+#             'PO GR Quantity': po_received,
+#             'End Inventory (Waterfall)': end_inventory_waterfall,
+#             'End Inventory (Calc)': end_inventory_calc,
+#             'Flags': ", ".join(flags) if flags else "OK"
+#         })
+
+#         # Update for next loop
+#         current_inventory_calc = end_inventory_calc
+
+#     return pd.DataFrame(results)
+
+def scenario_1(df, po_df):
+    # Filter for 'Weeks of Stock' rows
+    weeks_df = df[df['Measures'] == 'Weeks of Stock'].copy()
+    
+    weeks_df = weeks_df.reset_index(drop=True)
+
+    # Get all WW columns and ensure they're ordered
+    week_cols = sorted([col for col in df.columns if col.startswith('WW')])
+
+    # Function to get week range per row
+    def get_leadtime_cols(snapshot, leadtime, all_weeks):
+        if snapshot not in all_weeks:
+            return []
+        start_idx = all_weeks.index(snapshot)
+        end_idx = start_idx + leadtime  # snapshot + (leadtime - 1)
+        return all_weeks[start_idx:end_idx]
+
+    # Create filtered output
+    filtered_rows = []
+    for _, row in weeks_df.iterrows():
+        leadtime = int(row['LeadTime(Week)'])
+        snapshot = row['Snapshot']
+        cols_to_keep = get_leadtime_cols(snapshot, leadtime, week_cols)
+
+        base_info = row.drop(week_cols + ['InventoryOn-Hand'], errors='ignore')  # Keep non-WW fields
+        week_data = row[cols_to_keep]   # Select WW columns in range
+        combined = pd.concat([base_info, week_data])
+        filtered_rows.append(combined)
+
+    # Final filtered DataFrame
+    filtered_df = pd.DataFrame(filtered_rows)
+
+    # Ensure Snapshot and GR WW are numeric and comparable
+    po_df['GR WW'] = po_df['GR WW'].astype(int)
+    filtered_df['Snapshot'] = filtered_df['Snapshot'].str.extract(r'(\d+)').astype(int)
+
+    # Function to filter POs based on lead time
+    def filter_pos_by_leadtime(row, leadtime, po_df):
+        snapshot = row['Snapshot']
+        start_week = snapshot
+        end_week = snapshot + leadtime - 1
+        gr_weeks = list(range(start_week, end_week + 1))
+        filtered_po_df = po_df[po_df['GR WW'].isin(gr_weeks)]
+        incoming_po = ', '.join(filtered_po_df['Purchasing Document'].astype(str).unique())
+        return incoming_po
+
+    # Add Incoming PO column
+    filtered_df['Incoming PO'] = filtered_df.apply(
+        lambda row: filter_pos_by_leadtime(row, row['LeadTime(Week)'], po_df), axis=1
+    )
+
+    # Replace None values with 0
+    filtered_df[week_cols] = filtered_df[week_cols].replace({np.nan: 0, None: 0})
+
+    # Flagging logic for Weeks of Supply
+    def flag_row(row):
+        leadtime = row['LeadTime(Week)']
+        has_incoming_po = row['Incoming PO'] != ''
+        values = row[[col for col in week_cols if col in row.index]].astype(float)
+
+        below_lt = values < leadtime
+        negative = values < 0
+        adequate = (values >= leadtime) & (values >= 0)
+
+        if below_lt.any() or negative.any():
+            return 'Inadequate' if not has_incoming_po else 'Adequate'
+        elif adequate.all():
+            return 'Applicable'
         else:
-            if po_received < supply:
-                if po_received == 0 and supply > 0:
-                    flags.append("No PO received for expected supply")
-                elif 0 < po_received < supply:
-                    flags.append(f"Partial PO received: Expected {supply}, Got {po_received}")
-                else:
-                    flags.append("Supply in Waterfall not backed by PO receipts")
+            return 'Mixed Values'
 
-        if end_inventory_calc < 0:
-            flags.append("Inventory went negative — demand exceeded supply and stock")
+    # Apply flagging
+    filtered_df['Flag'] = filtered_df.apply(flag_row, axis=1)
 
-        # Record results
-        results.append({
-            'Snapshot Week': snapshot,
-            'Start Inventory (Waterfall)': start_inventory_waterfall,
-            'Start Inventory (Calc)': current_inventory_calc,
-            'Demand (Waterfall)': demand,
-            'Supply (Waterfall)': supply,
-            'PO GR Quantity': po_received,
-            'End Inventory (Waterfall)': end_inventory_waterfall,
-            'End Inventory (Calc)': end_inventory_calc,
-            'Flags': ", ".join(flags) if flags else "OK"
-        })
+    return filtered_df
 
-        # Update for next loop
-        current_inventory_calc = end_inventory_calc
-
-    return pd.DataFrame(results)
 
 def scenario_2(waterfall_df, po_df):
     supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
