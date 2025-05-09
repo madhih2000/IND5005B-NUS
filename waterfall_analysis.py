@@ -24,11 +24,11 @@ def style_dataframe(filtered_df):
                     try:
                         val = float(val)
                         if val < 0:
-                            styles.append('background-color: red')
+                            styles.append('background-color: #FF5252')  # Red
                         elif val < lead_time:
-                            styles.append('background-color: yellow')
+                            styles.append('background-color: #FFEB3B')  # Yellow
                         else:
-                            styles.append('background-color: green')
+                            styles.append('background-color: #4CAF50')  # Green
                     except:
                         styles.append('')
             else:
