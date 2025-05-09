@@ -757,31 +757,39 @@ def scenario_1(df, po_df):
         lambda row: filter_pos_by_leadtime(row, row['LeadTime(Week)'], po_df), axis=1
     )
 
-    # Flagging logic for Weeks of Supply
-    def flag_row(row):
+    def flag_row_with_reason(row):
         leadtime = row['LeadTime(Week)']
         has_incoming_po = row['Incoming PO'] != ''
         week_cols_in_row = [col for col in week_cols if col in row.index]
         values_series = row[week_cols_in_row]
         numeric_values = values_series[values_series.notna()].astype(float)
-        if numeric_values.empty:  # Handle the case where all values are None
-            return 'Unknown Case - All Weeks Null'  # Or some other appropriate flag
+
+        if numeric_values.empty:
+            return 'Unknown Case - All Weeks Null', 'All Weeks of Stock values are missing or null.'
 
         below_lt = numeric_values < leadtime
         negative = numeric_values < 0
         adequate = (numeric_values >= leadtime) & (numeric_values >= 0)
 
         if below_lt.all() or negative.all():
-            return 'Inadequate' if not has_incoming_po else 'Adequate'
+            if has_incoming_po:
+                return 'Adequate', 'Stock is low but incoming PO exists within lead time.'
+            else:
+                return 'Inadequate', 'All WoS values are below lead time and no PO is expected.'
         elif adequate.all():
-            return 'Not Applicable'
+            return 'Not Applicable', 'All WoS values meet or exceed lead time—no issue.'
         elif below_lt.any() or negative.any():
-            return 'Partially Adequate' if has_incoming_po else 'Partially Inadequate'
+            if has_incoming_po:
+                return 'Partially Adequate', 'Some WoS values are low, but there is an incoming PO.'
+            else:
+                return 'Partially Inadequate', 'Some WoS values are low and there is no incoming PO.'
         else:
-            return 'Unknown Case - Numeric Checks Failed'
+            return 'Unknown Case - Numeric Checks Failed', 'Unexpected data condition—please review values.'
 
-    # Apply flagging
-    filtered_df['Flag'] = filtered_df.apply(flag_row, axis=1)
+    # Apply and separate into two columns
+    filtered_df[['Flag', 'Reason']] = filtered_df.apply(
+        flag_row_with_reason, axis=1, result_type='expand'
+    )
 
     return filtered_df
 
