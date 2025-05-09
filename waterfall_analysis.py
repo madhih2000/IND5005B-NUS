@@ -158,7 +158,55 @@ def extract_and_aggregate_weekly_data(folder_path, material_number, plant, site,
     cols = ['Snapshot'] + [col for col in cols if col != 'Snapshot']
     result_df = result_df[cols]
 
+    result_df = adding_consumption_data(result_df)
+
     return result_df, lead_value
+
+def adding_consumption_data(df):
+    # Filter and sort supply data
+    supply_df = df[df['Measures'] == 'Supply'].copy()
+    supply_df = supply_df.sort_values('Snapshot').reset_index(drop=True)
+
+    # Calculate consumption
+    supply_df['Consumption'] = supply_df['InventoryOn-Hand'].shift(-1) - supply_df['InventoryOn-Hand']
+
+    # Create waterfall rows
+    weeks = supply_df['Snapshot'].tolist()
+    waterfall_data = []
+
+    for i in range(len(weeks) - 1):  # no consumption for last week
+        snapshot = weeks[i]
+        consumption = supply_df.loc[i, 'Consumption']
+        
+        row = {
+            'Snapshot': snapshot,
+            'MaterialNumber': supply_df.loc[i, 'MaterialNumber'],
+            'Plant': supply_df.loc[i, 'Plant'],
+            'Site': supply_df.loc[i, 'Site'],
+            'Measures': 'Consumption',
+            'InventoryOn-Hand': None,
+            'LeadTime(Week)': supply_df.loc[i, 'LeadTime(Week)']
+        }
+        
+        # Populate week columns
+        for w in weeks[:-1]:  # avoid last week since no next-week to compare
+            row[w] = consumption if w == snapshot else 0
+
+        waterfall_data.append(row)
+
+    # Convert to DataFrame
+    waterfall_df = pd.DataFrame(waterfall_data)
+
+    # Append to original df
+    combined_df = pd.concat([df, waterfall_df], ignore_index=True)
+
+    # Optional: Sort by Snapshot and Measures
+    combined_df.sort_values(by=['Snapshot', 'Measures'], inplace=True)
+    combined_df.reset_index(drop=True, inplace=True)
+
+    return combined_df
+
+
 
 def plot_stock_prediction_plotly(df, start_week, lead_time, weeks_range):
     """Plots actual and predicted stock values over weeks."""
