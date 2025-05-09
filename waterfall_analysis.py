@@ -707,8 +707,6 @@ def analyze_week_to_week_demand_changes(result_df, abs_threshold=10, pct_thresho
 
 #     return pd.DataFrame(results)
 
-import pandas as pd
-
 def scenario_1(df, po_df):
     # Filter for 'Weeks of Stock' rows
     weeks_df = df[df['Measures'] == 'Weeks of Stock'].copy()
@@ -744,12 +742,6 @@ def scenario_1(df, po_df):
     po_df['GR WW'] = po_df['GR WW'].astype(int)  # Convert to integer
     filtered_df['Snapshot'] = filtered_df['Snapshot'].str.extract('(\d+)').astype(int)  # Extract digits and convert to integer
 
-    # Print the first few rows of filtered_df and po_df to check data types and values
-    print("Filtered DataFrame Head:")
-    print(filtered_df.head())
-    print("\nPO DataFrame Head:")
-    print(po_df.head())
-
     # Function to filter POs based on lead time
     def filter_pos_by_leadtime(row, leadtime, po_df):
         snapshot = row['Snapshot']
@@ -757,20 +749,13 @@ def scenario_1(df, po_df):
         end_week = snapshot + leadtime - 1
         gr_weeks = list(range(start_week, end_week + 1))
         filtered_po_df = po_df[po_df['GR WW'].isin(gr_weeks)]
-        incoming_po = filtered_po_df['Purchasing Document'].astype(str).apply(lambda x: ', '.join(x)).tolist()
-        return ', '.join(incoming_po)
+        incoming_po = ', '.join(filtered_po_df['Purchasing Document'].astype(str).unique())
+        return incoming_po
 
     # Apply the function to each row in filtered_df
     filtered_df['Incoming PO'] = filtered_df.apply(lambda row: filter_pos_by_leadtime(row, row['LeadTime(Week)'], po_df), axis=1)
 
-    # Print the merged DataFrame to check the results
-    print("\nMerged DataFrame Head:")
-    print(filtered_df.head())
-
     return filtered_df
-
-# Example usage:
-# filtered_df = scenario_1(df, po_df)
 
 def scenario_2(waterfall_df, po_df):
     supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
