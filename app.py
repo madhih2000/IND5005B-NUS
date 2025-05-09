@@ -461,7 +461,7 @@ elif tabs == "Waterfall Analysis":
                                         #RCA Condition 1
                                         st.subheader('Scenario 1 - PO Coverage is Inadequate')
                                         scen_1_df_output = waterfall_analysis.scenario_1(result_df, PO_df_filtered)
-                                        styled_df = style_dataframe(scen_1_df_output)
+                                        styled_df = waterfall_analysis.style_dataframe(scen_1_df_output)
                                         st.dataframe(styled_df, use_container_width=True)
                                         analysis_1 = llm_reasoning.explain_scenario_1_with_groq(scen_1_df_output)
 
