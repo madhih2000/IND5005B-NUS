@@ -707,6 +707,8 @@ def analyze_week_to_week_demand_changes(result_df, abs_threshold=10, pct_thresho
 
 #     return pd.DataFrame(results)
 
+import pandas as pd
+
 def scenario_1(df, po_df):
     # Filter for 'Weeks of Stock' rows
     weeks_df = df[df['Measures'] == 'Weeks of Stock'].copy()
@@ -742,15 +744,29 @@ def scenario_1(df, po_df):
     po_df['GR WW'] = po_df['GR WW'].astype(str)
     filtered_df['Snapshot'] = filtered_df['Snapshot'].astype(str)
 
+    # Print the first few rows of filtered_df and po_df to check data types and values
+    st.write("Filtered DataFrame Head:")
+    st.write(filtered_df.head())
+    st.write("\nPO DataFrame Head:")
+    st.write(po_df.head())
+
     # Group po_df by 'GR WW' and aggregate 'Purchasing Document' into comma-separated string
     po_grouped = po_df.groupby('GR WW')['Purchasing Document'] \
                       .apply(lambda x: ', '.join(x.astype(str))) \
                       .reset_index(name='Incoming PO')
 
-    # Merge back into filtered_df on Snapshot == GR WW
-    filtered_df = filtered_df.merge(po_grouped, how='left', left_on='Snapshot', right_on='GR WW')
+    # Print the grouped DataFrame to check for any issues
+    st.write("\nGrouped PO DataFrame Head:")
+    st.write(po_grouped.head())
 
-    return filtered_df
+    # Merge back into filtered_df on Snapshot == GR WW
+    merged_df = filtered_df.merge(po_grouped, how='left', left_on='Snapshot', right_on='GR WW')
+
+    # Print the merged DataFrame to check the results
+    print("\nMerged DataFrame Head:")
+    print(merged_df.head())
+
+    return merged_df
 
 def scenario_2(waterfall_df, po_df):
     supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
