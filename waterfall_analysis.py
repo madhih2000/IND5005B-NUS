@@ -7,6 +7,39 @@ from io import BytesIO
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
 
+def style_dataframe(filtered_df):
+    # Identify week columns (WW12, WW13, etc.)
+    ww_cols = [col for col in filtered_df.columns if col.startswith('WW')]
+
+    # Define a row-wise styling function
+    def highlight_row(row):
+        lead_time = row['LeadTime(Week)']
+        styles = []
+        for col in row.index:
+            if col in ww_cols:
+                val = row[col]
+                if pd.isna(val):
+                    styles.append('')
+                else:
+                    try:
+                        val = float(val)
+                        if val < 0:
+                            styles.append('background-color: red')
+                        elif val < lead_time:
+                            styles.append('background-color: yellow')
+                        else:
+                            styles.append('background-color: green')
+                    except:
+                        styles.append('')
+            else:
+                styles.append('')
+        return styles
+
+    # Apply styling row by row
+    styled_df = filtered_df.style.apply(highlight_row, axis=1)
+
+    return styled_df
+
 def generate_weeks_range(start_week, num_weeks=12):
     #weeks_range = [f"WW{str((start_week + i - num_weeks) % 52 or 52).zfill(2)}" for i in range(2 * num_weeks + 1)]
     weeks_range = []
