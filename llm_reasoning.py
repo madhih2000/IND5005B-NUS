@@ -309,20 +309,26 @@ def explain_scenario_1_with_groq(df):
     You are a highly skilled supply chain analyst with deep expertise in semiconductor manufacturing. You have access to a weekly inventory health report, derived from actual demand and supply data.
 
     The table contains the following columns:
-    - Snapshot Week: The calendar week (e.g., WW08).
-    - Start Inventory (Inventory On Hand): The starting inventory at the beginning of the week.
-    - Demand (Actual): The confirmed demand during the week.
-    - Supply (Waterfall): The expected incoming supply from the planning system.
-    - PO GR Quantity: The actual goods received from purchase orders that week.
-    - End Inventory: The resulting inventory at the end of the week.
-    - Flags: Root cause analysis or validation messages.
+    - Snapshot: The snapshot identifier.
+    - MaterialNumber: The material number of the inventory item.
+    - Plant: The plant where the inventory is located.
+    - Site: The site within the plant.
+    - Measures: The measure type (e.g., Weeks of Stock).
+    - LeadTime(Week): The lead time for the material in weeks.
+    - WW04 to WW23: Weekly inventory data for weeks 4 through 23.
+    - Incoming PO: Incoming purchase orders.
+    - Flag: Flags indicating issues or special conditions.
+    - Reason: Reasons for the flags.
 
     Perform the following tasks:
 
-    * Identify and explain inventory health issues.
-    * Highlight whether purchase orders (POs) were sufficient to cover supply commitments.
+    *Perform the following tasks:
+
+    * Identify and explain inventory health issues such as stockouts, excess inventory, or significant fluctuations.
+    * Highlight whether purchase orders (POs) were sufficient to cover supply commitments, noting any discrepancies.
     * Point out weeks where the inventory went negative or PO coverage was missing/incomplete.
-    * Assess patterns across multiple weeks and whether the root causes are persistent or one-off.
+    * Assess patterns across multiple weeks and whether the root causes are persistent or one-off, considering the flags and reasons provided.
+    
 
     Avoid generic comments. Use the table's specific data and flag insights to guide your explanation. Do not include summaries or preambles — start directly with bullet points.
     """
