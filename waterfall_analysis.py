@@ -713,7 +713,7 @@ def scenario_1(df, po_df):
     weeks_df = weeks_df.reset_index(drop=True)
 
     # Extract unique week identifiers from the Snapshot column
-    snapshot_weeks = sorted({int(snapshot.str.extract(r'(\d+)').values[0]) for snapshot in weeks_df['Snapshot'].unique()})
+    snapshot_weeks = sorted({int(snapshot.split('W')[1]) for snapshot in weeks_df['Snapshot'].unique()})
 
     # Create week column names
     week_cols = [f'WW{week}' for week in snapshot_weeks]
@@ -739,7 +739,7 @@ def scenario_1(df, po_df):
     for _, row in weeks_df.iterrows():
         leadtime = int(row['LeadTime(Week)'])
         snapshot = row['Snapshot']
-        snapshot_week = int(snapshot.str.extract(r'(\d+)').values[0])
+        snapshot_week = int(snapshot.split('W')[1])  # Extract the numeric part of the snapshot
         cols_to_keep = get_leadtime_cols(snapshot_week, leadtime, snapshot_weeks)
 
         base_info = row.drop([col for col in week_cols if col in row.index] + ['InventoryOn-Hand'], errors='ignore')  # Keep non-WW fields
@@ -752,7 +752,7 @@ def scenario_1(df, po_df):
 
     # Ensure Snapshot and GR WW are numeric and comparable
     po_df['GR WW'] = po_df['GR WW'].astype(int)
-    filtered_df['Snapshot'] = filtered_df['Snapshot'].str.extract(r'(\d+)').astype(int)
+    filtered_df['Snapshot'] = filtered_df['Snapshot'].apply(lambda x: int(x.split('W')[1]))  # Extract numeric part of snapshot
 
     # Function to filter POs based on lead time
     def filter_pos_by_leadtime(row, leadtime, po_df):
