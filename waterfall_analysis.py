@@ -757,14 +757,13 @@ def scenario_1(df, po_df):
         lambda row: filter_pos_by_leadtime(row, row['LeadTime(Week)'], po_df), axis=1
     )
 
-    st.write(filtered_df)
     # Flagging logic for Weeks of Supply
     def flag_row(row):
         leadtime = row['LeadTime(Week)']
         has_incoming_po = row['Incoming PO'] != ''
         week_cols_in_row = [col for col in week_cols if col in row.index]
         values_series = row[week_cols_in_row]
-        values = values_series[values_series.notna()].astype(float)
+        numeric_values = values_series[values_series.notna()].astype(float)
         if numeric_values.empty:  # Handle the case where all values are None
             return 'Unknown Case - All Weeks Null'  # Or some other appropriate flag
 
