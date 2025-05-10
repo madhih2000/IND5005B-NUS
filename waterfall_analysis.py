@@ -684,6 +684,7 @@ def scenario_7(waterfall_df, po_df):
             'Start Inventory (Calc)': current_inventory_calc,
             'Demand (Waterfall)': demand,
             'Supply (Waterfall)': supply,
+            'Consumption (Waterfall)': consumption,
             'PO GR Quantity': po_received,
             'End Inventory (Waterfall)': end_inventory_waterfall,
             'End Inventory (Calc)': end_inventory_calc
