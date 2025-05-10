@@ -13,3 +13,4 @@ setuptools
 fitter
 pillow
 kaleido
+streamlit-aggrid

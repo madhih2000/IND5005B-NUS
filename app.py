@@ -1,5 +1,6 @@
 import zipfile
 import streamlit as st
+from st_aggrid import AgGrid, GridOptionsBuilder
 import pandas as pd
 import numpy as np
 import os
@@ -507,10 +508,13 @@ elif tabs == "Waterfall Analysis":
                                         #RCA Condition 7
                                         st.subheader('Scenario 7 - Irregular Consumption Patterns')
                                         condition7 = waterfall_analysis.scenario_7(result_df, PO_df_filtered)
-                                        st.dataframe(condition7.style.set_properties(
-                                                        subset=['Irregular Pattern'], 
-                                                        **{'white-space': 'pre-wrap'}
-                                                    ))
+                                        # Build grid options
+                                        gb = GridOptionsBuilder.from_dataframe(condition7)
+                                        gb.configure_column("Irregular Pattern", autoHeight=True, wrapText=True)
+                                        grid_options = gb.build()
+
+                                        # Render with AgGrid
+                                        AgGrid(condition7, gridOptions=grid_options, fit_columns_on_grid_load=True)
                                         #analysis_5 = llm_reasoning.explain_scenario_5_with_groq(condition5)
 
                                         # Download button
