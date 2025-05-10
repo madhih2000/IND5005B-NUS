@@ -478,7 +478,7 @@ elif tabs == "Waterfall Analysis":
 
                                         #RCA Condition 3
                                         st.subheader('Scenario 3 - Adjustment to POs')
-                                        scen_3_df_output = waterfall_analysis.scenario_3(result_df, PO_df, scen_1_df_output)
+                                        scen_3_df_output = waterfall_analysis.scenario_3(result_df, PO_df_filtered, scen_1_df_output)
                                         st.dataframe(scen_3_df_output)
                                         analysis_3 = ""
 
@@ -503,6 +503,12 @@ elif tabs == "Waterfall Analysis":
                                             st.dataframe(condition6)
 
                                         analysis_6 = llm_reasoning.explain_scenario_6_with_groq(condition6)
+
+                                        #RCA Condition 7
+                                        st.subheader('Scenario 7 - Irregular Consumption Patterns')
+                                        condition7 = waterfall_analysis.scenario_7(result_df, PO_df_filtered)
+                                        st.dataframe(condition7)
+                                        #analysis_5 = llm_reasoning.explain_scenario_5_with_groq(condition5)
 
                                         # Download button
                                         output = BytesIO()
