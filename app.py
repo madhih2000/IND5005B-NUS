@@ -473,8 +473,9 @@ elif tabs == "Waterfall Analysis":
                                         st.write("Forecast Accuracy Validation Table")
                                         st.dataframe(comparison_table)
                                         st.write("PO Timing Analysis")
-                                        po_analysis_output = waterfall_analysis.scenario_2(result_df, PO_df_filtered)
+                                        po_analysis_output, po_2_output = waterfall_analysis.scenario_2(result_df, PO_df_filtered, start_week)
                                         st.dataframe(po_analysis_output)
+                                        #st.dataframe(po_2_output)
                                         analysis_2 = ""
 
                                         #RCA Condition 3
@@ -491,7 +492,7 @@ elif tabs == "Waterfall Analysis":
 
                                         #RCA Condition 5
                                         st.subheader('Scenario 5 - Irregular Demand w/o Buffer Patterns')
-                                        condition5 = waterfall_analysis.analyze_week_to_week_demand_changes(result_df)
+                                        condition5 = waterfall_analysis.analyze_week_to_week_demand_changes(result_df, lead_time= lead_value)
                                         st.dataframe(condition5)
                                         analysis_5 = llm_reasoning.explain_scenario_5_with_groq(condition5)
 

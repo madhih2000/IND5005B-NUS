@@ -585,7 +585,7 @@ def check_demand(df):
     return  final_pd, final_msg
 
 # Scenario 5: Identifying irregular consumption patterns
-def analyze_week_to_week_demand_changes(result_df, abs_threshold=10, pct_threshold=0.3):
+def analyze_week_to_week_demand_changes(result_df, abs_threshold=10, pct_threshold=0.3, lead_time = 6):
     """
     Filters for 'Demand w/o Buffer', calculates demand values based on snapshot columns,
     and detects week-to-week anomalies such as spikes or drops.
@@ -598,39 +598,54 @@ def analyze_week_to_week_demand_changes(result_df, abs_threshold=10, pct_thresho
     if filtered_df.empty:
         raise ValueError("No rows found with Measures == 'Demand w/o Buffer'")
 
-    output_rows = []
+    # Find all WW columns
+    ww_cols = [col for col in filtered_df.columns if col.startswith("WW")]
 
-    for index, row in filtered_df.iterrows():
-        snapshot_col = row["Snapshot"]
-        if snapshot_col in filtered_df.columns:
-            demand_value = row[snapshot_col]
-            output_rows.append({
-                "Snapshot": snapshot_col,
-                "Material Number": row["MaterialNumber"],
-                "Plant": row["Plant"],
-                "Site": row["Site"],
-                "Demand w/o Buffer": demand_value
-            })
+    output_all = []
 
-    # Step 2: Create base output DataFrame
-    output_df = pd.DataFrame(output_rows)
+    lead_time = lead_time.iloc[0] #lead time taking in as a series
 
-    # Step 3: Sort and calculate week-over-week changes
-    output_df = output_df.sort_values(by="Snapshot").reset_index(drop=True)
-    output_df["WoW Change"] = output_df["Demand w/o Buffer"].diff()
-    output_df["WoW % Change"] = output_df["Demand w/o Buffer"].pct_change()
+    for i in range(1, len(ww_cols)):  # start from 2nd WW column
+        current_col = ww_cols[i]
 
-    # Step 4: Flag irregularities
-    output_df["Spike"] = output_df["WoW Change"] > abs_threshold
-    output_df["Drop"] = output_df["WoW Change"] < -abs_threshold
-    output_df["Sudden % Spike"] = output_df["WoW % Change"] > pct_threshold
-    output_df["Sudden % Drop"] = output_df["WoW % Change"] < -pct_threshold
+        # Determine the window size
+        window_size = i + 1
 
-    # Step 5: Display explanation
-    st.info(f"A spike or drop is flagged if the week-over-week change exceeds ±{abs_threshold} units "
-            f"or ±{int(pct_threshold * 100)}%.")
+        # Determine row indices
+        if i < (lead_time+1):
+            window_data = filtered_df[current_col].iloc[:window_size]
+            snapshot_ids = filtered_df.index[:window_size]
+        else:
+            window_data = filtered_df[current_col].iloc[-(lead_time+1):]
+            snapshot_ids = filtered_df.index[-(lead_time+1):]
 
-    return output_df
+        # Build temporary DataFrame
+        output_df = pd.DataFrame({
+            "Snapshot": snapshot_ids,
+            "Demand w/o Buffer": window_data.values,
+            "Week": current_col
+        })
+
+        # Sort and calculate WoW change
+        output_df = output_df.sort_values(by="Snapshot").reset_index(drop=True)
+        output_df["WoW Change"] = output_df["Demand w/o Buffer"].diff()
+        output_df["WoW % Change"] = output_df["Demand w/o Buffer"].pct_change()
+
+        # Flag spikes and drops
+        output_df["Spike"] = output_df["WoW Change"] > abs_threshold
+        output_df["Drop"] = output_df["WoW Change"] < -abs_threshold
+        output_df["Sudden % Spike"] = output_df["WoW % Change"] > pct_threshold
+        output_df["Sudden % Drop"] = output_df["WoW % Change"] < -pct_threshold
+
+        # Store for analysis
+        output_all.append(output_df)
+
+    # Combine all weeks’ flagged data
+    final_output_df = pd.concat(output_all, ignore_index=True)
+
+    print(final_output_df)
+
+    return final_output_df
 
 
 def scenario_7(waterfall_df, po_df):
@@ -815,7 +830,7 @@ def scenario_1(df, po_df):
     return filtered_df
 
 
-def scenario_2(waterfall_df, po_df):
+def old_scenario_2(waterfall_df, po_df):
     supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
     demand_rows = waterfall_df[waterfall_df['Measures'] == 'Demand w/o Buffer']
 
@@ -848,6 +863,7 @@ def scenario_2(waterfall_df, po_df):
         po_received_data = po_df[(po_df['GR WW'] == week_num) & (~po_df['Purchasing Document'].isin(used_po_docs))]
         po_received = po_received_data['GR Quantity'].sum()
         po_docs_received = list(po_received_data['Purchasing Document'])
+        print(po_docs_received)
 
         # Inventory (Actual)
         end_inventory_calc = current_inventory_calc + supply + po_received - demand
@@ -940,6 +956,435 @@ def scenario_2(waterfall_df, po_df):
         current_inventory_sim = simulated_end_inventory
 
     return pd.DataFrame(results)
+
+def scenario_2_old_v2(waterfall_df, po_df, lead_time=6):
+    supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
+    demand_rows = waterfall_df[waterfall_df['Measures'] == 'Demand w/o Buffer']
+
+    initial_snapshot = supply_rows['Snapshot'].iloc[0]
+    initial_inventory_calc = int(supply_rows[supply_rows['Snapshot'] == initial_snapshot]['InventoryOn-Hand'].values[0])
+
+    snapshots = waterfall_df['Snapshot'].unique()
+    snapshot_to_week = {s: int(s.replace("WW", "")) for s in snapshots}
+    week_to_snapshot = {v: k for k, v in snapshot_to_week.items()}
+    results = []
+
+    current_inventory_calc = initial_inventory_calc
+    current_inventory_sim = initial_inventory_calc
+    simulated_gr_schedule = {}  # key: week, value: list of GR quantities arriving
+    used_po_docs = set()
+
+    for i, snapshot in enumerate(snapshots):
+        week_col = snapshot
+        week_num = snapshot_to_week[snapshot]
+
+        # Demand & Supply values
+        demand_val = demand_rows[demand_rows['Snapshot'] == snapshot][week_col]
+        supply_val = supply_rows[supply_rows['Snapshot'] == snapshot][week_col]
+        demand = int(demand_val.values[0]) if not demand_val.empty else 0
+        supply = int(supply_val.values[0]) if not supply_val.empty else 0
+
+        # Waterfall Inventory
+        inv_val = supply_rows[supply_rows['Snapshot'] == snapshot]['InventoryOn-Hand']
+        start_inventory_waterfall = int(inv_val.values[0]) if not inv_val.empty else 0
+
+        # Actual PO receipts
+        po_received_data = po_df[(po_df['GR WW'] == week_num) & (~po_df['Purchasing Document'].isin(used_po_docs))]
+        po_received = po_received_data['GR Quantity'].sum()
+        po_docs_received = list(po_received_data['Purchasing Document'])
+
+        # Inventory (Actual)
+        end_inventory_calc = current_inventory_calc + supply + po_received - demand
+        end_inventory_waterfall = start_inventory_waterfall + supply + po_received - demand
+
+        # Simulation setup
+        simulated_po_received = sum(simulated_gr_schedule.get(week_num, []))
+        start_inventory_sim = current_inventory_sim + simulated_po_received
+        simulated_end_inventory = start_inventory_sim + supply + po_received - demand
+
+        # --- LT-based Demand/Supply Check ---
+        lt_weeks = [week_num + offset for offset in range(lead_time)]
+        lt_snapshots = [week_to_snapshot[w] for w in lt_weeks if w in week_to_snapshot]
+
+        total_lt_demand = demand_rows[demand_rows['Snapshot'].isin(lt_snapshots)][lt_snapshots].sum(axis=1).sum()
+        total_lt_supply = (
+            supply_rows[supply_rows['Snapshot'].isin(lt_snapshots)][lt_snapshots].sum(axis=1).sum() +
+            po_df[(po_df['GR WW'].isin(lt_weeks)) & (~po_df['Purchasing Document'].isin(used_po_docs))]['GR Quantity'].sum()
+        )
+
+        flags = []
+        action = "No Action"
+        suggested_pos = []
+        adjusted_gr_weeks = []
+        po_qty_ordered_total = 0
+        po_gr_after_action = 0
+
+        # Pull-in logic
+        if total_lt_demand > total_lt_supply:
+            flags.append("Insufficient supply within lead time")
+            shortfall = total_lt_demand - total_lt_supply
+
+            future_po_candidates = po_df[
+                (po_df['GR WW'] > week_num) & (~po_df['Purchasing Document'].isin(used_po_docs))
+            ].sort_values(by=['GR WW', 'Order WW'])
+
+            for _, po in future_po_candidates.iterrows():
+                po_qty = po['GR Quantity']
+                doc_num = po['Purchasing Document']
+                lead_time_of_po = po['GR WW'] - po['Order WW']
+                adjusted_gr_week = week_num + lead_time_of_po
+
+                if adjusted_gr_week > week_num + lead_time - 1:
+                    continue  # Can't make it in time
+
+                simulated_gr_schedule.setdefault(adjusted_gr_week, []).append(po_qty)
+                used_po_docs.add(doc_num)
+
+                suggested_pos.append(doc_num)
+                adjusted_gr_weeks.append(f"WW{adjusted_gr_week}")
+                po_qty_ordered_total += po_qty
+                po_gr_after_action += po_qty
+
+                shortfall -= po_qty
+                if shortfall <= 0:
+                    break
+
+            if suggested_pos:
+                action = "Pull In"
+                simulated_end_inventory = start_inventory_sim + supply + po_received + po_gr_after_action - demand
+
+        # Push-out logic
+        elif total_lt_supply > total_lt_demand and po_received > 0:
+            flags.append("Excess supply within lead time")
+            suggested_po = po_docs_received[0] if po_docs_received else None
+            if suggested_po:
+                po_qty_ordered_total = po_received_data[po_received_data['Purchasing Document'] == suggested_po]['GR Quantity'].values[0]
+                suggested_pos.append(suggested_po)
+                adjusted_gr_weeks.append(f"WW{week_num + 1}")
+                po_gr_after_action = 0
+                simulated_end_inventory = current_inventory_sim + supply - demand
+                used_po_docs.add(suggested_po)
+                action = "Push Out"
+
+        results.append({
+            'Snapshot Week': snapshot,
+            'Start Inventory (Waterfall)': start_inventory_waterfall,
+            'Start Inventory (Calc)': initial_inventory_calc if i == 0 else current_inventory_calc,
+            'Start Inventory (Calc after Action)': start_inventory_sim,
+            'Demand (Waterfall)': demand,
+            'Supply (Waterfall)': supply,
+            'PO GR Quantity': po_received,
+            'PO GR Quantity (After Action)': po_gr_after_action,
+            'End Inventory (Waterfall)': end_inventory_waterfall,
+            'End Inventory (Calc)': end_inventory_calc,
+            'End Inventory (Calc after Action)': simulated_end_inventory,
+            'Purchasing Document(s)': ", ".join(map(str, po_docs_received)) if po_docs_received else None,
+            'Suggested PO for Action': ", ".join(map(str, suggested_pos)) if suggested_pos else None,
+            'PO Quantity Ordered': po_qty_ordered_total,
+            'Adjusted GR WW': ", ".join(adjusted_gr_weeks) if adjusted_gr_weeks else None,
+            'Flags': ", ".join(flags) if flags else "OK",
+            'RCA Action': action
+        })
+
+        current_inventory_calc = end_inventory_calc
+        current_inventory_sim = simulated_end_inventory
+
+    return pd.DataFrame(results)
+
+def scenario_2(waterfall_df, po_df, start_week):
+    """
+    Simulates inventory levels, plans actions (pull-in/push-out), and provides
+    supply-demand adequacy recommendations based on lead time.
+
+    Args:
+        waterfall_df (pd.DataFrame): DataFrame containing supply, demand,
+                                     inventory, and lead time data across snapshots.
+                                     Expected columns: 'Measures', 'Snapshot',
+                                     'InventoryOn-Hand', 'LeadTime(Week)',
+                                     and 'WWXX' columns for supply/demand values.
+        po_df (pd.DataFrame): DataFrame containing Purchase Order (PO) data.
+                              Expected columns: 'Purchasing Document', 'Order WW',
+                              'GR WW', 'GR Quantity'.
+        start_week (int): The starting week number (e.g., 2 for WW02) from
+                          which the supply-demand adequacy recommendations should be generated.
+
+    Returns:
+        tuple: A tuple containing two pandas DataFrames:
+               - df_inventory_actions (pd.DataFrame): Results of inventory calculation
+                                                     and action planning.
+               - df_recommendations (pd.DataFrame): Supply-demand adequacy recommendations
+                                                    based on lead time.
+    """
+    # --- Diagnostic: Check 'Snapshot' column type before processing ---
+    print("--- Debugging 'Snapshot' Column ---")
+    print(f"Original 'Snapshot' column dtype: {waterfall_df['Snapshot'].dtype}")
+    print(f"Original 'Snapshot' column head:\n{waterfall_df['Snapshot'].head()}")
+    print("-----------------------------------")
+    # -------------------------------------------------------------------
+
+    # Create copies and ensure 'Snapshot' is string type before adding 'WeekNum'
+    supply_rows_all = waterfall_df[waterfall_df['Measures'] == 'Supply'].copy()
+    supply_rows_all['Snapshot'] = supply_rows_all['Snapshot'].astype(str) # Convert Snapshot column in this copy
+    supply_rows_all['WeekNum'] = supply_rows_all['Snapshot'].str.replace('WW', '').astype(int)
+
+    demand_rows_all = waterfall_df[waterfall_df['Measures'] == 'Demand w/o Buffer'].copy()
+    demand_rows_all['Snapshot'] = demand_rows_all['Snapshot'].astype(str) # Convert Snapshot column in this copy
+    demand_rows_all['WeekNum'] = demand_rows_all['Snapshot'].str.replace('WW', '').astype(int)
+
+    waterfall_df_with_weeknum = waterfall_df.copy()
+    waterfall_df_with_weeknum['Snapshot'] = waterfall_df_with_weeknum['Snapshot'].astype(str) # Convert Snapshot column in this copy
+    waterfall_df_with_weeknum['WeekNum'] = waterfall_df_with_weeknum['Snapshot'].str.replace('WW', '').astype(int)
+
+    # Get unique snapshots, ensuring they are strings
+    snapshots = waterfall_df['Snapshot'].astype(str).unique()
+    
+    # Initial inventory from the very first snapshot's supply row
+    initial_snapshot = supply_rows_all['Snapshot'].iloc[0]
+    initial_inventory_calc = int(supply_rows_all[supply_rows_all['Snapshot'] == initial_snapshot]['InventoryOn-Hand'].values[0])
+
+    results_inventory_actions = []  # For inventory calculation and action planning
+    results_recommendations = []    # For new supply-demand adequacy recommendations
+
+    current_inventory_calc = initial_inventory_calc
+    current_inventory_sim = initial_inventory_calc  # Tracks the simulated end inventory from the previous week
+
+    simulated_gr_schedule = {}  # key: week_num, value: list of GR quantities arriving due to past actions (e.g., push-outs)
+    used_po_docs = set()        # Tracks Purchasing Documents that have been acted upon (pulled in or pushed out)
+
+    for i, snapshot in enumerate(snapshots):
+        # Ensure snapshot is treated as string before operations
+        week_col = str(snapshot)  # e.g., 'WW01'
+        week_num = int(week_col.replace("WW", ""))  # e.g., 1
+
+        # --- Inventory Calculation and Action Planning (Existing Logic) ---
+        # Get current week's demand and supply from waterfall_df
+        demand_val = demand_rows_all[demand_rows_all['Snapshot'] == week_col][week_col]
+        supply_val = supply_rows_all[supply_rows_all['Snapshot'] == week_col][week_col]
+        demand = int(demand_val.values[0]) if not demand_val.empty else 0
+        supply = int(supply_val.values[0]) if not supply_val.empty else 0
+
+        # Get current week's InventoryOn-Hand from waterfall_df (for Waterfall column in output)
+        inv_val = supply_rows_all[supply_rows_all['Snapshot'] == week_col]['InventoryOn-Hand']
+        start_inventory_waterfall = int(inv_val.values[0]) if not inv_val.empty else 0
+
+        # Actual PO receipts for the current week
+        po_received_data = po_df[(po_df['GR WW'] == week_num) & (~po_df['Purchasing Document'].isin(used_po_docs))]
+        po_received_current_week = po_received_data['GR Quantity'].sum()
+        po_docs_received_current_week = list(po_received_data['Purchasing Document'])
+        
+        # Calculate end inventory (Calc - direct from waterfall values + actual POs)
+        end_inventory_calc = current_inventory_calc + supply + po_received_current_week - demand
+        end_inventory_waterfall = start_inventory_waterfall + supply + po_received_current_week - demand
+
+        # --- Simulation Setup for Current Week ---
+        simulated_pos_arriving_this_week = sum(simulated_gr_schedule.get(week_num, []))
+        start_inventory_sim_before_action = current_inventory_sim + simulated_pos_arriving_this_week
+        simulated_end_inventory = start_inventory_sim_before_action + supply + po_received_current_week - demand
+
+        # --- Action Planning for Current Week ---
+        flags = []
+        action = "No Action"
+        suggested_pos = []
+        adjusted_gr_weeks = []
+        po_qty_ordered_total = 0
+        po_gr_after_action = po_received_current_week
+
+        # Pull-in logic
+        if simulated_end_inventory < 0:
+            flags.append("Inventory went negative — stockout")
+            shortfall = abs(simulated_end_inventory)
+            future_po_candidates = po_df[
+                (po_df['GR WW'] > week_num) & (~po_df['Purchasing Document'].isin(used_po_docs))
+            ].sort_values(by=['GR WW', 'Order WW'])
+
+            for _, po in future_po_candidates.iterrows():
+                po_qty = po['GR Quantity']
+                doc_num = po['Purchasing Document']
+                simulated_gr_schedule.setdefault(week_num, []).append(po_qty)
+                used_po_docs.add(doc_num)
+                suggested_pos.append(doc_num)
+                adjusted_gr_weeks.append(f"WW{week_num:02d}")
+                po_qty_ordered_total += po_qty
+                shortfall -= po_qty
+                if shortfall <= 0: break
+
+            if suggested_pos:
+                action = "Pull In"
+                # Recalculate simulated_end_inventory after pull-in
+                simulated_end_inventory = current_inventory_sim + sum(simulated_gr_schedule.get(week_num, [])) + supply + po_received_current_week - demand
+                po_gr_after_action = po_received_current_week + po_qty_ordered_total
+
+        # --- Push-out Logic: Check for potential overstock based on demand trajectory ---
+        # Get current week's lead time for overstock check
+        current_lead_time_row = supply_rows_all[supply_rows_all['Snapshot'] == week_col]
+        lead_time_val = int(current_lead_time_row['LeadTime(Week)'].iloc[0]) if not current_lead_time_row.empty and 'LeadTime(Week)' in current_lead_time_row.columns else 0
+
+        # Define a buffer period for overstock calculation (e.g., another lead time or a fixed number of weeks)
+        buffer_weeks_for_overstock = lead_time_val # User wants "another 6 weeks", implying same as lead time
+
+        # Calculate total demand and original waterfall supply in the extended horizon
+        # The extended horizon spans from `week_num` to `week_num + lead_time_val + buffer_weeks_for_overstock`
+        extended_horizon_end_week = week_num + lead_time_val + buffer_weeks_for_overstock
+        
+        total_demand_in_extended_horizon = 0
+        total_waterfall_supply_in_extended_horizon = 0 # This represents original waterfall supply
+
+        # Get the row for the current snapshot from waterfall_df (which contains all WW columns)
+        # Use waterfall_df_with_weeknum to access the 'WeekNum' column
+        current_snapshot_supply_row = waterfall_df_with_weeknum[
+            (waterfall_df_with_weeknum['Measures'] == 'Supply') &
+            (waterfall_df_with_weeknum['WeekNum'] == week_num)
+        ]
+        current_snapshot_demand_row = waterfall_df_with_weeknum[
+            (waterfall_df_with_weeknum['Measures'] == 'Demand w/o Buffer') &
+            (waterfall_df_with_weeknum['WeekNum'] == week_num)
+        ]
+
+        for horizon_week_num in range(week_num, extended_horizon_end_week + 1):
+            col_name = f"WW{horizon_week_num:02d}"
+            
+            if not current_snapshot_demand_row.empty and col_name in current_snapshot_demand_row.columns:
+                demand_val_in_horizon = current_snapshot_demand_row[col_name].iloc[0]
+                total_demand_in_extended_horizon += int(demand_val_in_horizon)
+            
+            if not current_snapshot_supply_row.empty and col_name in current_snapshot_supply_row.columns:
+                supply_val_in_horizon = current_snapshot_supply_row[col_name].iloc[0]
+                total_waterfall_supply_in_extended_horizon += int(supply_val_in_horizon)
+        
+        # Calculate average weekly demand over the extended horizon (to avoid division by zero later)
+        num_weeks_in_extended_horizon = extended_horizon_end_week - week_num + 1
+        average_weekly_demand_extended = 0
+        if num_weeks_in_extended_horizon > 0:
+            average_weekly_demand_extended = total_demand_in_extended_horizon / num_weeks_in_extended_horizon
+
+        # Calculate the total available resource for covering the extended horizon demand
+        # This is the `simulated_end_inventory` (at end of current week)
+        # PLUS future waterfall supply (from next week onwards in the extended horizon)
+        
+        # The `simulated_end_inventory` already includes the current week's `supply` from waterfall.
+        # So, `total_waterfall_supply_in_extended_horizon` needs to be adjusted to exclude current week's `supply`.
+        total_future_waterfall_supply_from_next_week = total_waterfall_supply_in_extended_horizon - supply
+
+        total_resource_for_extended_horizon = simulated_end_inventory + total_future_waterfall_supply_from_next_week
+
+        # Define a safety buffer for overstock (e.g., if supply can last X weeks beyond required horizon)
+        safety_weeks_buffer_for_overstock = 1 # e.g., 1 week buffer beyond the extended horizon
+
+        # Overstock condition: If current inventory + future supply can cover more than the
+        # extended horizon's demand PLUS a safety buffer, AND there are POs this week to push out.
+        if average_weekly_demand_extended > 0:
+            # Calculate how many weeks of demand the total resource can cover
+            weeks_of_coverage_by_resource = total_resource_for_extended_horizon / average_weekly_demand_extended
+            
+            # Calculate the required weeks of coverage (extended horizon duration + safety buffer)
+            required_weeks_coverage = num_weeks_in_extended_horizon + safety_weeks_buffer_for_overstock
+
+            if weeks_of_coverage_by_resource > required_weeks_coverage and po_received_current_week > 0:
+                flags.append(f"Inventory built up unnecessarily — potential overstock (Supply covers {weeks_of_coverage_by_resource:.1f} weeks; required {required_weeks_coverage} weeks)")
+                
+                # Push-out logic:
+                if po_docs_received_current_week:
+                    # Select a PO to push out. Let's pick the one that was originally scheduled latest or ordered earliest
+                    # We sort by GR WW descending, then Order WW descending, to prioritize pushing out POs that arrived later.
+                    po_to_push = po_received_data.sort_values(by=['GR WW', 'Order WW'], ascending=[False, False]).iloc[0]
+                    suggested_po_to_push = po_to_push['Purchasing Document']
+                    po_qty_to_push_out = po_to_push['GR Quantity']
+                    
+                    suggested_pos.append(suggested_po_to_push)
+                    # Push out to the next week
+                    adjusted_gr_weeks.append(f"WW{week_num + 1:02d}")
+                    po_qty_ordered_total = po_qty_to_push_out
+                    
+                    # Adjust current week's received POs for simulation
+                    po_gr_after_action = po_received_current_week - po_qty_to_push_out
+                    
+                    # Add the pushed-out quantity to the simulated GR schedule for the next week
+                    simulated_gr_schedule.setdefault(week_num + 1, []).append(po_qty_to_push_out)
+                    used_po_docs.add(suggested_po_to_push)
+                    
+                    # Recalculate simulated_end_inventory after the push-out action
+                    simulated_end_inventory = current_inventory_sim + simulated_pos_arriving_this_week + po_gr_after_action + supply - demand
+                    action = "Push Out"
+        # --- End of Push-out Logic ---
+
+        start_inventory_sim_final = current_inventory_sim + sum(simulated_gr_schedule.get(week_num, []))
+
+        results_inventory_actions.append({
+            'Snapshot Week': week_col, # Use week_col (string format) for consistency in output
+            'Start Inventory (Waterfall)': start_inventory_waterfall,
+            'Start Inventory (Calc)': initial_inventory_calc if i == 0 else current_inventory_calc,
+            'Start Inventory (Calc after Action)': start_inventory_sim_final,
+            'Demand (Waterfall)': demand,
+            'Supply (Waterfall)': supply,
+            'PO GR Quantity': po_received_current_week,
+            'PO GR Quantity (After Action)': po_gr_after_action,
+            'End Inventory (Waterfall)': end_inventory_waterfall,
+            'End Inventory (Calc)': end_inventory_calc,
+            'End Inventory (Calc after Action)': simulated_end_inventory,
+            'Purchasing Document(s)': ", ".join(map(str, po_docs_received_current_week)) if po_docs_received_current_week else None,
+            'Suggested PO for Action': ", ".join(map(str, suggested_pos)) if suggested_pos else None,
+            'PO Quantity Ordered': po_qty_ordered_total,
+            'Adjusted GR WW': ", ".join(adjusted_gr_weeks) if adjusted_gr_weeks else None,
+            'Flags': ", ".join(flags) if flags else "OK",
+            'RCA Action': action
+        })
+
+        current_inventory_calc = end_inventory_calc
+        current_inventory_sim = simulated_end_inventory
+
+    # --- Supply-Demand Adequacy Recommendation Logic (Remains largely unchanged) ---
+    for snapshot in snapshots:
+        current_week_num = int(str(snapshot).replace("WW", "")) # Ensure snapshot is string
+
+        if current_week_num < start_week:
+            continue
+
+        current_lead_time_row = supply_rows_all[supply_rows_all['Snapshot'] == str(snapshot)] # Filter using string snapshot
+        lead_time_val = int(current_lead_time_row['LeadTime(Week)'].iloc[0]) if not current_lead_time_row.empty and 'LeadTime(Week)' in current_lead_time_row.columns else 0
+
+        look_ahead_end_week_num = current_week_num + lead_time_val
+
+        total_supply_within_lt = 0
+        total_demand_within_lt = 0
+
+        supply_row_for_snapshot = waterfall_df[
+            (waterfall_df['Measures'] == 'Supply') &
+            (waterfall_df['Snapshot'].astype(str) == str(snapshot)) # Convert to string for comparison
+        ]
+        demand_row_for_snapshot = waterfall_df[
+            (waterfall_df['Measures'] == 'Demand w/o Buffer') &
+            (waterfall_df['Snapshot'].astype(str) == str(snapshot)) # Convert to string for comparison
+        ]
+        
+        for week_in_horizon_num in range(current_week_num, look_ahead_end_week_num + 1):
+            col_name_for_horizon_week = f"WW{week_in_horizon_num:02d}"
+            
+            if not supply_row_for_snapshot.empty and col_name_for_horizon_week in supply_row_for_snapshot.columns:
+                supply_val_in_horizon = supply_row_for_snapshot[col_name_for_horizon_week].iloc[0]
+                total_supply_within_lt += int(supply_val_in_horizon)
+            
+            if not demand_row_for_snapshot.empty and col_name_for_horizon_week in demand_row_for_snapshot.columns:
+                demand_val_in_horizon = demand_row_for_snapshot[col_name_for_horizon_week].iloc[0]
+                total_demand_within_lt += int(demand_val_in_horizon)
+
+        adequate_flag = "Shortfall"
+        if total_supply_within_lt >= total_demand_within_lt:
+            adequate_flag = "Adequate"
+        
+        results_recommendations.append({
+            'Snapshot Week': str(snapshot), # Use string format for consistency
+            'Lead Time (Weeks)': lead_time_val,
+            'Look Ahead End Week': f"WW{look_ahead_end_week_num:02d}",
+            'Total Supply within LT': total_supply_within_lt,
+            'Total Demand within LT': total_demand_within_lt,
+            'Adequacy Flag': adequate_flag
+        })
+
+    df_inventory_actions = pd.DataFrame(results_inventory_actions)
+    df_recommendations = pd.DataFrame(results_recommendations)
+
+    return df_inventory_actions, df_recommendations
+
 
 
 def scenario_3(waterfall_df, po_df, scenario_1_results_df):
