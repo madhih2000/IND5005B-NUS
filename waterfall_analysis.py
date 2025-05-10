@@ -637,6 +637,7 @@ def scenario_7(waterfall_df, po_df):
     # Filter relevant rows
     supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
     demand_rows = waterfall_df[waterfall_df['Measures'] == 'Demand w/o Buffer']
+    consumption_rows = waterfall_df[waterfall_df['Measures'] == 'Consumption']
 
     # Get initial snapshot and inventory from Supply rows
     initial_snapshot = supply_rows['Snapshot'].iloc[0]
@@ -659,6 +660,10 @@ def scenario_7(waterfall_df, po_df):
         demand = int(demand_val.values[0]) if not demand_val.empty else 0
         supply = int(supply_val.values[0]) if not supply_val.empty else 0
 
+        # Get consumption value
+        consumption_val = consumption_rows[consumption_rows['Snapshot'] == snapshot][week_col]
+        consumption = int(consumption_val.values[0]) if not consumption_val.empty else 0
+
         # Start inventory from Waterfall column
         inv_val = supply_rows[supply_rows['Snapshot'] == snapshot]['InventoryOn-Hand']
         start_inventory_waterfall = int(inv_val.values[0]) if not inv_val.empty else 0
@@ -672,23 +677,6 @@ def scenario_7(waterfall_df, po_df):
         end_inventory_calc = current_inventory_calc + supply + po_received - demand
         end_inventory_waterfall = start_inventory_waterfall + supply + po_received - demand
 
-        # Flag logic
-        flags = []
-        if po_df.empty:
-            if supply > 0:
-                flags.append("No PO data available to validate supply")
-        else:
-            if po_received < supply:
-                if po_received == 0 and supply > 0:
-                    flags.append("No PO received for expected supply")
-                elif 0 < po_received < supply:
-                    flags.append(f"Partial PO received: Expected {supply}, Got {po_received}")
-                else:
-                    flags.append("Supply in Waterfall not backed by PO receipts")
-
-        if end_inventory_calc < 0:
-            flags.append("Inventory went negative — demand exceeded supply and stock")
-
         # Record results
         results.append({
             'Snapshot Week': snapshot,
@@ -698,8 +686,7 @@ def scenario_7(waterfall_df, po_df):
             'Supply (Waterfall)': supply,
             'PO GR Quantity': po_received,
             'End Inventory (Waterfall)': end_inventory_waterfall,
-            'End Inventory (Calc)': end_inventory_calc,
-            'Flags': ", ".join(flags) if flags else "OK"
+            'End Inventory (Calc)': end_inventory_calc
         })
 
         # Update for next loop
