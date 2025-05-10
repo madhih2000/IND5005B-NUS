@@ -677,6 +677,38 @@ def scenario_7(waterfall_df, po_df):
         end_inventory_calc = current_inventory_calc + supply + po_received - demand
         end_inventory_waterfall = start_inventory_waterfall + supply + po_received - demand
 
+        # Check for irregular consumption patterns
+        irregular_pattern = None
+        if consumption < 0:
+            if results:
+                previous_week = results[-1]
+                prev_end_inv = previous_week['End Inventory (Waterfall)']
+                prev_demand = previous_week['Demand (Waterfall)']
+                prev_consumption = previous_week['Consumption (Waterfall)']
+                prev_supply = previous_week['Supply (Waterfall)']
+                prev_snapshot = previous_week['Snapshot Week']
+
+                irregular_pattern = (
+                    f"In week {snapshot}, the reported consumption was negative, which suggests a possible inventory correction or data anomaly. "
+                    f"Looking back, in week {prev_snapshot}, the starting inventory was {previous_week['Start Inventory (Waterfall)']}, "
+                    f"supply was {prev_supply}, and demand was {prev_demand}, resulting in an expected end inventory of {prev_end_inv}. "
+                    f"However, the current week's starting inventory ({start_inventory_waterfall}) is higher than the expected ending inventory from last week, "
+                    f"which implies inventory was added back — potentially due to returns, cancellations, or adjustments outside the normal flow."
+                )
+            else:
+                irregular_pattern = (
+                    f"In week {snapshot}, negative consumption was reported. Since this is the first week in the timeline, "
+                    f"it may indicate an opening adjustment or return to inventory that wasn't accounted for in demand."
+                )
+        elif consumption > demand:
+            irregular_pattern = "More consumption than demand"
+        elif consumption == 0 and demand != 0:
+            irregular_pattern = "Consumption is zero but demand is not"
+        elif consumption != 0 and demand == 0:
+            irregular_pattern = "Demand is zero but consumption is not"
+        else:
+            pass
+
         # Record results
         results.append({
             'Snapshot Week': snapshot,
@@ -687,7 +719,8 @@ def scenario_7(waterfall_df, po_df):
             'Consumption (Waterfall)': consumption,
             'PO GR Quantity': po_received,
             'End Inventory (Waterfall)': end_inventory_waterfall,
-            'End Inventory (Calc)': end_inventory_calc
+            'End Inventory (Calc)': end_inventory_calc,
+            'Irregular Pattern': irregular_pattern
         })
 
         # Update for next loop
