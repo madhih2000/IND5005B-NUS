@@ -507,7 +507,10 @@ elif tabs == "Waterfall Analysis":
                                         #RCA Condition 7
                                         st.subheader('Scenario 7 - Irregular Consumption Patterns')
                                         condition7 = waterfall_analysis.scenario_7(result_df, PO_df_filtered)
-                                        st.dataframe(condition7)
+                                        st.dataframe(condition7.style.set_properties(
+                                                        subset=['Irregular Pattern'], 
+                                                        **{'white-space': 'pre-wrap'}
+                                                    ))
                                         #analysis_5 = llm_reasoning.explain_scenario_5_with_groq(condition5)
 
                                         # Download button
