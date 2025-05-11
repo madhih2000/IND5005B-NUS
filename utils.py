@@ -3,6 +3,7 @@ import numpy as np
 import streamlit as st
 
 from openpyxl.styles import Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
 def load_data_consumption(file):
@@ -281,4 +282,3 @@ def write_analysis_block(sheet: Worksheet, analysis_text: str, label: str = "Exp
     for col_num in range(2, merge_cols + 1):
         col_letter = get_column_letter(col_num)
         sheet.column_dimensions[col_letter].width = column_width  # Apply to all merged columns
-
