@@ -529,7 +529,7 @@ elif tabs == "Waterfall Analysis":
                                             write_analysis_block(cond1_sheet, analysis_1)
 
                                             cond2_sheet = writer.book.create_sheet("RCA Scenario 2")
-                                            cond2_sheet.append(["Scenario 2 - POs push out or pull in due to changes in demand forecasts"])d
+                                            cond2_sheet.append(["Scenario 2 - POs push out or pull in due to changes in demand forecasts"])
                                             with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmpfile:
                                                 analysis_plot.write_image(tmpfile.name)  # Ensure plot is in color
                                                 img = XLImage(tmpfile.name)
