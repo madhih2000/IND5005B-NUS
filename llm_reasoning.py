@@ -416,10 +416,7 @@ def explain_scenario_5_with_groq(df):
     You are presented with a text-based description of a weekly snapshot dataframe that includes columns such as Snapshot (labelled by week numbers, e.g., WW08), Demand w/o Buffer, WoW Change and WoW % Change. These capture the demand for the material on a weekly basis. 
 
     Following are the columns in the dataframe:
-
-    - Snapshot: The calendar week when the data was captured (e.g., WW08).
-    - Material Number: Unique identifier for the product or component.
-    - Plant and Site: The manufacturing or distribution location for the material.
+    - Week: Working Week
     - Demand w/o Buffer: The raw forecasted demand for the week, excluding buffer.
     - WoW Change: The absolute week-over-week change in demand.
     - WoW % Change: The percent week-over-week change in demand.
@@ -433,7 +430,8 @@ def explain_scenario_5_with_groq(df):
 
     Your task is to perform the following:
 
-    * Assess whether there are any significant changes in the demand w/o buffer column week on week.
+    * Assess whether there are any significant changes in the demand w/o buffer column week on week. 
+    * Also, look at rows which have the same Week and analyse collectively to see any changes in demand w/o buffer within the lead time.
     * Flag and comment on anomalies where:
         - Absolute change (WoW Change) exceeds ±10 units.
         - Percent change (WoW % Change) exceeds ±30%.

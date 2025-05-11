@@ -497,20 +497,10 @@ elif tabs == "Waterfall Analysis":
                                         analysis_5 = llm_reasoning.explain_scenario_5_with_groq(condition5)
 
                                         #RCA Condition 6
-                                        st.subheader('Scenario 6 - Demand Spikes within Lead Time')
-                                        condition6, condition6_msg = waterfall_analysis.check_demand(result_df)
-                                        if condition6.empty:
-                                            st.success(condition6_msg)
-                                        else:
-                                            st.dataframe(condition6)
-
-                                        analysis_6 = llm_reasoning.explain_scenario_6_with_groq(condition6)
-
-                                        #RCA Condition 7
-                                        st.subheader('Scenario 7 - Irregular Consumption Patterns')
-                                        condition7 = waterfall_analysis.scenario_7(result_df, PO_df_filtered)
-                                        st.dataframe(condition7)
-                                        #analysis_5 = llm_reasoning.explain_scenario_5_with_groq(condition5)
+                                        st.subheader('Scenario 6 - Irregular Consumption Patterns')
+                                        condition6 = waterfall_analysis.scenario_7(result_df, PO_df_filtered)
+                                        st.dataframe(condition6)
+                                        #analysis_6 = llm_reasoning.explain_scenario_6_with_groq(condition6)
 
                                         # Download button
                                         output = BytesIO()

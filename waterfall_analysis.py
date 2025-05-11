@@ -642,8 +642,7 @@ def analyze_week_to_week_demand_changes(result_df, abs_threshold=10, pct_thresho
 
     # Combine all weeks’ flagged data
     final_output_df = pd.concat(output_all, ignore_index=True)
-
-    print(final_output_df)
+    final_output_df = final_output_df.drop(columns=['Snapshot'])
 
     return final_output_df
 
@@ -1390,7 +1389,7 @@ def scenario_2(waterfall_df, po_df, start_week):
 def scenario_3(waterfall_df, po_df, scenario_1_results_df):
     """
     Analyzes future supply vs. demand based on confirmed POs and waterfall,
-    using the final calculated inventory from Scenario 1 results as the starting point,
+    using the final calculated inventory from check_demand1 results as the starting point,
     and suggests potential PO adjustments, including relevant PO numbers.
 
     Args:
