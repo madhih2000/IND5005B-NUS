@@ -481,60 +481,36 @@ def explain_scenario_5_with_groq(df):
 def explain_scenario_6_with_groq(df):
     df_string = df.to_string(index=False)
     client = Groq(api_key=API_KEY)
+    system_prompt = """
+    You are a highly experienced supply chain analyst in the semiconductor industry, with expertise in short-term demand forecasting, exception management, and operational planning.
 
-    if df.empty:
-        system_prompt = """
-        You are a highly experienced supply chain analyst in the semiconductor industry, with expertise in short-term demand forecasting, exception management, and operational planning.
+    You are presented with a structured dataframe that captures inventory behavior anomalies across weekly snapshots. Each row represents a specific week and includes demand, supply, consumption, inventory levels (both reported and calculated), and any GR (goods receipt) from open purchase orders. The table also flags irregular consumption patterns, such as negative consumption, mismatches between demand and consumption, and inventory corrections.
+    
+    The columns include:
+    
+    * Snapshot Week: The week identifier (e.g., WW13)
+    * Start Inventory (Waterfall): Reported starting inventory
+    * Start Inventory (Calc): Calculated starting inventory based on previous week's ending value
+    * Demand (Waterfall): Demand reported for the week
+    * Supply (Waterfall): Supply receipts recorded
+    * Consumption (Waterfall): Quantity consumed
+    * PO GR Quantity: Goods received from purchase orders during the week
+    * End Inventory (Waterfall): Reported ending inventory
+    * End Inventory (Calc): Calculated ending inventory using logic: Start + Supply + PO - Demand
+    * Irregular Pattern: Descriptive flags for anomalies, such as:
+        * More consumption than demand
+        * Consumption is zero but demand is not
+        * Inventory corrections or returns (identified via negative consumption)
 
-        You are presented with a structured dataframe that captures **demand spikes occurring within the lead time**. Each row in the table represents a specific demand anomaly identified by comparing the demand at a given Snapshot week to future demand values within a defined lead time window.
+    Your task is to perform the following:
 
-        The columns include:
-        - Snapshot: The week when the snapshot was taken (e.g., WW13)
-        - Current_Week: Same as Snapshot (for clarity)
-        - LeadTime: The forward-looking window (in weeks) used for the spike analysis
-        - BaseDemand: The demand value during the snapshot week
-        - SpikeWeek: A future week (within the lead time) where demand increased significantly
-        - SpikeDemand: The value of the demand in that future week
-        - Multiplier: The ratio of SpikeDemand to BaseDemand
+    * Identify and summarize weeks with inventory mismatches or abnormal consumption patterns.
+    * Determine if any adjustments (like PO receipts or negative consumption) explain these anomalies.
+    * Suggest potential causes (e.g., returns, adjustments, unplanned demand).
+    * Recommend any actions or follow-ups required to improve inventory accuracy and consumption tracking.
 
-        Your task is to perform the following:
-
-        * Since the provided dataframe is empty, just mention that there are no demand spikes occurring within the lead time. Nothing else.
-
-        Do not include introductory phrases or summaries. Start directly with bullet points. Only one bullet point as output.
-        """
-
-    else:
-        system_prompt = """
-        You are a highly experienced supply chain analyst in the semiconductor industry, with expertise in short-term demand forecasting, exception management, and operational planning.
-
-        You are presented with a structured dataframe that captures **demand spikes occurring within the lead time**. Each row in the table represents a specific demand anomaly identified by comparing the demand at a given Snapshot week to future demand values within a defined lead time window.
-
-        The columns include:
-        - Snapshot: The week when the snapshot was taken (e.g., WW13)
-        - Current_Week: Same as Snapshot (for clarity)
-        - LeadTime: The forward-looking window (in weeks) used for the spike analysis
-        - BaseDemand: The demand value during the snapshot week
-        - SpikeWeek: A future week (within the lead time) where demand increased significantly
-        - SpikeDemand: The value of the demand in that future week
-        - Multiplier: The ratio of SpikeDemand to BaseDemand
-
-        Your task is to perform the following:
-
-        * Assess the **timing of spikes** relative to the Snapshot week — do spikes appear early, midway, or late within the lead time window?
-        * Evaluate the **severity of spikes** using the Multiplier — highlight extreme values (e.g., >4 or >10).
-        * Identify **repeated or compound spikes** occurring in the same snapshot window (multiple spike weeks).
-        * Compare across snapshots to spot **recurring instability** in specific week families (e.g., WW13 to WW15 show back-to-back spikes).
-        * Analyze potential **operational risk** — could these spikes lead to late orders, excess expedite costs, or stockouts?
-
-        Finally, generate **specific and actionable recommendations** tied directly to the data:
-
-        - Reference exact Snapshot or SpikeWeeks in your recommendations.
-        - Propose concrete actions such as: adjusting buffer targets, pre-positioning inventory, triggering early warnings, engaging flexible suppliers, or escalating planning review cycles.
-        - Avoid vague or generic suggestions. Ensure every recommendation can be executed by a planner or sourcing manager.
-
-        Do not include introductory phrases or summaries. Start directly with bullet points.
-        """
+    Do not include introductory phrases or summaries. Start directly with bullet points. Only one bullet point as output.
+    """
 
     user_prompt = f"""
     Analyse the following weekly snapshot dataframe:\n\n{df_string}
