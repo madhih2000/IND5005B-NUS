@@ -525,9 +525,8 @@ elif tabs == "Waterfall Analysis":
                                             cond1_sheet.append(["Scenario 1 - PO Coverage is Inadequate"])
                                             for r in dataframe_to_rows(scen_1_df_output, index=False, header=True):
                                                 cond1_sheet.append(r)
-                                            cond1_sheet.append([])
-                                            cond1_sheet.append(["Explanation:"])
-                                            cond1_sheet.append([analysis_1])
+
+                                            write_analysis_block(cond1_sheet, analysis_1)
 
                                             cond2_sheet = writer.book.create_sheet("RCA Scenario 2")
                                             cond2_sheet.append(["Scenario 2 - POs push out or pull in due to changes in demand forecasts"])

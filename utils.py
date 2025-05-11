@@ -2,6 +2,9 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 
+from openpyxl.styles import Alignment, Border, Side
+from openpyxl.worksheet.worksheet import Worksheet
+
 def load_data_consumption(file):
     """
     Loads data from an Excel file and selects specific columns,
@@ -228,3 +231,37 @@ def merged_order_gr_PO_analysis(df_order: pd.DataFrame, df_GR: pd.DataFrame) -> 
     ]
 
     return df_grouped[desired_order]
+
+def write_analysis_block(sheet: Worksheet, analysis_text: str, label: str = "Explanation:", merge_cols: int = 5):
+    """
+    Appends a labeled and formatted analysis text block to an existing sheet.
+
+    Args:
+        sheet: openpyxl Worksheet object
+        analysis_text: The text to be written (can contain line breaks)
+        label: Label before the text (default is 'Explanation:')
+        merge_cols: Number of columns to merge for the analysis cell
+    """
+    # Add label
+    sheet.append([])
+    sheet.append([label])
+    
+    # Determine where to merge
+    start_row = sheet.max_row + 1
+    merge_range = f"A{start_row}:{chr(64 + merge_cols)}{start_row}"  # E.g., A20:E20
+    sheet.merge_cells(merge_range)
+
+    # Write text in merged cell
+    cell = sheet.cell(row=start_row, column=1)
+    cell.value = analysis_text
+    cell.alignment = Alignment(wrap_text=True, vertical="top", horizontal="left")
+    cell.border = Border(
+        left=Side(border_style=None),
+        right=Side(border_style=None),
+        top=Side(border_style=None),
+        bottom=Side(border_style=None)
+    )
+
+    # Optionally set column widths to make it look good
+    for col in range(1, merge_cols + 1):
+        sheet.column_dimensions[chr(64 + col)].width = 25
