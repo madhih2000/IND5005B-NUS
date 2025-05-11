@@ -429,19 +429,19 @@ def explain_scenario_5_with_groq(df):
 
     Your job is to **summarize the most material change per Week** and **present only one bullet per Week**.
 
-    Here’s how to do it:
+    Here's how to do it:
 
         * For each Week (e.g., WW05, WW06, etc.):
 
             * Pick the most significant row (the one with the largest absolute WoW Change — in units).
             * Report both the absolute unit change and the corresponding % change for that row only.
-            * If the entire Week is missing (all rows NaN), note that with: • WWXX – Missing: No data available this week.
+            * If the entire Week is missing (all rows NaN), note that with: • WWXX - Missing: No data available this week.
             * Ignore other updates within the same Week — no duplicate bullets per Week.
 
         * Only include up to 10 total bullet points — prioritize Weeks with the largest swings or highest volatility.
 
         * Bullet format:
-        • WWXX – [Surge or Crash] ±X units (±Y%): [Brief reason or pattern, e.g., ‘sharp rebound’, ‘step drop after flat trend’, ‘oscillating pattern’, etc.]
+        • WWXX - [Surge or Crash] ±X units (±Y%): [Brief reason or pattern, e.g., 'sharp rebound', 'step drop after flat trend', 'oscillating pattern', etc.]
 
         * Ignore:
             * Weeks with only minor changes (e.g., <10 units and <30%)
