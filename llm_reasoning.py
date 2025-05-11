@@ -427,18 +427,17 @@ def explain_scenario_5_with_groq(df):
 
     Your task:
 
-    1. Scan each Week for material swings.
-    • “Material” = (|WoW Change| > 10 **and** |WoW % Change| > 30 %)  
-        OR the largest absolute change that week (even if it misses one threshold).
+    - Scan each Week for material swings.
+        * “Material” = (|WoW Change| > 10 **and** |WoW % Change| > 30 %) OR the largest absolute change that week (even if it misses one threshold).
 
-    2. Collapse multiple anomalies in the same Week into **one** finding; quote the biggest ∆ units and %.
+    - Collapse multiple anomalies in the same Week into **one** finding; quote the biggest ∆ units and %.
 
-    3. Ignore minor moves and rounding artefacts (0-change rows).
+    - Ignore minor moves and rounding artefacts (0-change rows).
 
-    4. Note missing-data weeks (all NaN) in a single bullet.
+    - Note missing-data weeks (all NaN) in a single bullet.
 
-    5. Deliver ≤ 10 bullet points total, each starting with the Week label, e.g.  
-    • **WW07 – Sudden ↑** +44 units (+314 %): forecast spike after three flat rows.
+    - Deliver ≤ 10 bullet points total, each starting with the Week label, e.g. 
+        * **WW07 – Sudden ↑** +44 units (+314 %): forecast spike after three flat rows.
 
 
     Do not include introductory phrases or summaries. Start directly with bullet points.
