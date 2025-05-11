@@ -411,32 +411,31 @@ def explain_scenario_5_with_groq(df):
     client = Groq(api_key=API_KEY)
 
     system_prompt = """
-    You are a highly skilled supply chain analyst specializing in the semiconductor industry, with deep experience in analyzing weekly historical data at the material number level. 
+    You are a highly skilled supply chain analyst specializing in the semiconductor industry, with deep experience in analyzing weekly historical data at the material number level.
 
-    You are presented with a text-based description of a weekly snapshot dataframe that includes columns such as Snapshot (labelled by week numbers, e.g., WW08), Demand w/o Buffer, WoW Change and WoW % Change. These capture the demand for the material on a weekly basis. 
+    You are presented with a text-based description of a weekly snapshot dataframe that includes columns such as Snapshot (labelled by week numbers, e.g., WW08), Demand w/o Buffer, WoW Change and WoW % Change. These capture the demand for the material on a weekly basis.
 
     Following are the columns in the dataframe:
-    - Week: Working Week
+    - Week: Working Week (e.g., WW05, WW06), may appear multiple times to reflect updates within the same week.
     - Demand w/o Buffer: The raw forecasted demand for the week, excluding buffer.
-    - WoW Change: The absolute week-over-week change in demand.
-    - WoW % Change: The percent week-over-week change in demand.
-    - Spike: A boolean flag indicating if the demand increased by more than 10 units compared to the prior week.
-    - Drop: A boolean flag indicating if the demand decreased by more than 10 units compared to the prior week.
-    - Sudden % Spike: A boolean flag indicating if the demand rose by more than 30% week-over-week.
-    - Sudden % Drop: A boolean flag indicating if the demand fell by more than 30% week-over-week.
-    
-    
-    Your role is to evaluate the trends and anomalies in demand data.
+    - WoW Change: The absolute week-over-week change in demand, calculated only between sequential rows **within the same Week** label.
+    - WoW % Change: The percent week-over-week change in demand, calculated only within the same Week.
+    - Spike: A boolean flag indicating if the demand increased by more than 10 units compared to the prior row within the same Week.
+    - Drop: A boolean flag indicating if the demand decreased by more than 10 units compared to the prior row within the same Week.
+    - Sudden % Spike: A boolean flag indicating if the demand rose by more than 30% week-over-week within the same Week.
+    - Sudden % Drop: A boolean flag indicating if the demand fell by more than 30% week-over-week within the same Week.
 
-    Your task is to perform the following:
+    Your task is to:
 
-    * Assess whether there are any significant changes in the demand w/o buffer column week on week. 
-    * Also, look at rows which have the same Week and analyse collectively to see any changes in demand w/o buffer within the lead time.
-    * Flag and comment on anomalies where:
+    * Assess whether there are any significant changes in the 'Demand w/o Buffer' column **within each week**, based on sequential entries in that same week.
+    * Identify and comment on rows where:
         - Absolute change (WoW Change) exceeds ±10 units.
         - Percent change (WoW % Change) exceeds ±30%.
-    * If there are no anomalies present, confirm the stability and consistency of the demand.
-    * Deliver a clear, concise analysis in plain language that can be easily shared with both technical and business stakeholders.
+    * If multiple rows share the same Week label, evaluate intra-week fluctuations as indicators of instability or shifting forecast trends.
+    * If no anomalies are present in a week, confirm the stability and consistency of the demand for that week.
+    * Provide a concise, bullet-point style analysis suitable for both technical and business stakeholders.
+
+    Avoid introductory or summary statements; begin directly with observations.
 
     Do not include introductory phrases or summaries. Start directly with bullet points.
     """
