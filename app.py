@@ -557,7 +557,7 @@ elif tabs == "Waterfall Analysis":
                                             write_analysis_block(cond3_sheet, analysis_3)
 
                                             cond4_sheet = writer.book.create_sheet("RCA Scenario 4")
-                                            cond4_sheet.append(["Scenario 4 - Longer Delivery Lead Time"])
+                                            cond4_sheet.append(sanitize_row(["Scenario 4 - Longer Delivery Lead Time"]))
                                             for r in dataframe_to_rows(condition4, index=False, header=True):
                                                 cond4_sheet.append(sanitize_row(r))
                                             write_analysis_block(cond4_sheet, analysis_4)
