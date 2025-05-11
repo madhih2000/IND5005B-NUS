@@ -524,66 +524,6 @@ def lead_time_check(result_df):
 
     return leadtime_changes
 
-#Condition 6: Immediate demand increase within lead time
-def check_demand(df):
-    # Prepare for analysis: Convert snapshots and WW column names to align
-    ww_columns = [col for col in df.columns if col.startswith("WW")]
-    snapshots = df["Snapshot"].unique()
-
-    #Algo check
-    standout_weeks_info = []
-
-    for snapshot in snapshots:
-        # Filter for current snapshot and specifically the "Demand w/o Buffer"
-        snapshot_df = df[(df["Snapshot"] == snapshot) & (df["Measures"] == "Demand w/o Buffer")]
-
-        if snapshot_df.empty:
-            continue  # Skip if no relevant data
-        
-        # Extract lead time and demand value from the respective WW column
-        lead_time = int(snapshot_df["LeadTime(Week)"].values[0])
-        ww_value = snapshot_df[snapshot].values[0]
-
-        if pd.isna(ww_value):
-            continue  # Skip if demand data for snapshot week is NaN
-
-        # Determine index of snapshot week (e.g., WW07 → index in ww_columns list)
-        try:
-            current_index = ww_columns.index(snapshot)
-        except ValueError:
-            continue  # Skip if snapshot doesn't match WW column
-
-        # Calculate the forward-looking range within bounds
-        end_index = min(current_index + lead_time, len(ww_columns))
-        future_weeks = ww_columns[current_index+1:end_index+1]
-
-        # Extract future demand values
-        future_values = snapshot_df[future_weeks].values.flatten()
-
-        # Compare each future week's demand with current snapshot week's value
-        for week, future_demand in zip(future_weeks, future_values):
-            if pd.notna(future_demand) and ww_value > 0 and future_demand / ww_value >= 2:
-                standout_weeks_info.append({
-                    "Snapshot": snapshot,
-                    "Current_Week": snapshot,
-                    "LeadTime": lead_time,
-                    "BaseDemand": ww_value,
-                    "SpikeWeek": week,
-                    "SpikeDemand": future_demand,
-                    "Multiplier": round(future_demand / ww_value, 2)
-                })
-
-    final_pd = pd.DataFrame(standout_weeks_info)
-    if final_pd.empty:
-        final_msg = "There is no immediate demand increase within lead time of the material number."
-    else:
-        final_msg = "There are instances of immediate demand increase within lead time of the material number."
-
-    # Display explanation
-    st.info(f"A spike is flagged if the demand in any week within the {lead_time}-week lead time exceeds twice the demand of the current week.")
-
-    return  final_pd, final_msg
-
 # Scenario 5: Identifying irregular consumption patterns
 def analyze_week_to_week_demand_changes(result_df, abs_threshold=10, pct_threshold=0.3, lead_time = 6):
     """
@@ -650,7 +590,7 @@ def analyze_week_to_week_demand_changes(result_df, abs_threshold=10, pct_thresho
     return final_output_df
 
 
-def scenario_7(waterfall_df, po_df):
+def scenario_6(waterfall_df, po_df):
     # Filter relevant rows
     supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
     demand_rows = waterfall_df[waterfall_df['Measures'] == 'Demand w/o Buffer']

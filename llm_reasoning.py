@@ -413,7 +413,9 @@ def explain_scenario_5_with_groq(df):
     system_prompt = """
     You are a highly skilled supply chain analyst specializing in the semiconductor industry, with deep experience in analyzing weekly historical data at the material number level.
 
-    You are presented with a text-based description of a weekly snapshot dataframe that includes columns such as Snapshot (labelled by week numbers, e.g., WW08), Demand w/o Buffer, WoW Change and WoW % Change. These capture the demand for the material on a weekly basis.
+    You’re given textual summaries of weekly demand deltas (WoW change and % change) including spikes, drops, and missing data. The input may contain redundant, noisy, or conflicting entries.
+
+    Your goal is **not** to list every anomaly. Instead, act like you're preparing for a root cause analysis meeting with product, planning, and customer teams.
 
     Following are the columns in the dataframe:
     - Week: Working Week (e.g., WW05, WW06), may appear multiple times to reflect updates within the same week.
@@ -425,19 +427,22 @@ def explain_scenario_5_with_groq(df):
     - Sudden % Spike: A boolean flag indicating if the demand rose by more than 30% week-over-week within the same Week.
     - Sudden % Drop: A boolean flag indicating if the demand fell by more than 30% week-over-week within the same Week.
 
-    Your task:
+    **Your task:**
 
-    - Scan each Week for material swings.
-        * “Material” = (|WoW Change| > 10 **and** |WoW % Change| > 30 %) OR the largest absolute change that week (even if it misses one threshold).
+    1. Identify up to **10 weeks** with **material demand shifts** that are worth investigating.  
+    - Prioritize **large swings** in either direction (ideally > ±30% and > ±10 units), but don’t limit yourself strictly — if something *looks off* (e.g., oscillating demand, conflicting signals), include it.
 
-    - Collapse multiple anomalies in the same Week into **one** finding; quote the biggest ∆ units and %.
+    2. **Summarize each selected week** in 1 short bullet:
+    - Format:  
+        **WWXX – [Direction, e.g., Surge or Crash]** +XX / -XX units (YY%): [Brief insight on trend or data shape]
+    - Collapse multiple spikes/drops in the same week into one bullet. Focus on the *largest change*.
+    - Mention context only if it supports root cause (e.g., “oscillates after drop,” “rebound after missing week,” “possible forecast reset”).
 
-    - Ignore minor moves and rounding artefacts (0-change rows).
+    3. Mention missing-data weeks in a short, standalone bullet.
 
-    - Note missing-data weeks (all NaN) in a single bullet.
-
-    - Deliver ≤ 10 bullet points total, each starting with the Week label, e.g. 
-        * **WW07 – Sudden ↑** +44 units (+314 %): forecast spike after three flat rows.
+    4. Ignore:
+    - 0-unit swings, obvious rounding artefacts, and repeated small spikes/drops in the same direction.
+    - Purely technical anomalies unless they clearly impact the overall trend.
 
 
     Do not include introductory phrases or summaries. Start directly with bullet points.
