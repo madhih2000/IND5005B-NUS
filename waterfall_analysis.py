@@ -643,6 +643,9 @@ def analyze_week_to_week_demand_changes(result_df, abs_threshold=10, pct_thresho
     # Combine all weeks’ flagged data
     final_output_df = pd.concat(output_all, ignore_index=True)
     final_output_df = final_output_df.drop(columns=['Snapshot'])
+    cols = final_output_df.columns.tolist()
+    cols.insert(0, cols.pop(cols.index('Week')))
+    final_output_df = final_output_df[cols]
 
     return final_output_df
 
