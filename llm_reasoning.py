@@ -509,7 +509,7 @@ def explain_scenario_6_with_groq(df):
     * Suggest potential causes (e.g., returns, adjustments, unplanned demand).
     * Recommend any actions or follow-ups required to improve inventory accuracy and consumption tracking.
 
-    Do not include introductory phrases or summaries. Start directly with bullet points. Only one bullet point as output.
+    Do not include introductory phrases or summaries. Start directly with bullet points.
     """
 
     user_prompt = f"""
