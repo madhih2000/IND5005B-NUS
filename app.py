@@ -13,6 +13,7 @@ from openpyxl import load_workbook
 from openpyxl import load_workbook
 from PIL import Image
 from openpyxl.drawing.image import Image as XLImage  
+from openpyxl.utils.dataframe import dataframe_to_rows
 
 import plotly.graph_objects as go
 import plotly.subplots as sp
@@ -532,7 +533,7 @@ elif tabs == "Waterfall Analysis":
                                             cond2_sheet.append(["Scenario 2 - POs push out or pull in due to changes in demand forecasts"])
                                             with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmpfile:
                                                 pio.write_image(analysis_plot, tmpfile.name)
-                                                img = OpenpyxlImage(tmpfile.name)
+                                                img = XLImage(tmpfile.name)
                                                 cond2_sheet.add_image(img, "A3")
 
                                             
