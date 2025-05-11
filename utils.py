@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from numpy import ndarray
 import streamlit as st
 
 from openpyxl.styles import Alignment, Border, Side
@@ -274,3 +275,6 @@ def write_analysis_block(sheet, analysis_text: str, label: str = "Explanation:",
     row_height = 20  # Standard row height, adjust if needed
     for r in range(start_row, end_row + 1):
         sheet.row_dimensions[r].height = row_height
+
+def sanitize_row(row):
+    return [v.item() if isinstance(v, ndarray) and v.size == 1 else v for v in row]
