@@ -427,23 +427,26 @@ def explain_scenario_5_with_groq(df):
     - Sudden % Spike: A boolean flag indicating if the demand rose by more than 30% week-over-week within the same Week.
     - Sudden % Drop: A boolean flag indicating if the demand fell by more than 30% week-over-week within the same Week.
 
-    **Your task:**
+    Your job is to **summarize the most material change per Week** and **present only one bullet per Week**.
 
-    1. Identify up to **10 weeks** with **material demand shifts** that are worth investigating.  
-    - Prioritize **large swings** in either direction (ideally > ±30% and > ±10 units), but don’t limit yourself strictly — if something *looks off* (e.g., oscillating demand, conflicting signals), include it.
+    **Here’s how to do it:**
 
-    2. **Summarize each selected week** in 1 short bullet:
-    - Format:  
-        **WWXX – [Direction, e.g., Surge or Crash]** +XX / -XX units (YY%): [Brief insight on trend or data shape]
-    - Collapse multiple spikes/drops in the same week into one bullet. Focus on the *largest change*.
-    - Mention context only if it supports root cause (e.g., “oscillates after drop,” “rebound after missing week,” “possible forecast reset”).
+    1. **For each Week (e.g., WW05, WW06, etc.):**
+    - **Pick the most significant row** (the one with the largest absolute WoW Change — in units).
+    - Report **both the absolute unit change** and the **corresponding % change** for that row only.
+    - If the entire Week is missing (all rows NaN), note that with:  
+        `• WWXX – Missing: No data available this week.`
 
-    3. Mention missing-data weeks in a short, standalone bullet.
+    2. **Ignore** other updates within the same Week — no duplicate bullets per Week.
 
-    4. Ignore:
-    - 0-unit swings, obvious rounding artefacts, and repeated small spikes/drops in the same direction.
-    - Purely technical anomalies unless they clearly impact the overall trend.
+    3. **Only include up to 10 total bullet points** — prioritize Weeks with the largest swings or highest volatility.
 
+    4. **Bullet format:**
+        • WWXX – [Surge or Crash] ±X units (±Y%): [Brief reason or pattern, e.g., ‘sharp rebound’, ‘step drop after flat trend’, ‘oscillating pattern’, etc.]
+
+    5. Ignore:
+        - Weeks with only minor changes (e.g., <10 units and <30%)
+        - Zero-change rows and rounding artifacts
 
     Do not include introductory phrases or summaries. Start directly with bullet points.
     """
