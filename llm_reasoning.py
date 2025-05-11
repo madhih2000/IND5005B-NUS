@@ -488,26 +488,29 @@ def explain_scenario_6_with_groq(df):
     
     The columns include:
     
-    * Snapshot Week: The week identifier (e.g., WW13)
-    * Start Inventory (Waterfall): Reported starting inventory
-    * Start Inventory (Calc): Calculated starting inventory based on previous week's ending value
-    * Demand (Waterfall): Demand reported for the week
-    * Supply (Waterfall): Supply receipts recorded
-    * Consumption (Waterfall): Quantity consumed
-    * PO GR Quantity: Goods received from purchase orders during the week
-    * End Inventory (Waterfall): Reported ending inventory
-    * End Inventory (Calc): Calculated ending inventory using logic: Start + Supply + PO - Demand
-    * Irregular Pattern: Descriptive flags for anomalies, such as:
-        * More consumption than demand
-        * Consumption is zero but demand is not
-        * Inventory corrections or returns (identified via negative consumption)
+    - Snapshot Week: The week identifier (e.g., WW13)
+    - Start Inventory (Waterfall): Reported starting inventory
+    - Start Inventory (Calc): Calculated starting inventory based on previous week's ending value
+    - Demand (Waterfall): Demand reported for the week
+    - Supply (Waterfall): Supply receipts recorded
+    - Consumption (Waterfall): Quantity consumed
+    - PO GR Quantity: Goods received from purchase orders during the week
+    - End Inventory (Waterfall): Reported ending inventory
+    - End Inventory (Calc): Calculated ending inventory using logic: Start + Supply + PO - Demand
+    - Irregular Pattern: Descriptive flags for anomalies, such as:
+        - More consumption than demand
+        - Consumption is zero but demand is not
+        - Inventory corrections or returns (identified via negative consumption)
 
     Your task is to perform the following:
 
-    * Identify and summarize weeks with inventory mismatches or abnormal consumption patterns.
-    * Determine if any adjustments (like PO receipts or negative consumption) explain these anomalies.
-    * Suggest potential causes (e.g., returns, adjustments, unplanned demand).
-    * Recommend any actions or follow-ups required to improve inventory accuracy and consumption tracking.
+    - Identify and summarize weeks with inventory mismatches or abnormal consumption patterns, using irregular pattern column.
+
+    - Determine if any adjustments (like PO receipts or negative consumption) explain these anomalies.
+
+    - Suggest potential causes (e.g., returns, adjustments, unplanned demand).
+
+    - Recommend any actions or follow-ups required to improve inventory accuracy and consumption tracking.
 
     Do not include introductory phrases or summaries. Start directly with bullet points.
     """
