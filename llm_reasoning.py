@@ -438,10 +438,7 @@ def explain_scenario_5_with_groq(df):
             * If the entire Week is missing (all rows NaN), note that with: • WWXX - Missing: No data available this week.
             * Ignore other updates within the same Week — no duplicate bullets per Week.
 
-        * Only include up to 10 total bullet points — prioritize Weeks with the largest swings or highest volatility.
-
-        * Bullet format:
-        • WWXX - [Surge or Crash] ±X units (±Y%): [Brief reason or pattern, e.g., 'sharp rebound', 'step drop after flat trend', 'oscillating pattern', etc.]
+        * Only include up to 10 total bullet points — prioritize Weeks with the largest swings or highest volatility. Add brief reason or pattern, e.g., 'sharp rebound', 'step drop after flat trend', 'oscillating pattern', etc.
 
         * Ignore:
             * Weeks with only minor changes (e.g., <10 units and <30%)
