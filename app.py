@@ -500,7 +500,7 @@ elif tabs == "Waterfall Analysis":
                                         st.subheader('Scenario 6 - Irregular Consumption Patterns')
                                         condition6 = waterfall_analysis.scenario_7(result_df, PO_df_filtered)
                                         st.dataframe(condition6)
-                                        #analysis_6 = llm_reasoning.explain_scenario_6_with_groq(condition6)
+                                        analysis_6 = llm_reasoning.explain_scenario_6_with_groq(condition6)
 
                                         # Download button
                                         output = BytesIO()
