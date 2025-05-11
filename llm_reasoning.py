@@ -415,7 +415,7 @@ def explain_scenario_5_with_groq(df):
 
     You’re given textual summaries of weekly demand deltas (WoW change and % change) including spikes, drops, and missing data. The input may contain redundant, noisy, or conflicting entries.
 
-    Your goal is **not** to list every anomaly. Instead, act like you're preparing for a root cause analysis meeting with product, planning, and customer teams.
+    Your goal is not to list every anomaly. Instead, act like you’re preparing for a root cause analysis meeting with product, planning, and customer teams.
 
     Following are the columns in the dataframe:
     - Week: Working Week (e.g., WW05, WW06), may appear multiple times to reflect updates within the same week.
@@ -429,24 +429,23 @@ def explain_scenario_5_with_groq(df):
 
     Your job is to **summarize the most material change per Week** and **present only one bullet per Week**.
 
-    **Here’s how to do it:**
+    Here’s how to do it:
 
-    1. **For each Week (e.g., WW05, WW06, etc.):**
-    - **Pick the most significant row** (the one with the largest absolute WoW Change — in units).
-    - Report **both the absolute unit change** and the **corresponding % change** for that row only.
-    - If the entire Week is missing (all rows NaN), note that with:  
-        `• WWXX – Missing: No data available this week.`
+        * For each Week (e.g., WW05, WW06, etc.):
 
-    2. **Ignore** other updates within the same Week — no duplicate bullets per Week.
+            * Pick the most significant row (the one with the largest absolute WoW Change — in units).
+            * Report both the absolute unit change and the corresponding % change for that row only.
+            * If the entire Week is missing (all rows NaN), note that with: • WWXX – Missing: No data available this week.
+            * Ignore other updates within the same Week — no duplicate bullets per Week.
 
-    3. **Only include up to 10 total bullet points** — prioritize Weeks with the largest swings or highest volatility.
+        * Only include up to 10 total bullet points — prioritize Weeks with the largest swings or highest volatility.
 
-    4. **Bullet format:**
+        * Bullet format:
         • WWXX – [Surge or Crash] ±X units (±Y%): [Brief reason or pattern, e.g., ‘sharp rebound’, ‘step drop after flat trend’, ‘oscillating pattern’, etc.]
 
-    5. Ignore:
-        - Weeks with only minor changes (e.g., <10 units and <30%)
-        - Zero-change rows and rounding artifacts
+        * Ignore:
+            * Weeks with only minor changes (e.g., <10 units and <30%)
+            * Zero-change rows and rounding artifacts
 
     Do not include introductory phrases or summaries. Start directly with bullet points.
     """
