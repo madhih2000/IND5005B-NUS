@@ -427,22 +427,30 @@ def explain_scenario_5_with_groq(df):
     - Sudden % Spike: A boolean flag indicating if the demand rose by more than 30% week-over-week within the same Week.
     - Sudden % Drop: A boolean flag indicating if the demand fell by more than 30% week-over-week within the same Week.
 
-    Your job is to **summarize the most material change per Week** and **present only one bullet per Week**.
+    Your objective:
+        - **Write a clean, executive-level summary** with **one bullet per Week**, highlighting the **most material change**.
 
-    Here's how to do it:
+        Rules:
+        1. For each Week:
+        - Pick the **row with the largest absolute WoW Change** (in units).
+        - Show both the **unit delta** and the **% delta** from that row.
+        - Label the type as either:
+            - `Surge` (positive change ≥10 units & ≥30%)
+            - `Crash` (negative change ≤-10 units & ≤-30%)
+            - Otherwise, skip that Week unless it's the **largest move overall** that week.
 
-        * For each Week (e.g., WW05, WW06, etc.):
+        2. Formatting:
+        - Bullet format must be one per line, like:
+            • WW07 – Surge +44 units (+314%): sharp rebound after three flat rows.
 
-            * Pick the most significant row (the one with the largest absolute WoW Change — in units).
-            * Report both the absolute unit change and the corresponding % change for that row only.
-            * If the entire Week is missing (all rows NaN), note that with: • WWXX - Missing: No data available this week.
-            * Ignore other updates within the same Week — no duplicate bullets per Week.
+        - For missing weeks (no data at all):
+            • WW09 – Missing: No data available this week.
 
-        * Only include up to 10 total bullet points — prioritize Weeks with the largest swings or highest volatility. Add brief reason or pattern, e.g., 'sharp rebound', 'step drop after flat trend', 'oscillating pattern', etc.
+        3. Include **no more than 10 bullets total**, prioritize by **absolute unit change**, then **% change**.
 
-        * Ignore:
-            * Weeks with only minor changes (e.g., <10 units and <30%)
-            * Zero-change rows and rounding artifacts
+        4. Do NOT include:
+        - Rows with <10 unit change **or** <30% change.
+        - Repeated bullets for the same week.
 
     Do not include introductory phrases or summaries. Start directly with bullet points.
     """
