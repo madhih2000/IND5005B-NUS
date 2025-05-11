@@ -509,13 +509,7 @@ elif tabs == "Waterfall Analysis":
                                         #RCA Condition 7
                                         st.subheader('Scenario 7 - Irregular Consumption Patterns')
                                         condition7 = waterfall_analysis.scenario_7(result_df, PO_df_filtered)
-                                        # Build grid options
-                                        gb = GridOptionsBuilder.from_dataframe(condition7)
-                                        gb.configure_column("Irregular Pattern", autoHeight=True, wrapText=True)
-                                        grid_options = gb.build()
-
-                                        # Render with AgGrid
-                                        AgGrid(condition7, gridOptions=grid_options, fit_columns_on_grid_load=True)
+                                        st.dataframe(condition7)
                                         #analysis_5 = llm_reasoning.explain_scenario_5_with_groq(condition5)
 
                                         # Download button
