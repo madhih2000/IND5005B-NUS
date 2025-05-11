@@ -233,7 +233,7 @@ def merged_order_gr_PO_analysis(df_order: pd.DataFrame, df_GR: pd.DataFrame) -> 
 
     return df_grouped[desired_order]
 
-def write_analysis_block(sheet, analysis_text: str, label: str = "Explanation:", merge_cols: int = 5, merge_rows: int = 5):
+def write_analysis_block(sheet, analysis_text: str, label: str = "Explanation:", merge_cols: int = 5):
     """
     Appends a labeled and formatted analysis text block to an existing sheet.
 
@@ -242,13 +242,16 @@ def write_analysis_block(sheet, analysis_text: str, label: str = "Explanation:",
         analysis_text: The text to be written (can contain line breaks)
         label: Label before the text (default is 'Explanation:')
         merge_cols: Number of columns to merge for the analysis cell (width of the box)
-        merge_rows: Number of rows to merge (height of the box)
     """
-    from openpyxl.worksheet.worksheet import Worksheet  # Ensure type hint compatibility
-
     # Add spacing and label
     sheet.append([])
     sheet.append([label])
+
+    # Estimate number of rows needed based on text length
+    avg_chars_per_line = 80  # tweak this if you're merging more/less columns
+    total_chars = len(analysis_text)
+    text_lines = analysis_text.count("\n") + total_chars // avg_chars_per_line + 1
+    merge_rows = max(5, text_lines)  # At least 5 rows
 
     # Determine starting row for the box
     start_row = sheet.max_row + 1
@@ -267,6 +270,7 @@ def write_analysis_block(sheet, analysis_text: str, label: str = "Explanation:",
     cell.value = analysis_text
     cell.alignment = Alignment(wrap_text=True, vertical="top", horizontal="left")
 
-    # Set a reasonable height for each row to allow text to expand
+    # Set row heights to ensure text visibility
+    row_height = 20  # Standard row height, adjust if needed
     for r in range(start_row, end_row + 1):
-        sheet.row_dimensions[r].height = 20  # or adjust based on text length
+        sheet.row_dimensions[r].height = row_height
