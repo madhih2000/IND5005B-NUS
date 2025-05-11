@@ -520,7 +520,7 @@ elif tabs == "Waterfall Analysis":
                                             PO_df_filtered.to_excel(writer, sheet_name="PO Summary", index=False)
 
                                             # RCA Summary
-                                            writer.book.create_sheet("Root Cause Analysis (Summary)")
+                                            writer.book.create_sheet("RCA Summary")
                                             rca_final_sheet = writer.sheets["RCA Summary"]
                                             rca_final_sheet.append(["Root Cause Analysis (Summary)"])
                                             write_analysis_block(rca_final_sheet, rca_final)
