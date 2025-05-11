@@ -529,24 +529,56 @@ elif tabs == "Waterfall Analysis":
                                             write_analysis_block(cond1_sheet, analysis_1)
 
                                             cond2_sheet = writer.book.create_sheet("RCA Scenario 2")
-                                            cond2_sheet.append(["Scenario 2 - POs push out or pull in due to changes in demand forecasts"])
+                                            cond2_sheet.append(["Scenario 2 - POs push out or pull in due to changes in demand forecasts"])d
                                             with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmpfile:
-                                                pio.write_image(analysis_plot, tmpfile.name)
+                                                analysis_plot.write_image(tmpfile.name)  # Ensure plot is in color
                                                 img = XLImage(tmpfile.name)
                                                 cond2_sheet.add_image(img, "A3")
 
-                                            
+                                            # Leave space after image
+                                            cond2_sheet.append([])
                                             cond2_sheet.append(["Forecast Accuracy Validation Table"])
                                             for r in dataframe_to_rows(comparison_table, index=False, header=True):
                                                 cond2_sheet.append(r)
 
+                                            cond2_sheet.append([])
                                             cond2_sheet.append(["PO Timing Analysis"])
                                             for r in dataframe_to_rows(po_analysis_output, index=False, header=True):
                                                 cond2_sheet.append(r)
 
-                                            cond2_sheet.append([])
-                                            cond2_sheet.append(["Explanation:"])
-                                            cond2_sheet.append([analysis_2])
+                                            # Append analysis text block at the bottom
+                                            write_analysis_block(cond2_sheet, analysis_2)
+
+
+                                            cond3_sheet = writer.sheets["RCA Scenario 3"]
+                                            cond3_sheet.append(["Scenario 3 - Adjustment to POs"])
+                                            for r in dataframe_to_rows(scen_3_df_output, index=False, header=True):
+                                                cond3_sheet.append(r)
+
+                                            write_analysis_block(cond3_sheet, analysis_3)
+
+
+                                            cond4_sheet = writer.sheets["RCA Scenario 4"]
+                                            cond4_sheet.append(["Scenario 4 - Longer Delivery Lead Time"])
+                                            for r in dataframe_to_rows(condition4, index=False, header=True):
+                                                cond4_sheet.append(r)
+
+                                            write_analysis_block(cond4_sheet, analysis_4)
+
+                                            cond5_sheet = writer.sheets["RCA Scenario 5"]
+                                            cond5_sheet.append(["Scenario 5 - Irregular Demand w/o Buffer Patterns"])
+                                            for r in dataframe_to_rows(condition5, index=False, header=True):
+                                                cond5_sheet.append(r)
+
+                                            write_analysis_block(cond5_sheet, analysis_5)
+
+
+                                            cond6_sheet = writer.sheets["RCA Scenario 5"]
+                                            cond6_sheet.append(["Scenario 6 - Irregular Consumption Patterns"])
+                                            for r in dataframe_to_rows(condition6, index=False, header=True):
+                                                cond6_sheet.append(r)
+
+                                            write_analysis_block(cond6_sheet, analysis_6)
 
                                         output.seek(0)
                                         # Apply coloring on 'Waterfall Chart' sheet
