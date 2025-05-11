@@ -550,34 +550,28 @@ elif tabs == "Waterfall Analysis":
                                             write_analysis_block(cond2_sheet, analysis_2)
 
 
-                                            cond3_sheet = writer.sheets["RCA Scenario 3"]
+                                            cond3_sheet = writer.book.create_sheet("RCA Scenario 3")
                                             cond3_sheet.append(["Scenario 3 - Adjustment to POs"])
                                             for r in dataframe_to_rows(scen_3_df_output, index=False, header=True):
                                                 cond3_sheet.append(r)
-
                                             write_analysis_block(cond3_sheet, analysis_3)
 
-
-                                            cond4_sheet = writer.sheets["RCA Scenario 4"]
+                                            cond4_sheet = writer.book.create_sheet("RCA Scenario 4")
                                             cond4_sheet.append(["Scenario 4 - Longer Delivery Lead Time"])
                                             for r in dataframe_to_rows(condition4, index=False, header=True):
                                                 cond4_sheet.append(r)
-
                                             write_analysis_block(cond4_sheet, analysis_4)
 
-                                            cond5_sheet = writer.sheets["RCA Scenario 5"]
+                                            cond5_sheet = writer.book.create_sheet("RCA Scenario 5")
                                             cond5_sheet.append(["Scenario 5 - Irregular Demand w/o Buffer Patterns"])
                                             for r in dataframe_to_rows(condition5, index=False, header=True):
                                                 cond5_sheet.append(r)
-
                                             write_analysis_block(cond5_sheet, analysis_5)
 
-
-                                            cond6_sheet = writer.sheets["RCA Scenario 5"]
+                                            cond6_sheet = writer.book.create_sheet("RCA Scenario 6")
                                             cond6_sheet.append(["Scenario 6 - Irregular Consumption Patterns"])
                                             for r in dataframe_to_rows(condition6, index=False, header=True):
                                                 cond6_sheet.append(r)
-
                                             write_analysis_block(cond6_sheet, analysis_6)
 
                                         output.seek(0)
