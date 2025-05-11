@@ -232,37 +232,53 @@ def merged_order_gr_PO_analysis(df_order: pd.DataFrame, df_GR: pd.DataFrame) -> 
 
     return df_grouped[desired_order]
 
-def write_analysis_block(sheet: Worksheet, analysis_text: str, label: str = "Explanation:", start_row=1, merge_cols=4, row_height=100):
+def write_analysis_block(sheet: Worksheet, analysis_text: str, label: str = "Explanation:", merge_cols: int = 5):
     """
     Appends a labeled and formatted analysis text block to an existing sheet.
-
+    
     Args:
         sheet: openpyxl Worksheet object
         analysis_text: The text to be written (can contain line breaks)
         label: Label before the text (default is 'Explanation:')
         merge_cols: Number of columns to merge for the analysis cell
     """
-    # Add label
+    # Add label (empty row first, then the label itself)
     sheet.append([])
     sheet.append([label])
     
-    # Determine where to merge
+    # Determine where to start and create merge range for the title and analysis block
     start_row = sheet.max_row + 1
-    merge_range = f"A{start_row}:{chr(64 + merge_cols)}{start_row}"  # E.g., A20:E20
+    title_cell = sheet.cell(row=start_row, column=1)
+    
+    # Merge title cell
+    merge_range = f"A{start_row}:{get_column_letter(merge_cols)}{start_row}"
     sheet.merge_cells(merge_range)
 
-    # Write the section title
-    sheet.cell(row=start_row, column=1, value=title)
+    # Write the section title (label)
+    title_cell.value = label
+    title_cell.alignment = Alignment(horizontal='left', vertical='top')
 
     # Merge cells for the analysis block
-    merge_range = sheet.cell(row=start_row + 1, column=1).coordinate + ':' + \
-                  sheet.cell(row=start_row + 1, column=merge_cols).coordinate
+    start_row += 1  # Next row for analysis block
+    merge_range = f"A{start_row}:{get_column_letter(merge_cols)}{start_row}"
     sheet.merge_cells(merge_range)
 
     # Write the analysis text with wrapping enabled
-    cell = sheet.cell(row=start_row + 1, column=1)
-    cell.value = analysis_text
-    cell.alignment = Alignment(wrap_text=True, vertical="top", horizontal="left")
+    analysis_cell = sheet.cell(row=start_row, column=1)
+    analysis_cell.value = analysis_text
+    analysis_cell.alignment = Alignment(wrap_text=True, vertical="top", horizontal="left")
 
-    # Adjust row height to ensure all text is visible
-    sheet.row_dimensions[start_row + 1].height = row_height
+    # Adjust row height based on content length
+    # Increase the row height if the text is long
+    text_lines = analysis_text.split("\n")
+    num_lines = len(text_lines)
+    row_height = max(20, num_lines * 15)  # Default to 20, scale by 15 per line of text
+    sheet.row_dimensions[start_row].height = row_height
+
+    # Adjust column width to fit the content (heuristic based on average word length)
+    column_width = max(len(line) for line in text_lines) + 2  # Add buffer space for readability
+    sheet.column_dimensions['A'].width = column_width  # Apply to the first column where text is written
+    for col_num in range(2, merge_cols + 1):
+        col_letter = get_column_letter(col_num)
+        sheet.column_dimensions[col_letter].width = column_width  # Apply to all merged columns
+
