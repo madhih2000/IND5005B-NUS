@@ -502,24 +502,62 @@ elif tabs == "Waterfall Analysis":
                                         st.dataframe(condition6)
                                         analysis_6 = llm_reasoning.explain_scenario_6_with_groq(condition6)
 
+                                        rca_final = llm_reasoning.explain_waterfall_chart_with_groq(result_df, analysis_1, analysis_2, analysis_3, analysis_4, analysis_5, analysis_6)
+
                                         # Download button
                                         output = BytesIO()
                                         with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                                            result_df.to_excel(writer, index=False, sheet_name='Sheet1')
+                                            # 1. Write Waterfall Chart sheet (unstyled for now)
+                                            result_df.to_excel(writer, sheet_name="Waterfall Chart", index=False)
+                                            # 2. Parameters
+                                            pd.DataFrame({
+                                                "Parameter": ["Start Week", "Material Number", "Plant", "Site", "Number of Weeks"],
+                                                "Value": [start_week_str, material_number, plant, site, num_weeks]
+                                            }).to_excel(writer, sheet_name="Chosen Parameters", index=False)
+
+                                            # PO Summary table
+                                            PO_df_filtered.to_excel(writer, sheet_name="PO Summary", index=False)
+
+                                            # RCA Condition Sheets
+                                            writer.book.create_sheet("RCA Scenario 1")
+                                            cond1_sheet = writer.sheets["RCA Scenario 1"]
+                                            cond1_sheet.append(["Scenario 1 - PO Coverage is Inadequate"])
+                                            for r in dataframe_to_rows(styled_df, index=False, header=True):
+                                                cond1_sheet.append(r)
+                                            cond1_sheet.append([])
+                                            cond1_sheet.append(["Explanation:"])
+                                            cond1_sheet.append([analysis_1])
+
+                                            cond2_sheet = writer.book.create_sheet("RCA Scenario 2")
+                                            cond2_sheet.append(["Scenario 2 - POs push out or pull in due to changes in demand forecasts"])
+                                            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmpfile:
+                                                pio.write_image(analysis_plot, tmpfile.name)
+                                                img = OpenpyxlImage(tmpfile.name)
+                                                cond2_sheet.add_image(img, "A3")
+
+                                            
+                                            cond2_sheet.append(["Forecast Accuracy Validation Table"])
+                                            for r in dataframe_to_rows(comparison_table, index=False, header=True):
+                                                cond2_sheet.append(r)
+
+                                            cond2_sheet.append(["PO Timing Analysis"])
+                                            for r in dataframe_to_rows(po_analysis_output, index=False, header=True):
+                                                cond2_sheet.append(r)
+
+                                            cond2_sheet.append([])
+                                            cond2_sheet.append(["Explanation:"])
+                                            cond2_sheet.append([analysis_2])
+
                                         output.seek(0)
-
-                                        # Apply coloring
-                                        colored_output = waterfall_analysis.apply_coloring_to_output(output, lead_time=lead_value)
-
+                                        # Apply coloring on 'Waterfall Chart' sheet
+                                        colored_output = waterfall_analysis.apply_coloring_to_output(output, lead_time_value=lead_value, sheet_name="Waterfall Chart")
                                         # Display download button
                                         st.download_button(
                                             label="📥 Download Excel File",
                                             data=colored_output,
-                                            file_name="waterfall_analysis.xlsx",
+                                            file_name="Waterfall_RCA_Report.xlsx",
                                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                                         )
-
-                                        llm_reasoning.explain_waterfall_chart_with_groq(result_df, analysis_1, analysis_2, analysis_3, analysis_4, analysis_5, analysis_6)
 
                                     else:
                                         st.warning("No data returned from the extraction. The material number does not exist in prior weeks of the shortage data.")

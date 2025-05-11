@@ -441,10 +441,10 @@ def explain_scenario_5_with_groq(df):
 
         2. Formatting:
         - Bullet format must be one per line, like:
-            • WW07 – Surge +44 units (+314%): sharp rebound after three flat rows.
+            • WW07 - Surge +44 units (+314%): sharp rebound after three flat rows.
 
         - For missing weeks (no data at all):
-            • WW09 – Missing: No data available this week.
+            • WW09 - Missing: No data available this week.
 
         3. Include **no more than 10 bullets total**, prioritize by **absolute unit change**, then **% change**.
 
@@ -512,7 +512,7 @@ def explain_scenario_6_with_groq(df):
 
     - Recommend any actions or follow-ups required to improve inventory accuracy and consumption tracking.
 
-    Do not include introductory phrases or summaries. Start directly with bullet points.
+    Do not include introductory phrases, preambles or summaries. Start directly with bullet points.
     """
 
     user_prompt = f"""
@@ -684,7 +684,7 @@ def explain_waterfall_chart_with_groq(df, analysis_1, analysis_2, analysis_3, an
                     ).choices[0].message.content
                     st.header("Root Cause Analysis (Final Summary)")
                     st.write(final_summary)
-                    break
+                    return final_summary
                 except Exception as e:
                     print(f"Final consolidation model {model} failed: {e}")
                     # st.warning(f"Final consolidation model {model} failed: {e}")

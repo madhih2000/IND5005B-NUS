@@ -458,11 +458,11 @@ def check_wos_against_lead_time(wos_list, lead_time):
 
     return messages, order_immediately
 
-def apply_coloring_to_output(excel_buffer, lead_time):
+def apply_coloring_to_output(excel_buffer, lead_time, sheet_name):
     # Rewind buffer and load workbook
     excel_buffer.seek(0)
     wb = load_workbook(excel_buffer)
-    ws = wb['Sheet1']
+    ws = wb[sheet_name]
 
     # Define colors
     red_fill = PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
