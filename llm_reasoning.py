@@ -588,9 +588,9 @@ def explain_waterfall_chart_with_groq(df, analysis_1, analysis_2, analysis_3, an
 
     - **Scenario 4: Longer Delivery Lead Time** — {analysis_4}
 
-    - **Scenario 5: Irregular Consumption Patterns** — {analysis_5}
+    - **Scenario 5: Irregular Demand w/o Buffer Patterns** — {analysis_5}
 
-    - **Scenario 6: Demand Spikes within Lead Time** — {analysis_6}
+    - **Scenario 6: Irregular Consumption Patterns** — {analysis_6}
 
     ### Output Format:
     - Bullet points with data-driven observations.
