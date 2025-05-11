@@ -523,7 +523,7 @@ elif tabs == "Waterfall Analysis":
                                             writer.book.create_sheet("RCA Scenario 1")
                                             cond1_sheet = writer.sheets["RCA Scenario 1"]
                                             cond1_sheet.append(["Scenario 1 - PO Coverage is Inadequate"])
-                                            for r in dataframe_to_rows(styled_df, index=False, header=True):
+                                            for r in dataframe_to_rows(scen_1_df_output, index=False, header=True):
                                                 cond1_sheet.append(r)
                                             cond1_sheet.append([])
                                             cond1_sheet.append(["Explanation:"])
