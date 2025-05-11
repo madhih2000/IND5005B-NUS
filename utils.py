@@ -233,7 +233,7 @@ def merged_order_gr_PO_analysis(df_order: pd.DataFrame, df_GR: pd.DataFrame) -> 
 
     return df_grouped[desired_order]
 
-ddef write_analysis_block(sheet, analysis_text: str, label: str = "Explanation:", merge_cols: int = 5, merge_rows: int = 5):
+def write_analysis_block(sheet, analysis_text: str, label: str = "Explanation:", merge_cols: int = 5, merge_rows: int = 5):
     """
     Appends a labeled and formatted analysis text block to an existing sheet.
 
