@@ -520,6 +520,12 @@ elif tabs == "Waterfall Analysis":
                                             PO_df_filtered.to_excel(writer, sheet_name="PO Summary", index=False)
 
                                             # RCA Condition Sheets
+                                            writer.book.create_sheet("Root Cause Analysis (Summary)")
+                                            rca_final_sheet = writer.sheets["RCA Summary"]
+                                            rca_final_sheet.append(["Root Cause Analysis (Summary)"])
+                                            write_analysis_block(rca_final_sheet, rca_final)
+
+                                            # RCA Condition Sheets
                                             writer.book.create_sheet("RCA Scenario 1")
                                             cond1_sheet = writer.sheets["RCA Scenario 1"]
                                             cond1_sheet.append(["Scenario 1 - PO Coverage is Inadequate"])
