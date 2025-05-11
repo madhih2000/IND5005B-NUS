@@ -232,7 +232,7 @@ def merged_order_gr_PO_analysis(df_order: pd.DataFrame, df_GR: pd.DataFrame) -> 
 
     return df_grouped[desired_order]
 
-def write_analysis_block(sheet: Worksheet, analysis_text: str, label: str = "Explanation:", merge_cols: int = 5):
+def write_analysis_block(sheet: Worksheet, analysis_text: str, label: str = "Explanation:", start_row=1, merge_cols=4, row_height=100):
     """
     Appends a labeled and formatted analysis text block to an existing sheet.
 
@@ -251,17 +251,18 @@ def write_analysis_block(sheet: Worksheet, analysis_text: str, label: str = "Exp
     merge_range = f"A{start_row}:{chr(64 + merge_cols)}{start_row}"  # E.g., A20:E20
     sheet.merge_cells(merge_range)
 
-    # Write text in merged cell
-    cell = sheet.cell(row=start_row, column=1)
+    # Write the section title
+    sheet.cell(row=start_row, column=1, value=title)
+
+    # Merge cells for the analysis block
+    merge_range = sheet.cell(row=start_row + 1, column=1).coordinate + ':' + \
+                  sheet.cell(row=start_row + 1, column=merge_cols).coordinate
+    sheet.merge_cells(merge_range)
+
+    # Write the analysis text with wrapping enabled
+    cell = sheet.cell(row=start_row + 1, column=1)
     cell.value = analysis_text
     cell.alignment = Alignment(wrap_text=True, vertical="top", horizontal="left")
-    cell.border = Border(
-        left=Side(border_style=None),
-        right=Side(border_style=None),
-        top=Side(border_style=None),
-        bottom=Side(border_style=None)
-    )
 
-    # Optionally set column widths to make it look good
-    for col in range(1, merge_cols + 1):
-        sheet.column_dimensions[chr(64 + col)].width = 25
+    # Adjust row height to ensure all text is visible
+    sheet.row_dimensions[start_row + 1].height = row_height
