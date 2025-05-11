@@ -425,17 +425,21 @@ def explain_scenario_5_with_groq(df):
     - Sudden % Spike: A boolean flag indicating if the demand rose by more than 30% week-over-week within the same Week.
     - Sudden % Drop: A boolean flag indicating if the demand fell by more than 30% week-over-week within the same Week.
 
-    Your task is to:
+    Your task:
 
-    * Assess whether there are any significant changes in the 'Demand w/o Buffer' column **within each week**, based on sequential entries in that same week.
-    * Identify and comment on rows where:
-        - Absolute change (WoW Change) exceeds ±10 units.
-        - Percent change (WoW % Change) exceeds ±30%.
-    * If multiple rows share the same Week label, evaluate intra-week fluctuations as indicators of instability or shifting forecast trends.
-    * If no anomalies are present in a week, confirm the stability and consistency of the demand for that week.
-    * Provide a concise, bullet-point style analysis suitable for both technical and business stakeholders.
+    1. Scan each Week for material swings.
+    • “Material” = (|WoW Change| > 10 **and** |WoW % Change| > 30 %)  
+        OR the largest absolute change that week (even if it misses one threshold).
 
-    Avoid introductory or summary statements; begin directly with observations.
+    2. Collapse multiple anomalies in the same Week into **one** finding; quote the biggest ∆ units and %.
+
+    3. Ignore minor moves and rounding artefacts (0-change rows).
+
+    4. Note missing-data weeks (all NaN) in a single bullet.
+
+    5. Deliver ≤ 10 bullet points total, each starting with the Week label, e.g.  
+    • **WW07 – Sudden ↑** +44 units (+314 %): forecast spike after three flat rows.
+
 
     Do not include introductory phrases or summaries. Start directly with bullet points.
     """
