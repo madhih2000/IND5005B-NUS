@@ -631,8 +631,8 @@ def scenario_6(waterfall_df, po_df):
             po_received = po_df[po_df['GR WW'] == week_num]['GR Quantity'].sum()
 
         # Calculate end inventories INCLUDING PO received
-        end_inventory_calc = current_inventory_calc + supply + po_received - demand
-        end_inventory_waterfall = start_inventory_waterfall + supply + po_received - demand
+        end_inventory_calc = current_inventory_calc + po_received - demand
+        end_inventory_waterfall = start_inventory_waterfall + supply - demand
 
         # Check for irregular consumption patterns
         irregular_pattern = None
