@@ -200,16 +200,18 @@ def extract_and_aggregate_weekly_data(folder_path, material_number, plant, site,
 def adding_consumption_data_from_agg(result_df, cons_agg):
     """
     Modifies result_df in-place by filling 'Consumption' rows using cons_agg.
-    Each value is added on the diagonal (Snapshot == WW column), and other week columns are set to None.
+    Adds a Consumption row for every week in result_df.
+    If a quantity exists in cons_agg for that week, use that quantity, otherwise use 0.
+    Each value is added on the diagonal (Snapshot == WW column), and
+    other week columns are set to None.
 
     Args:
         result_df (pd.DataFrame): The target DataFrame with Snapshot and week columns.
         cons_agg (pd.DataFrame): DataFrame with 'WW' and 'Quantity' columns.
-    
+
     Returns:
         pd.DataFrame: Updated DataFrame with Consumption values applied.
     """
-    # Copy to avoid modifying in-place
     df = result_df.copy()
 
     # Get week columns
@@ -221,13 +223,10 @@ def adding_consumption_data_from_agg(result_df, cons_agg):
     # Store new rows
     new_rows = []
 
-    for _, row in cons_agg.iterrows():
-        week = row['WW']
-        quantity = row['Quantity']
+    # Create a set of weeks from cons_agg for faster lookup
+    cons_agg_weeks = set(cons_agg['WW'])
 
-        if week not in week_cols:
-            continue  # Skip invalid weeks
-
+    for week in week_cols:
         # Create base row
         new_row = meta_row.copy()
         new_row['Measures'] = 'Consumption'
@@ -240,7 +239,11 @@ def adding_consumption_data_from_agg(result_df, cons_agg):
             new_row[col] = None
 
         # Set quantity in diagonal cell
-        new_row[week] = quantity
+        if week in cons_agg_weeks:
+            quantity = cons_agg[cons_agg['WW'] == week]['Quantity'].values[0]  # Get quantity from cons_agg
+            new_row[week] = quantity
+        else:
+            new_row[week] = 0  # Default quantity if week not in cons_agg
 
         new_rows.append(new_row)
 
@@ -248,11 +251,11 @@ def adding_consumption_data_from_agg(result_df, cons_agg):
     consumption_df = pd.DataFrame(new_rows)
     df = pd.concat([df, consumption_df], ignore_index=True)
 
-    # Optional: sort to keep consistent order
+    # Optional: sort to keep consistent order.  Important for comparisons.
     df.sort_values(by=['Snapshot', 'Measures'], inplace=True)
     df.reset_index(drop=True, inplace=True)
-
     return df
+
 
 
 def adding_consumption_data(df):
