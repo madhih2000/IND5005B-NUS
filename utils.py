@@ -2,8 +2,9 @@ import pandas as pd
 import numpy as np
 from numpy import ndarray
 import streamlit as st
+import re
 
-from openpyxl.styles import Alignment, Border, Side
+from openpyxl.styles import Alignment, Border, Side, Font
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
@@ -274,47 +275,62 @@ def merged_order_gr_PO_analysis(df_order: pd.DataFrame, df_GR: pd.DataFrame) -> 
 
     return df_grouped[desired_order]
 
-def write_analysis_block(sheet, analysis_text: str, label: str = "Explanation:", merge_cols: int = 8):
+def write_analysis_block(sheet, analysis_text: str, label: str = "Explanation:", merge_cols: int = 8, start_row: int = None):
     """
     Appends a labeled and formatted analysis text block to an existing sheet.
 
     Args:
         sheet: openpyxl Worksheet object
-        analysis_text: The text to be written (can contain line breaks)
+        analysis_text: The text to be written (can contain line breaks and **bold** markers)
         label: Label before the text (default is 'Explanation:')
         merge_cols: Number of columns to merge for the analysis cell (width of the box)
+        start_row: Optional specific row to start writing at
     """
-    # Add spacing and label
-    sheet.append([])
-    sheet.append([label])
+    from openpyxl.utils import get_column_letter
+    from openpyxl.styles import Alignment, Font
+    import re
 
-    # Estimate number of rows needed based on text length
-    avg_chars_per_line = 80  # tweak this if you're merging more/less columns
+    # Insert label
+    if start_row is None:
+        sheet.append([])
+        sheet.append([label])
+        start_row = sheet.max_row + 1
+    else:
+        sheet.cell(row=start_row, column=1, value=label)
+        start_row += 1
+
+    # Estimate rows needed
+    avg_chars_per_line = 80
     total_chars = len(analysis_text)
     text_lines = analysis_text.count("\n") + total_chars // avg_chars_per_line + 1
-    merge_rows = max(5, text_lines)  # At least 5 rows
+    merge_rows = max(5, text_lines)
 
-    # Determine starting row for the box
-    start_row = sheet.max_row + 1
     end_row = start_row + merge_rows - 1
     start_col = 1
     end_col = merge_cols
-
-    # Merge the grid to form the text box
-    top_left = f"{get_column_letter(start_col)}{start_row}"
-    bottom_right = f"{get_column_letter(end_col)}{end_row}"
-    merge_range = f"{top_left}:{bottom_right}"
+    merge_range = f"{get_column_letter(start_col)}{start_row}:{get_column_letter(end_col)}{end_row}"
     sheet.merge_cells(merge_range)
 
-    # Write the text in the top-left of the merged block
+    # Handle bold formatting inside the merged cell
     cell = sheet.cell(row=start_row, column=start_col)
-    cell.value = analysis_text
     cell.alignment = Alignment(wrap_text=True, vertical="top", horizontal="left")
 
-    # Set row heights to ensure text visibility
-    row_height = 20  # Standard row height, adjust if needed
+    if "**" in analysis_text:
+        from openpyxl.rich_text import CellRichText, TextBlock
+        parts = re.split(r"(\*\*[^*]+\*\*)", analysis_text)
+        rich_text = CellRichText()
+        for part in parts:
+            if part.startswith("**") and part.endswith("**"):
+                rich_text.append(TextBlock(part[2:-2], Font(bold=True)))
+            else:
+                rich_text.append(TextBlock(part))
+        cell.value = rich_text
+    else:
+        cell.value = analysis_text
+
+    # Set row heights
     for r in range(start_row, end_row + 1):
-        sheet.row_dimensions[r].height = row_height
+        sheet.row_dimensions[r].height = 20
 
 def sanitize_row(row):
     return [v.item() if isinstance(v, ndarray) and v.size == 1 else v for v in row]
