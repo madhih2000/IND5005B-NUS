@@ -1,13 +1,14 @@
-import zipfile
+from io import BytesIO
 import streamlit as st
+import streamlit_ext as ste
 from st_aggrid import AgGrid, GridOptionsBuilder
 import pandas as pd
 import numpy as np
 import os
-from io import BytesIO
 import tempfile
 import scipy.stats as stats
 from scipy.stats import norm, poisson, nbinom, gamma, weibull_min, lognorm, expon, beta, kstest, anderson
+import zipfile
 
 from openpyxl import load_workbook
 from openpyxl import load_workbook
@@ -225,7 +226,7 @@ elif tabs == "Forecast Demand":
             final_output.seek(0)
 
             # Download button
-            st.download_button(
+            ste.download_button(
                 label="Download Forecast Excel",
                 data=final_output,  
                 file_name=st.session_state.filename,
@@ -654,7 +655,7 @@ elif tabs == "Waterfall Analysis":
                                         # Apply coloring on 'Waterfall Chart' sheet
                                         colored_output = waterfall_analysis.apply_coloring_to_output(output, lead_time=lead_value, sheet_name="Waterfall Chart")
                                         # Display download button
-                                        st.download_button(
+                                        ste.download_button(
                                             label="📥 Download Excel File",
                                             data=colored_output,
                                             file_name="Waterfall_RCA_Report.xlsx",
