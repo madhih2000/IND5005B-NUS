@@ -209,28 +209,48 @@ def adding_consumption_data_from_agg(result_df, cons_agg):
     Returns:
         pd.DataFrame: Updated DataFrame with Consumption values applied.
     """
-    import pandas as pd
-
-    # Make a copy to avoid modifying the original dataframe
+    # Copy to avoid modifying in-place
     df = result_df.copy()
 
-    # Get week columns (e.g., WW04, WW05...)
+    # Get week columns
     week_cols = [col for col in df.columns if col.startswith("WW")]
 
-    # Convert cons_agg to a dict for quick lookup
-    cons_dict = dict(zip(cons_agg['WW'], cons_agg['Quantity']))
+    # Get example metadata row (first Supply or Demand row)
+    meta_row = df[df['Measures'].isin(['Supply', 'Alternate Demand'])].iloc[0]
 
-    # Process only rows where Measures == 'Consumption'
-    for idx, row in df[df["Measures"] == "Consumption"].iterrows():
-        snapshot = row["Snapshot"]
+    # Store new rows
+    new_rows = []
 
-        # Set all week columns to None first
+    for _, row in cons_agg.iterrows():
+        week = row['WW']
+        quantity = row['Quantity']
+
+        if week not in week_cols:
+            continue  # Skip invalid weeks
+
+        # Create base row
+        new_row = meta_row.copy()
+        new_row['Measures'] = 'Consumption'
+        new_row['Snapshot'] = week
+        new_row['InventoryOn-Hand'] = None
+        new_row['LeadTime(Week)'] = None
+
+        # Set all week columns to None
         for col in week_cols:
-            df.at[idx, col] = None
+            new_row[col] = None
 
-        # If snapshot exists as a key in cons_dict and is a valid column
-        if snapshot in cons_dict and snapshot in week_cols:
-            df.at[idx, snapshot] = cons_dict[snapshot]
+        # Set quantity in diagonal cell
+        new_row[week] = quantity
+
+        new_rows.append(new_row)
+
+    # Append all new consumption rows
+    consumption_df = pd.DataFrame(new_rows)
+    df = pd.concat([df, consumption_df], ignore_index=True)
+
+    # Optional: sort to keep consistent order
+    df.sort_values(by=['Snapshot', 'Measures'], inplace=True)
+    df.reset_index(drop=True, inplace=True)
 
     return df
 
