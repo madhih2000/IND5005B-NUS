@@ -233,7 +233,11 @@ def adding_consumption_data_from_agg(result_df, cons_agg):
         new_row['Measures'] = 'Consumption'
         new_row['Snapshot'] = week
         new_row['InventoryOn-Hand'] = None
-        new_row['LeadTime(Week)'] = None
+        
+        
+        # Get the LeadTime(Week) for the current snapshot
+        lead_time_row = df[df['Snapshot'] == week].iloc[0] # Get the first row for the snapshot
+        new_row['LeadTime(Week)'] = lead_time_row['LeadTime(Week)']
 
         # Set all week columns to None
         for col in week_cols:
