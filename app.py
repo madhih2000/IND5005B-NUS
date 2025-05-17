@@ -556,7 +556,7 @@ elif tabs == "Waterfall Analysis":
                                                 cond2_sheet.append([f"[Error inserting image: {e}]"])
 
                                             # Start writing from row 30
-                                            start_row = 30
+                                            start_row = 35
                                             current_row = start_row
 
                                             # Write "Forecast Accuracy Validation Table" heading
@@ -622,7 +622,7 @@ elif tabs == "Waterfall Analysis":
                                             except Exception as e:
                                                 cond6_sheet.append([f"[Error inserting image: {e}]"])
                                             # Start writing from row 30
-                                            start_row = 30
+                                            start_row = 35
                                             current_row = start_row
 
                                             # Write comparison_df
