@@ -542,27 +542,18 @@ elif tabs == "Waterfall Analysis":
 
                                             cond2_sheet = writer.book.create_sheet("RCA Scenario 2")
                                             cond2_sheet.append(["Scenario 2 - POs push out or pull in due to changes in demand forecasts"])
-                                            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmpfile:
-                                                try:
-                                                    # First try: save Plotly figure to bytes
-                                                    try:
-                                                        img_bytes = analysis_plot.to_image(format="png")
-                                                        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
-                                                            tmpfile.write(img_bytes)
-                                                            tmpfile.flush()
-                                                            img = XLImage(tmpfile.name)
-                                                            cond2_sheet.add_image(img, "A3")
-                                                    except Exception as e1:
-                                                        # Second try: save to file using write_image
-                                                        try:
-                                                            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
-                                                                analysis_plot.write_image(tmpfile.name)
-                                                                img = XLImage(tmpfile.name)
-                                                                cond2_sheet.add_image(img, "A3")
-                                                        except Exception as e2:
-                                                            cond2_sheet.append(["[Error inserting image via both methods: {}, {}]".format(e1, e2)])
-                                                except Exception as e:
-                                                    cond2_sheet.append(["[Unexpected error inserting image: {}]".format(e)])
+                                            try:
+                                                # Convert plotly figure to PNG bytes in memory
+                                                img_bytes = analysis_plot.to_image(format="png", width=1000, height=600)
+                                                img_stream = BytesIO(img_bytes)
+
+                                                # Create openpyxl image from bytes stream
+                                                img = XLImage(img_stream)
+                                                img.anchor = "A3"  # Position image starting at cell A3
+                                                cond2_sheet.add_image(img)
+
+                                            except Exception as e:
+                                                cond2_sheet.append([f"[Error inserting image: {e}]"])
 
                                             # Start writing from row 30
                                             start_row = 30
@@ -618,28 +609,18 @@ elif tabs == "Waterfall Analysis":
 
                                             cond6_sheet = writer.book.create_sheet("RCA Scenario 6")
                                             cond6_sheet.append(["Scenario 6 - Irregular Consumption Patterns"])
-                                            # Insert Plotly figure right after title
-                                            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmpfile:
-                                                try:
-                                                    # First attempt: save Plotly figure to bytes and write to temp file
-                                                    try:
-                                                        img_bytes = fig.to_image(format="png")
-                                                        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
-                                                            tmpfile.write(img_bytes)
-                                                            tmpfile.flush()
-                                                            img = XLImage(tmpfile.name)
-                                                            cond6_sheet.add_image(img, "A3")
-                                                    except Exception as e1:
-                                                        # Fallback: use write_image directly to temp file
-                                                        try:
-                                                            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmpfile:
-                                                                fig.write_image(tmpfile.name)
-                                                                img = XLImage(tmpfile.name)
-                                                                cond6_sheet.add_image(img, "A3")
-                                                        except Exception as e2:
-                                                            cond6_sheet.append(["[Error inserting image via both methods: {}, {}]".format(e1, e2)])
-                                                except Exception as e:
-                                                    cond6_sheet.append(["[Unexpected error inserting image: {}]".format(e)])
+                                           try:
+                                                # Convert plotly figure to PNG bytes in memory
+                                                img_bytes = fig.to_image(format="png", width=1000, height=600)
+                                                img_stream = BytesIO(img_bytes)
+
+                                                # Create openpyxl image from bytes stream
+                                                img = XLImage(img_stream)
+                                                img.anchor = "A3"  # Position image starting at cell A3
+                                                cond6_sheet.add_image(img)
+
+                                            except Exception as e:
+                                                cond6_sheet.append([f"[Error inserting image: {e}]"])
                                             # Start writing from row 30
                                             start_row = 30
                                             current_row = start_row
