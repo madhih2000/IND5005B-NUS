@@ -214,8 +214,9 @@ def adding_consumption_data_from_agg(result_df, cons_agg):
     """
     df = result_df.copy()
 
-    # Get week columns
-    week_cols = [col for col in df.columns if col.startswith("WW")]
+    # Get week columns from the unique values of the 'Snapshot' column.
+    week_cols = df['Snapshot'].unique().tolist()
+    week_cols = [col for col in week_cols if str(col).startswith("WW")] # added str()
 
     # Get example metadata row (first Supply or Demand row)
     meta_row = df[df['Measures'].isin(['Supply', 'Alternate Demand'])].iloc[0]
