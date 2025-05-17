@@ -767,7 +767,7 @@ def scenario_6_v2(waterfall_df, po_df):
             next_snapshot = snapshots[i + 1]
             next_inv_val = supply_rows[supply_rows['Snapshot'] == next_snapshot]['InventoryOn-Hand']
             next_start_inventory = int(next_inv_val.values[0]) if not next_inv_val.empty else 0
-            consumption_calc = next_start_inventory + supply - start_inventory_waterfall
+            consumption_calc = next_start_inventory - (start_inventory_waterfall + supply)
         else:
             consumption_calc = 0  # No next week to compare
 
