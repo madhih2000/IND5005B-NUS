@@ -610,17 +610,17 @@ elif tabs == "Waterfall Analysis":
                                             cond6_sheet = writer.book.create_sheet("RCA Scenario 6")
                                             cond6_sheet.append(["Scenario 6 - Irregular Consumption Patterns"])
                                             try:
-                                                    # Convert plotly figure to PNG bytes in memory
-                                                    img_bytes = fig.to_image(format="png", width=1000, height=600)
-                                                    img_stream = BytesIO(img_bytes)
+                                                # Convert plotly figure to PNG bytes in memory
+                                                img_bytes = fig.to_image(format="png", width=1000, height=600)
+                                                img_stream = BytesIO(img_bytes)
 
-                                                    # Create openpyxl image from bytes stream
-                                                    img = XLImage(img_stream)
-                                                    img.anchor = "A3"  # Position image starting at cell A3
-                                                    cond6_sheet.add_image(img)
+                                                # Create openpyxl image from bytes stream
+                                                img = XLImage(img_stream)
+                                                img.anchor = "A3"  # Position image starting at cell A3
+                                                cond6_sheet.add_image(img)
 
-                                                except Exception as e:
-                                                    cond6_sheet.append([f"[Error inserting image: {e}]"])
+                                            except Exception as e:
+                                                cond6_sheet.append([f"[Error inserting image: {e}]"])
                                             # Start writing from row 30
                                             start_row = 30
                                             current_row = start_row
