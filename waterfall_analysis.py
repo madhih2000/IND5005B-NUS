@@ -622,103 +622,7 @@ def analyze_week_to_week_demand_changes(result_df, abs_threshold=10, pct_thresho
 
     return final_output_df
 
-
 def scenario_6(waterfall_df, po_df):
-    # Filter relevant rows
-    supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
-    demand_rows = waterfall_df[waterfall_df['Measures'] == 'Demand w/o Buffer']
-    consumption_rows = waterfall_df[waterfall_df['Measures'] == 'Consumption']
-
-    # Get initial snapshot and inventory from Supply rows
-    initial_snapshot = supply_rows['Snapshot'].iloc[0]
-    initial_inventory_calc = int(supply_rows[supply_rows['Snapshot'] == initial_snapshot]['InventoryOn-Hand'].values[0])
-
-    # All snapshots to iterate through
-    snapshots = waterfall_df['Snapshot'].unique()
-
-    results = []
-    current_inventory_calc = initial_inventory_calc
-
-    for snapshot in snapshots:
-        week_col = snapshot
-        week_num = int(snapshot.replace("WW", ""))
-
-        # Get supply and demand values
-        demand_val = demand_rows[demand_rows['Snapshot'] == snapshot][week_col]
-        supply_val = supply_rows[supply_rows['Snapshot'] == snapshot][week_col]
-
-        demand = int(demand_val.values[0]) if not demand_val.empty else 0
-        supply = int(supply_val.values[0]) if not supply_val.empty else 0
-
-        # Get consumption value
-        consumption_val = consumption_rows[consumption_rows['Snapshot'] == snapshot][week_col]
-        consumption = int(consumption_val.values[0]) if not consumption_val.empty else 0
-
-        # Start inventory from Waterfall column
-        inv_val = supply_rows[supply_rows['Snapshot'] == snapshot]['InventoryOn-Hand']
-        start_inventory_waterfall = int(inv_val.values[0]) if not inv_val.empty else 0
-
-        # GR quantity from PO data
-        po_received = 0
-        if not po_df.empty:
-            po_received = po_df[po_df['GR WW'] == week_num]['GR Quantity'].sum()
-
-        # Calculate end inventories INCLUDING PO received
-        end_inventory_calc = current_inventory_calc + po_received - consumption
-        end_inventory_waterfall = start_inventory_waterfall + supply - consumption
-
-        # Check for irregular consumption patterns
-        irregular_pattern = None
-        if consumption < 0:
-            if results:
-                previous_week = results[-1]
-                prev_end_inv = previous_week['End Inventory (Waterfall)']
-                prev_demand = previous_week['Demand (Waterfall)']
-                prev_consumption = previous_week['Consumption (Waterfall)']
-                prev_supply = previous_week['Supply (Waterfall)']
-                prev_snapshot = previous_week['Snapshot Week']
-
-                irregular_pattern = (
-                    f"In week {snapshot}, the reported consumption was negative, which suggests a possible inventory correction or data anomaly. "
-                    f"Looking back, in week {prev_snapshot}, the starting inventory was {previous_week['Start Inventory (Waterfall)']}, "
-                    f"supply was {prev_supply}, and demand was {prev_demand}, resulting in an expected end inventory of {prev_end_inv}. "
-                    f"However, the current week's starting inventory ({start_inventory_waterfall}) is higher than the expected ending inventory from last week, "
-                    f"which implies inventory was added back — potentially due to returns, cancellations, or adjustments outside the normal flow."
-                )
-            else:
-                irregular_pattern = (
-                    f"In week {snapshot}, negative consumption was reported. Since this is the first week in the timeline, "
-                    f"it may indicate an opening adjustment or return to inventory that wasn't accounted for in demand."
-                )
-        elif consumption > demand:
-            irregular_pattern = "More consumption than demand"
-        elif consumption == 0 and demand != 0:
-            irregular_pattern = "Consumption is zero but demand is not"
-        elif consumption != 0 and demand == 0:
-            irregular_pattern = "Demand is zero but consumption is not"
-        else:
-            pass
-
-        # Record results
-        results.append({
-            'Snapshot Week': snapshot,
-            'Start Inventory (Waterfall)': start_inventory_waterfall,
-            'Start Inventory (Calc)': current_inventory_calc,
-            'Demand (Waterfall)': demand,
-            'Supply (Waterfall)': supply,
-            'Consumption (Waterfall)': consumption,
-            'PO GR Quantity': po_received,
-            'End Inventory (Waterfall)': end_inventory_waterfall,
-            'End Inventory (Calc)': end_inventory_calc,
-            'Irregular Pattern': irregular_pattern
-        })
-
-        # Update for next loop
-        current_inventory_calc = end_inventory_calc
-
-    return pd.DataFrame(results)
-
-def scenario_6_v2(waterfall_df, po_df):
     # Filter relevant rows
     supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
     demand_rows = waterfall_df[waterfall_df['Measures'] == 'Demand w/o Buffer']
@@ -805,11 +709,22 @@ def scenario_6_v2(waterfall_df, po_df):
 
         # Flag and explain if calculated and reported consumption differ significantly
         if abs(consumption_diff) > 5 and i < len(snapshots) - 1:
+            if consumption_diff > 0:
+                reasoning = (
+                    "This suggests that more inventory was consumed (based on stock movement) than what was reported. "
+                    "Possible causes include unrecorded consumption events, scrap/write-offs, or timing mismatches where stock depletion occurred but wasn't captured in the consumption metric."
+                )
+            else:
+                reasoning = (
+                    "This suggests that reported consumption was higher than what is reflected in actual inventory movement. "
+                    "Possible causes include unposted supply receipts, early booking of consumption, or inventory adjustments that didn’t flow through standard consumption channels."
+                )
+
             irregular_pattern.append(
                 f"In week {snapshot}, the calculated consumption is {consumption_calc}, while the reported consumption is {consumption_waterfall} "
                 f"(difference of {consumption_diff}). The calculation used the formula: "
                 f"Consumption (Calc) = Next Start Inventory ({next_start_inventory}) − (Current Start Inventory ({start_inventory_waterfall}) + Supply ({supply})). "
-                f"This difference could suggest timing issues (e.g., late GR posting), manual inventory changes, or inconsistent reporting between weeks."
+                f"{reasoning}"
             )
 
         # Combine messages

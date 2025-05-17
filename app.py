@@ -502,8 +502,6 @@ elif tabs == "Waterfall Analysis":
                                         st.subheader('Scenario 6 - Irregular Consumption Patterns')
                                         condition6 = waterfall_analysis.scenario_6(result_df, PO_df_filtered)
                                         st.dataframe(condition6)
-                                        condition6_v2 = waterfall_analysis.scenario_6_v2(result_df, PO_df_filtered)
-                                        st.dataframe(condition6_v2)
                                         analysis_6 = llm_reasoning.explain_scenario_6_with_groq(condition6)
 
                                         rca_final = llm_reasoning.explain_waterfall_chart_with_groq(result_df, analysis_1, analysis_2, analysis_3, analysis_4, analysis_5, analysis_6)
