@@ -215,8 +215,6 @@ def extract_and_aggregate_weekly_data(folder_path, material_number, plant, site,
 
     result_df = adding_consumption_data_from_agg(result_df, cons_agg)
 
-    # result_df = adding_consumption_data(result_df)
-
     return result_df, lead_value
 
 def adding_consumption_data_from_agg(result_df, cons_agg):
@@ -666,8 +664,8 @@ def scenario_6(waterfall_df, po_df):
             po_received = po_df[po_df['GR WW'] == week_num]['GR Quantity'].sum()
 
         # Calculate end inventories INCLUDING PO received
-        end_inventory_calc = current_inventory_calc + po_received - demand
-        end_inventory_waterfall = start_inventory_waterfall + supply - demand
+        end_inventory_calc = current_inventory_calc + po_received - consumption
+        end_inventory_waterfall = start_inventory_waterfall + supply - consumption
 
         # Check for irregular consumption patterns
         irregular_pattern = None
@@ -716,6 +714,108 @@ def scenario_6(waterfall_df, po_df):
         })
 
         # Update for next loop
+        current_inventory_calc = end_inventory_calc
+
+    return pd.DataFrame(results)
+
+def scenario_6_v2(waterfall_df, po_df):
+    # Filter relevant rows
+    supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
+    demand_rows = waterfall_df[waterfall_df['Measures'] == 'Demand w/o Buffer']
+    consumption_rows = waterfall_df[waterfall_df['Measures'] == 'Consumption']
+
+    # Get initial snapshot and inventory from Supply rows
+    initial_snapshot = supply_rows['Snapshot'].iloc[0]
+    initial_inventory_calc = int(supply_rows[supply_rows['Snapshot'] == initial_snapshot]['InventoryOn-Hand'].values[0])
+
+    # All snapshots to iterate through
+    snapshots = list(waterfall_df['Snapshot'].unique())
+
+    results = []
+    current_inventory_calc = initial_inventory_calc
+
+    for i, snapshot in enumerate(snapshots):
+        week_col = snapshot
+        week_num = int(snapshot.replace("WW", ""))
+
+        # Get supply and demand values
+        demand_val = demand_rows[demand_rows['Snapshot'] == snapshot][week_col]
+        supply_val = supply_rows[supply_rows['Snapshot'] == snapshot][week_col]
+
+        demand = int(demand_val.values[0]) if not demand_val.empty else 0
+        supply = int(supply_val.values[0]) if not supply_val.empty else 0
+
+        # Get consumption value
+        consumption_val = consumption_rows[consumption_rows['Snapshot'] == snapshot][week_col]
+        consumption_waterfall = int(consumption_val.values[0]) if not consumption_val.empty else 0
+
+        # Start inventory from Waterfall column
+        inv_val = supply_rows[supply_rows['Snapshot'] == snapshot]['InventoryOn-Hand']
+        start_inventory_waterfall = int(inv_val.values[0]) if not inv_val.empty else 0
+
+        # GR quantity from PO data
+        po_received = 0
+        if not po_df.empty:
+            po_received = po_df[po_df['GR WW'] == week_num]['GR Quantity'].sum()
+
+        # Calculate end inventories INCLUDING PO received
+        end_inventory_calc = current_inventory_calc + po_received - consumption_waterfall
+        end_inventory_waterfall = start_inventory_waterfall + supply - consumption_waterfall
+
+        # Calculate consumption (Calc) using NEXT week's inventory
+        if i < len(snapshots) - 1:
+            next_snapshot = snapshots[i + 1]
+            next_inv_val = supply_rows[supply_rows['Snapshot'] == next_snapshot]['InventoryOn-Hand']
+            next_start_inventory = int(next_inv_val.values[0]) if not next_inv_val.empty else 0
+            consumption_calc = next_start_inventory + supply - start_inventory_waterfall
+        else:
+            consumption_calc = 0  # No next week to compare
+
+        # Check for irregular patterns
+        irregular_pattern = None
+        if consumption_waterfall < 0:
+            if results:
+                previous_week = results[-1]
+                prev_end_inv = previous_week['End Inventory (Waterfall)']
+                prev_demand = previous_week['Demand (Waterfall)']
+                prev_consumption = previous_week['Consumption (Waterfall)']
+                prev_supply = previous_week['Supply (Waterfall)']
+                prev_snapshot = previous_week['Snapshot Week']
+
+                irregular_pattern = (
+                    f"In week {snapshot}, the reported consumption was negative, which suggests a possible inventory correction or data anomaly. "
+                    f"Looking back, in week {prev_snapshot}, the starting inventory was {previous_week['Start Inventory (Waterfall)']}, "
+                    f"supply was {prev_supply}, and demand was {prev_demand}, resulting in an expected end inventory of {prev_end_inv}. "
+                    f"However, the current week's starting inventory ({start_inventory_waterfall}) is higher than the expected ending inventory from last week, "
+                    f"which implies inventory was added back — potentially due to returns, cancellations, or adjustments outside the normal flow."
+                )
+            else:
+                irregular_pattern = (
+                    f"In week {snapshot}, negative consumption was reported. Since this is the first week in the timeline, "
+                    f"it may indicate an opening adjustment or return to inventory that wasn't accounted for in demand."
+                )
+        elif consumption_waterfall > demand:
+            irregular_pattern = "More consumption than demand"
+        elif consumption_waterfall == 0 and demand != 0:
+            irregular_pattern = "Consumption is zero but demand is not"
+        elif consumption_waterfall != 0 and demand == 0:
+            irregular_pattern = "Demand is zero but consumption is not"
+
+        # Append results
+        results.append({
+            'Snapshot Week': snapshot,
+            'Start Inventory (Waterfall)': start_inventory_waterfall,
+            'Start Inventory (Calc)': current_inventory_calc,
+            'Demand (Waterfall)': demand,
+            'Supply (Waterfall)': supply,
+            'Consumption (Waterfall)': consumption_waterfall,
+            'Consumption (Calc)': consumption_calc,
+            'PO GR Quantity': po_received,
+            'End Inventory (Waterfall)': end_inventory_waterfall,
+            'End Inventory (Calc)': end_inventory_calc,
+            'Irregular Pattern': irregular_pattern
+        })
+
         current_inventory_calc = end_inventory_calc
 
     return pd.DataFrame(results)
