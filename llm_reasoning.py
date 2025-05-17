@@ -578,7 +578,12 @@ def explain_waterfall_chart_with_groq(df, analysis_1, analysis_2, analysis_3, an
 
     Based on the bullet-point insights, provide a **brief paragraph** explaining why the selected root cause scenario best fits the data trends. Focus on timing, causality, and consistency of patterns.
 
-    Choose from the following **six predefined scenarios**, using the exact phrasing (including the explanation in braces):
+    You MUST select one root cause from the six predefined options below.  
+    You MUST use the exact scenario number, name, and explanation.  
+    Do NOT paraphrase or modify any part of the scenario explanation.  
+    If the explanation does not exactly match one of these six, your output is invalid.
+
+    Available options (do not modify):
 
     - **Scenario 1: PO Coverage is Inadequate** — {analysis_1}
 
@@ -597,7 +602,8 @@ def explain_waterfall_chart_with_groq(df, analysis_1, analysis_2, analysis_3, an
     - One paragraph justifying the chosen root cause, grounded in trends and data.
     - A single final line in this format:
 
-   **Root Cause:** Scenario X: [scenario name] — [scenario explanation]
+    Your final output MUST end with a line in this format:  
+    **Root Cause:** Scenario X: [scenario name] — [scenario explanation]
     """
 
     def process_chunk(chunk_text):
