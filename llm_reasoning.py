@@ -614,9 +614,9 @@ def explain_waterfall_chart_with_groq(df, analysis_1, analysis_2, analysis_3, an
         return "All model attempts failed."
 
     try:
-        st.header("Root Cause Analysis")
         explanation = process_chunk(df_string)
         if "All model attempts failed." not in explanation:
+            st.header("Root Cause Analysis (Final Summary)")
             st.write(explanation)
             return explanation
         else:
