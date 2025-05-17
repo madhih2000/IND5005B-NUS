@@ -212,7 +212,7 @@ def adding_consumption_data_from_agg(result_df, cons_agg):
     Returns:
         pd.DataFrame: Updated DataFrame with Consumption values applied.
     """
-        df = result_df.copy()
+    df = result_df.copy()
 
     # Get week columns
     week_cols = [col for col in df.columns if col.startswith("WW")]
