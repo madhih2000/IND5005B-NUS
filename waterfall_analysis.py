@@ -771,7 +771,7 @@ def scenario_6_v2(waterfall_df, po_df):
         else:
             consumption_calc = 0  # No next week to compare
 
-        # Check for irregular patterns
+                # Check for irregular patterns
         consumption_diff = consumption_calc - consumption_waterfall
         irregular_pattern = []
 
@@ -803,14 +803,15 @@ def scenario_6_v2(waterfall_df, po_df):
         elif consumption_waterfall != 0 and demand == 0:
             irregular_pattern.append("Demand is zero but consumption is not")
 
-        # Flag if calculated and reported consumption differ significantly
-        if abs(consumption_diff) > 5:  # You can adjust this threshold
+        # Flag and explain if calculated and reported consumption differ significantly
+        if abs(consumption_diff) > 5 and i < len(snapshots) - 1:
             irregular_pattern.append(
-                f"Consumption (Calc) differs from Consumption (Waterfall) by {consumption_diff}. "
-                f"This could indicate timing mismatches (e.g., GR posting delays), data inconsistencies, or manual inventory adjustments."
+                f"Consumption (Calc) = {consumption_calc} vs Consumption (Waterfall) = {consumption_waterfall} (difference of {consumption_diff}). "
+                f"This was calculated as: Consumption = Next Start Inventory ({next_start_inventory}) + Supply ({supply}) - Start Inventory ({start_inventory_waterfall}). "
+                f"A significant difference might indicate timing mismatches (e.g., GR posting delays), manual adjustments, or inconsistent inventory updates."
             )
 
-        # Combine all pattern messages into a single string (or None)
+        # Combine messages
         irregular_pattern_str = " | ".join(irregular_pattern) if irregular_pattern else None
 
         results.append({
@@ -827,7 +828,6 @@ def scenario_6_v2(waterfall_df, po_df):
             'Irregular Pattern': irregular_pattern_str
         })
 
-        
         current_inventory_calc = end_inventory_calc
 
     return pd.DataFrame(results)
