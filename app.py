@@ -417,33 +417,11 @@ elif tabs == "Waterfall Analysis":
 
                             num_weeks = st.number_input("Number of Weeks", min_value=1, max_value=26, value=12)
 
-                            # Filter the Consumption DataFrame based on the selected values
-                            cons_df_filtered = cons_df[
-                                (cons_df["Material Number"] == material_number) &
-                                (cons_df["Plant"] == plant) &
-                                (cons_df["Site"] == site)
-                            ]
-
-                            # Aggregate consumption data by WW
-                            cons_agg = (
-                                cons_df_filtered[
-                                    (cons_df["Material Number"] == material_number) &
-                                    (cons_df["Plant"] == plant) &
-                                    (cons_df["Site"] == site)
-                                ]
-                                .groupby("WW")["Quantity"]
-                                .sum()
-                                .reset_index()
-                            )
-
-                            # Normalize column names for consistency
-                            cons_agg["WW"] = cons_agg["WW"].str.upper()
-
                             # Submit button to extract & display data
                             if st.button("Run Waterfall Analysis"):
                                 with st.spinner("Running Analysis..."):
                                     result_df, lead_value = waterfall_analysis.extract_and_aggregate_weekly_data(
-                                        folder_path_zip, material_number, plant, site, start_week, cons_agg, int(num_weeks)
+                                        folder_path_zip, material_number, plant, site, start_week, cons_df, int(num_weeks)
                                     )
 
                                     if result_df is not None and not result_df.empty:

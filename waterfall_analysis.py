@@ -66,7 +66,7 @@ def save_to_excel(df, output_file):
     else:
         print("No data to save.")
 
-def extract_and_aggregate_weekly_data(folder_path, material_number, plant, site, start_week,cons_agg, num_weeks=12):
+def extract_and_aggregate_weekly_data(folder_path, material_number, plant, site, start_week,cons_df, num_weeks=12):
     """
     Extracts and aggregates weekly data for a specific material number, plant, and site,
     starting from a specified week and including the next 'num_weeks' weeks.
@@ -94,6 +94,28 @@ def extract_and_aggregate_weekly_data(folder_path, material_number, plant, site,
     if not all_files:
         print(f"Error: No XLSX files found in '{folder_path}'.")
         return None
+
+    # Filter the Consumption DataFrame based on the selected values
+    cons_df_filtered = cons_df[
+        (cons_df["Material Number"] == material_number) &
+        (cons_df["Plant"] == plant) &
+        (cons_df["Site"] == site)
+    ]
+
+    # Aggregate consumption data by WW
+    cons_agg = (
+        cons_df_filtered[
+            (cons_df["Material Number"] == material_number) &
+            (cons_df["Plant"] == plant) &
+            (cons_df["Site"] == site)
+        ]
+        .groupby("WW")["Quantity"]
+        .sum()
+        .reset_index()
+    )
+
+    # Normalize column names for consistency
+    cons_agg["WW"] = cons_agg["WW"].str.upper()
 
     week_numbers = list(range(max(1, start_week - num_weeks), start_week + 1))
     #print(week_numbers)
@@ -260,60 +282,6 @@ def adding_consumption_data_from_agg(result_df, cons_agg):
     df.sort_values(by=['Snapshot', 'Measures'], inplace=True)
     df.reset_index(drop=True, inplace=True)
     return df
-
-
-def adding_consumption_data(df):
-    # Step 1: Filter for Supply rows and sort by Snapshot
-    supply_df = df[df['Measures'] == 'Supply'].copy()
-    supply_df = supply_df.sort_values('Snapshot').reset_index(drop=True)
-
-    # Step 2: Get list of week columns (e.g., WW12, WW13...)
-    week_cols = [col for col in df.columns if col.startswith('WW')]
-
-    # Step 3: Prepare output rows
-    output_rows = []
-
-    for i in range(len(supply_df) - 1):  # Skip last since no next week
-        curr_row = supply_df.iloc[i]
-        next_row = supply_df.iloc[i + 1]
-
-        snapshot = curr_row['Snapshot']
-        if snapshot not in week_cols:
-            continue  # skip if the Snapshot name isn't a valid week column
-
-        ioh_curr = curr_row['InventoryOn-Hand']
-        supply_val = curr_row.get(snapshot, 0)
-        ioh_next = next_row['InventoryOn-Hand']
-
-        # Calculate consumption
-        consumption = (ioh_curr + supply_val) - ioh_next
-
-        # Create a new row with same meta data, but Measures = Consumption
-        new_row = curr_row.copy()
-        new_row['Measures'] = 'Consumption'
-        new_row['InventoryOn-Hand'] = None
-
-        # Populate week columns
-        set_value = False
-        for col in week_cols:
-            if col == snapshot:
-                new_row[col] = consumption
-                set_value = True
-            elif not set_value:
-                new_row[col] = None
-            else:
-                new_row[col] = 0
-
-        output_rows.append(new_row)
-
-    # Step 4: Append to original df and sort
-    consumption_df = pd.DataFrame(output_rows)
-    combined_df = pd.concat([df, consumption_df], ignore_index=True)
-    combined_df.sort_values(by=['Snapshot', 'Measures'], inplace=True)
-    combined_df.reset_index(drop=True, inplace=True)
-
-    return combined_df
-
 
 
 def plot_stock_prediction_plotly(df, start_week, lead_time, weeks_range):
