@@ -500,7 +500,7 @@ elif tabs == "Waterfall Analysis":
 
                                         #RCA Condition 6
                                         st.subheader('Scenario 6 - Irregular Consumption Patterns')
-                                        consumption_vals, fig, comparison_df = waterfall_analysis.plot_consumption_vs_demand_plotly(waterfall_df)
+                                        consumption_vals, fig, comparison_df = waterfall_analysis.plot_consumption_vs_demand_plotly(result_df)
                                         st.plotly_chart(fig)
                                         st.write("Analysis of Consumption Against Planned Demand")
                                         st.dataframe(comparison_df)
