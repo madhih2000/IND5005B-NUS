@@ -363,6 +363,80 @@ def plot_stock_prediction_plotly(df, start_week, lead_time, weeks_range):
 
     return actual_values, fig, comparison
 
+def plot_consumption_vs_demand_plotly(waterfall_df):
+    """Plots and compares Consumption vs Demand w/o Buffer from a Waterfall DataFrame."""
+
+    # Extract required rows
+    demand_df = waterfall_df[waterfall_df['Measures'] == 'Demand w/o Buffer']
+    consumption_df = waterfall_df[waterfall_df['Measures'] == 'Consumption']
+
+    # Weeks to evaluate
+    snapshots = list(waterfall_df['Snapshot'].unique())
+    common_weeks = [w for w in snapshots if w in demand_df.columns and w in consumption_df.columns]
+
+    actual_demand = []
+    actual_consumption = []
+    plot_weeks = []
+
+    for week in common_weeks:
+        demand_row = demand_df[demand_df['Snapshot'] == week]
+        cons_row = consumption_df[consumption_df['Snapshot'] == week]
+
+        if demand_row.empty or cons_row.empty:
+            continue
+
+        demand = demand_row[week].iloc[0]
+        consumption = cons_row[week].iloc[0]
+
+        # Handle missing or NaN values
+        demand = 0 if pd.isna(demand) else demand
+        consumption = 0 if pd.isna(consumption) else consumption
+
+        actual_demand.append(demand)
+        actual_consumption.append(consumption)
+        plot_weeks.append(week)
+
+    # Build DataFrame for analysis
+    comparison = pd.DataFrame({
+        'Week': plot_weeks,
+        'Demand': actual_demand,
+        'Consumption': actual_consumption,
+    })
+
+    # Deviation logic
+    def analyze_discrepancy(row):
+        if row['Demand'] == 0 and row['Consumption'] == 0:
+            return False, ""
+        elif row['Demand'] == 0 and row['Consumption'] != 0:
+            return True, "Demand is 0 but consumption occurred"
+        elif row['Demand'] != 0 and row['Consumption'] == 0:
+            return True, "Demand expected but no consumption"
+        ratio = row['Consumption'] / row['Demand']
+        if ratio >= 1.5:
+            return True, f"Over-consumption by {round((ratio - 1) * 100, 1)}%"
+        elif ratio <= (1 / 1.5):
+            return True, f"Under-consumption by {round((1 - ratio) * 100, 1)}%"
+        else:
+            return False, ""
+
+    flags = comparison.apply(analyze_discrepancy, axis=1, result_type='expand')
+    comparison['Deviation_Flag'] = flags[0]
+    comparison['Deviation_Detail'] = flags[1]
+
+    # Plotting
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=plot_weeks, y=actual_demand, mode='lines+markers', name='Demand'))
+    fig.add_trace(go.Scatter(x=plot_weeks, y=actual_consumption, mode='lines+markers', name='Consumption'))
+
+    fig.update_layout(
+        title='Consumption vs Demand (Waterfall)',
+        xaxis_title='Week',
+        yaxis_title='Quantity',
+        legend=dict(x=0.01, y=0.99)
+    )
+
+    return actual_consumption, fig, comparison
+
 def identify_specific_po_timing_issues(demand_df, po_df):
     """
     Scenario 2: Match POs to actual weekly demand using Inventory-On-Hand

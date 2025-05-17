@@ -500,6 +500,11 @@ elif tabs == "Waterfall Analysis":
 
                                         #RCA Condition 6
                                         st.subheader('Scenario 6 - Irregular Consumption Patterns')
+                                        consumption_vals, fig, comparison_df = waterfall_analysis.plot_consumption_vs_demand_plotly(waterfall_df)
+                                        st.plotly_chart(fig)
+                                        st.write("Analysis of Consumption Against Planned Demand")
+                                        st.dataframe(comparison_df)
+                                        st.write("End-to-End Inventory and Consumption Tracking")
                                         condition6 = waterfall_analysis.scenario_6(result_df, PO_df_filtered)
                                         st.dataframe(condition6)
                                         analysis_6 = llm_reasoning.explain_scenario_6_with_groq(condition6)
