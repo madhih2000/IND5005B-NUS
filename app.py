@@ -339,7 +339,7 @@ elif tabs == "Waterfall Analysis":
     uploaded_file = st.file_uploader("Upload Zip file with Shortage Data (e.g. WW1.xlsx to WW52.xlsx)", type=["zip"])
     uploaded_file_op = st.file_uploader("Upload Order Placement Excel File", type="xlsx")
     uploaded_file_gr = st.file_uploader("Upload Goods Receipt Excel File", type="xlsx")
-    uploaded_file_cons = st.file_uploader("Upload Consumption Excel File for Analysis", type=["xlsx"])
+    uploaded_file_cons = st.file_uploader("Upload Consumption Excel File", type=["xlsx"])
 
     if uploaded_file and uploaded_file_op and uploaded_file_gr and uploaded_file_cons:
         op_df = pd.read_excel(uploaded_file_op)
@@ -424,7 +424,22 @@ elif tabs == "Waterfall Analysis":
                                 (cons_df["Site"] == site)
                             ]
 
-                            st.dataframe(cons_df_filtered)
+                            # Aggregate consumption data by WW
+                            cons_agg = (
+                                cons_df_filtered[
+                                    (cons_df["Material Number"] == material_number) &
+                                    (cons_df["Plant"] == plant) &
+                                    (cons_df["Site"] == site)
+                                ]
+                                .groupby("WW")["Quantity"]
+                                .sum()
+                                .reset_index()
+                            )
+
+                            # Normalize column names for consistency
+                            cons_agg["WW"] = cons_agg["WW"].str.upper()
+
+                            st.dataframe(cons_agg)
 
                             # Submit button to extract & display data
                             if st.button("Run Waterfall Analysis"):
@@ -432,6 +447,39 @@ elif tabs == "Waterfall Analysis":
                                     result_df, lead_value = waterfall_analysis.extract_and_aggregate_weekly_data(
                                         folder_path_zip, material_number, plant, site, start_week, int(num_weeks)
                                     )
+
+                                    # Add "Consumption" rows to result_df
+                                    consumption_rows = []
+                                    for ww in selected_weeks:
+                                        quantity = cons_agg.loc[cons_agg["WW"] == ww, "Quantity"].sum()  # 0 if not found
+
+                                        row_data = {
+                                            "MaterialNumber": material_number,
+                                            "Plant": plant,
+                                            "Site": site,
+                                            "Measures": "Consumption",
+                                            "InventoryOn-Hand": None,
+                                            "LeadTime(Week)": None,
+                                            "Snapshot": ww,
+                                        }
+
+                                        # Set all forecast weeks to 0
+                                        for week_col in weeks_range:
+                                            row_data[week_col] = 0
+
+                                        # Set consumption for the matching week
+                                        if ww in weeks_range:
+                                            row_data[ww] = quantity
+
+                                        consumption_rows.append(row_data)
+
+                                    # Append the consumption rows
+                                    result_df = pd.concat([result_df, pd.DataFrame(consumption_rows)], ignore_index=True)
+
+                                    # Reorder columns to keep 'Snapshot' first
+                                    cols = result_df.columns.tolist()
+                                    cols = ['Snapshot'] + [col for col in cols if col != 'Snapshot']
+                                    result_df = result_df[cols]
 
 
                                     if result_df is not None and not result_df.empty:

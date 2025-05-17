@@ -191,7 +191,7 @@ def extract_and_aggregate_weekly_data(folder_path, material_number, plant, site,
     cols = ['Snapshot'] + [col for col in cols if col != 'Snapshot']
     result_df = result_df[cols]
 
-    result_df = adding_consumption_data(result_df)
+    # result_df = adding_consumption_data(result_df)
 
     return result_df, lead_value
 

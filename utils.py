@@ -53,7 +53,7 @@ def load_data_consumption_waterfall(file):
     Returns:
         pandas.DataFrame: The DataFrame with selected columns and processed data.
     """
-    
+
     df = pd.read_excel(file)
     # Strip leading and trailing spaces from all string columns
     df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
@@ -69,7 +69,7 @@ def load_data_consumption_waterfall(file):
 
     # Add Work Week (WW) column
     iso_calendar = df['Pstng Date'].dt.isocalendar()
-    df['WW'] = iso_calendar['year'].astype(str) + '-W' + iso_calendar['week'].astype(str).str.zfill(2)
+    df['WW'] = 'WW' + iso_calendar['week'].astype(str).str.zfill(2)
 
     # Convert 'SLED/BBD' to datetime, handling errors and filling NaT
     df['SLED/BBD'] = pd.to_datetime(df['SLED/BBD'], errors='coerce')
