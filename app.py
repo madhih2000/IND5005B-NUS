@@ -564,19 +564,38 @@ elif tabs == "Waterfall Analysis":
                                                 except Exception as e:
                                                     cond2_sheet.append(["[Unexpected error inserting image: {}]".format(e)])
 
-                                            # Leave space after image
-                                            cond2_sheet.append([])
-                                            cond2_sheet.append(["Forecast Accuracy Validation Table"])
+                                            # Start writing from row 30
+                                            start_row = 30
+                                            current_row = start_row
+
+                                            # Write "Forecast Accuracy Validation Table" heading
+                                            cond2_sheet.cell(row=current_row, column=1, value="Forecast Accuracy Validation Table")
+                                            current_row += 1
+
+                                            # Write comparison_table
                                             for r in dataframe_to_rows(comparison_table, index=False, header=True):
-                                                cond2_sheet.append(r)
+                                                for col_idx, cell_value in enumerate(r, start=1):
+                                                    cond2_sheet.cell(row=current_row, column=col_idx, value=cell_value)
+                                                current_row += 1
 
-                                            cond2_sheet.append([])
-                                            cond2_sheet.append(["PO Timing Analysis"])
+                                            # Leave a blank row
+                                            current_row += 1
+
+                                            # Write "PO Timing Analysis" heading
+                                            cond2_sheet.cell(row=current_row, column=1, value="PO Timing Analysis")
+                                            current_row += 1
+
+                                            # Write po_analysis_output
                                             for r in dataframe_to_rows(po_analysis_output, index=False, header=True):
-                                                cond2_sheet.append(r)
+                                                for col_idx, cell_value in enumerate(r, start=1):
+                                                    cond2_sheet.cell(row=current_row, column=col_idx, value=cell_value)
+                                                current_row += 1
 
-                                            # Append analysis text block at the bottom
-                                            write_analysis_block(cond2_sheet, analysis_2)
+                                            # Leave a blank row
+                                            current_row += 1
+
+                                            # Write the analysis text block
+                                            write_analysis_block(cond2_sheet, analysis_2, start_row=current_row)
 
 
                                             cond3_sheet = writer.book.create_sheet("RCA Scenario 3")
@@ -621,20 +640,34 @@ elif tabs == "Waterfall Analysis":
                                                             cond6_sheet.append(["[Error inserting image via both methods: {}, {}]".format(e1, e2)])
                                                 except Exception as e:
                                                     cond6_sheet.append(["[Unexpected error inserting image: {}]".format(e)])
-                                            # Leave some space after the image
-                                            cond6_sheet.append([])
-                                            cond6_sheet.append(["Analysis of Consumption Against Planned Demand"])
-                                            # Write comparison_df (consumption vs demand comparison table)
+                                            # Start writing from row 30
+                                            start_row = 30
+                                            current_row = start_row
+
+                                            # Write comparison_df
+                                            cond6_sheet.cell(row=current_row, column=1, value="Analysis of Consumption Against Planned Demand")
+                                            current_row += 1
                                             for r in dataframe_to_rows(comparison_df, index=False, header=True):
-                                                cond6_sheet.append(r)
-                                            # Leave some space after comparison table
-                                            cond6_sheet.append([])
-                                            cond6_sheet.append(["End-to-End Inventory and Consumption Tracking"])
-                                            # Write condition6 (scenario 6 main results table)
+                                                for col_idx, cell_value in enumerate(r, start=1):
+                                                    cond6_sheet.cell(row=current_row, column=col_idx, value=cell_value)
+                                                current_row += 1
+
+                                            # Leave a blank row
+                                            current_row += 1
+
+                                            # Write condition6 table
+                                            cond6_sheet.cell(row=current_row, column=1, value="End-to-End Inventory and Consumption Tracking")
+                                            current_row += 1
                                             for r in dataframe_to_rows(condition6, index=False, header=True):
-                                                cond6_sheet.append(r)
-                                            # Append analysis text block at the bottom
-                                            write_analysis_block(cond6_sheet, analysis_6)
+                                                for col_idx, cell_value in enumerate(r, start=1):
+                                                    cond6_sheet.cell(row=current_row, column=col_idx, value=cell_value)
+                                                current_row += 1
+
+                                            # Leave another blank row
+                                            current_row += 1
+
+                                            # Write the analysis block below
+                                            write_analysis_block(cond6_sheet, analysis_6, start_row=current_row)
 
                                         output.seek(0)
                                         # Apply coloring on 'Waterfall Chart' sheet
