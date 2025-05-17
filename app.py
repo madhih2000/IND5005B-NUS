@@ -445,7 +445,7 @@ elif tabs == "Waterfall Analysis":
                             if st.button("Run Waterfall Analysis"):
                                 with st.spinner("Running Analysis..."):
                                     result_df, lead_value = waterfall_analysis.extract_and_aggregate_weekly_data(
-                                        folder_path_zip, material_number, plant, site, start_week, int(num_weeks), cons_agg
+                                        folder_path_zip, material_number, plant, site, start_week, cons_agg, int(num_weeks)
                                     )
 
                                     if result_df is not None and not result_df.empty:

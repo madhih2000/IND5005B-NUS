@@ -66,7 +66,7 @@ def save_to_excel(df, output_file):
     else:
         print("No data to save.")
 
-def extract_and_aggregate_weekly_data(folder_path, material_number, plant, site, start_week, num_weeks=12, cons_agg):
+def extract_and_aggregate_weekly_data(folder_path, material_number, plant, site, start_week,cons_agg, num_weeks=12):
     """
     Extracts and aggregates weekly data for a specific material number, plant, and site,
     starting from a specified week and including the next 'num_weeks' weeks.
