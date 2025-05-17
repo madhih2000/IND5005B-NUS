@@ -439,8 +439,6 @@ elif tabs == "Waterfall Analysis":
                             # Normalize column names for consistency
                             cons_agg["WW"] = cons_agg["WW"].str.upper()
 
-                            st.dataframe(cons_agg)
-
                             # Submit button to extract & display data
                             if st.button("Run Waterfall Analysis"):
                                 with st.spinner("Running Analysis..."):
