@@ -66,7 +66,7 @@ def save_to_excel(df, output_file):
     else:
         print("No data to save.")
 
-def extract_and_aggregate_weekly_data(folder_path, material_number, plant, site, start_week, num_weeks=12):
+def extract_and_aggregate_weekly_data(folder_path, material_number, plant, site, start_week, num_weeks=12, cons_agg):
     """
     Extracts and aggregates weekly data for a specific material number, plant, and site,
     starting from a specified week and including the next 'num_weeks' weeks.
@@ -185,6 +185,36 @@ def extract_and_aggregate_weekly_data(folder_path, material_number, plant, site,
         return None
 
     result_df = pd.concat(selected_data, ignore_index=True)
+
+    # === ADD CONSUMPTION ROWS ===
+    if cons_agg is not None and not cons_agg.empty:
+        cons_rows = []
+
+        for ww in selected_weeks:
+            quantity = cons_agg.loc[cons_agg["WW"] == ww, "Quantity"].sum()
+
+            row_data = {
+                "MaterialNumber": material_number,
+                "Plant": plant,
+                "Site": site,
+                "Measures": "Consumption",
+                "InventoryOn-Hand": None,
+                "LeadTime(Week)": None,
+                "Snapshot": ww,
+            }
+
+            # Set week values: consumption in matching week, 0 elsewhere
+            for week_col in weeks_range:
+                row_data[week_col] = quantity if week_col == ww else 0
+
+            cons_rows.append(row_data)
+
+        result_df = pd.concat([result_df, pd.DataFrame(cons_rows)], ignore_index=True)
+
+    # Reorder and sort
+    result_df = result_df[['Snapshot'] + [col for col in result_df.columns if col != 'Snapshot']]
+    result_df.sort_values(by=['Snapshot', 'Measures'], inplace=True)
+    result_df.reset_index(drop=True, inplace=True)
     
     #reorder columns to have week at the beginning.
     cols = result_df.columns.tolist()

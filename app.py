@@ -445,42 +445,8 @@ elif tabs == "Waterfall Analysis":
                             if st.button("Run Waterfall Analysis"):
                                 with st.spinner("Running Analysis..."):
                                     result_df, lead_value = waterfall_analysis.extract_and_aggregate_weekly_data(
-                                        folder_path_zip, material_number, plant, site, start_week, int(num_weeks)
+                                        folder_path_zip, material_number, plant, site, start_week, int(num_weeks), cons_agg
                                     )
-
-                                    # Add "Consumption" rows to result_df
-                                    consumption_rows = []
-                                    for ww in selected_weeks:
-                                        quantity = cons_agg.loc[cons_agg["WW"] == ww, "Quantity"].sum()  # 0 if not found
-
-                                        row_data = {
-                                            "MaterialNumber": material_number,
-                                            "Plant": plant,
-                                            "Site": site,
-                                            "Measures": "Consumption",
-                                            "InventoryOn-Hand": None,
-                                            "LeadTime(Week)": None,
-                                            "Snapshot": ww,
-                                        }
-
-                                        # Set all forecast weeks to 0
-                                        for week_col in weeks_range:
-                                            row_data[week_col] = 0
-
-                                        # Set consumption for the matching week
-                                        if ww in weeks_range:
-                                            row_data[ww] = quantity
-
-                                        consumption_rows.append(row_data)
-
-                                    # Append the consumption rows
-                                    result_df = pd.concat([result_df, pd.DataFrame(consumption_rows)], ignore_index=True)
-
-                                    # Reorder columns to keep 'Snapshot' first
-                                    cols = result_df.columns.tolist()
-                                    cols = ['Snapshot'] + [col for col in cols if col != 'Snapshot']
-                                    result_df = result_df[cols]
-
 
                                     if result_df is not None and not result_df.empty:
                                         st.success("✅ Data extracted successfully!")
