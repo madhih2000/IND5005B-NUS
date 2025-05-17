@@ -275,15 +275,12 @@ def merged_order_gr_PO_analysis(df_order: pd.DataFrame, df_GR: pd.DataFrame) -> 
 
     return df_grouped[desired_order]
 
-def write_analysis_block(sheet, analysis_text: str, label: str = "Explanation:", merge_cols: int = 8):
+def write_analysis_block(sheet, analysis_text: str, label: str = "Explanation:", merge_cols: int = 8, start_row: int = None):
     """
     Appends a labeled and formatted analysis text block to an existing sheet.
 
-    Args:
-        sheet: openpyxl Worksheet object
-        analysis_text: The text to be written (can contain line breaks)
-        label: Label before the text (default is 'Explanation:')
-        merge_cols: Number of columns to merge for the analysis cell (width of the box)
+    Strips markdown-style **bold** markers and writes plain text,
+    no rich text used to ensure compatibility.
     """
     # Remove all ** markers (bold markdown) safely
     clean_text = re.sub(r"\*\*(.*?)\*\*", r"\1", analysis_text)
