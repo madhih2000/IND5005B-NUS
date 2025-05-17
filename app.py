@@ -585,8 +585,33 @@ elif tabs == "Waterfall Analysis":
 
                                             cond6_sheet = writer.book.create_sheet("RCA Scenario 6")
                                             cond6_sheet.append(["Scenario 6 - Irregular Consumption Patterns"])
+
+                                            # Insert Plotly figure right after title
+                                            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmpfile:
+                                                try:
+                                                    fig.write_image(tmpfile.name)
+                                                    img = XLImage(tmpfile.name)
+                                                    cond6_sheet.add_image(img, "A3")
+                                                except Exception as e:
+                                                    cond6_sheet.append(["[Error inserting image: {}]".format(e)])
+
+                                            # Leave some space after the image
+                                            cond6_sheet.append([])
+                                            cond6_sheet.append(["Analysis of Consumption Against Planned Demand"])
+
+                                            # Write comparison_df (consumption vs demand comparison table)
+                                            for r in dataframe_to_rows(comparison_df, index=False, header=True):
+                                                cond6_sheet.append(r)
+
+                                            # Leave some space after comparison table
+                                            cond6_sheet.append([])
+                                            cond6_sheet.append(["End-to-End Inventory and Consumption Tracking"])
+
+                                            # Write condition6 (scenario 6 main results table)
                                             for r in dataframe_to_rows(condition6, index=False, header=True):
                                                 cond6_sheet.append(r)
+
+                                            # Append analysis text block at the bottom
                                             write_analysis_block(cond6_sheet, analysis_6)
 
                                         output.seek(0)
