@@ -538,9 +538,12 @@ elif tabs == "Waterfall Analysis":
                                             cond2_sheet = writer.book.create_sheet("RCA Scenario 2")
                                             cond2_sheet.append(["Scenario 2 - POs push out or pull in due to changes in demand forecasts"])
                                             with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmpfile:
-                                                analysis_plot.write_image(tmpfile.name)  # Ensure plot is in color
-                                                img = XLImage(tmpfile.name)
-                                                cond2_sheet.add_image(img, "A3")
+                                                try:
+                                                    analysis_plot.write_image(tmpfile.name)
+                                                    img = XLImage(tmpfile.name)
+                                                    cond2_sheet.add_image(img, "A3")
+                                                except Exception as e:
+                                                    cond2_sheet.append(["[Error inserting image: {}]".format(e)])
 
                                             # Leave space after image
                                             cond2_sheet.append([])
