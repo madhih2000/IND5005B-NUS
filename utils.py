@@ -275,29 +275,19 @@ def merged_order_gr_PO_analysis(df_order: pd.DataFrame, df_GR: pd.DataFrame) -> 
 
     return df_grouped[desired_order]
 
-def write_analysis_block(sheet, analysis_text: str, label: str = "Explanation:", merge_cols: int = 8, start_row: int = None):
-    """
-    Appends a labeled and formatted analysis text block to an existing sheet.
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import Alignment, Font
+import re
 
-    Args:
-        sheet: openpyxl Worksheet object
-        analysis_text: The text to be written (can contain line breaks and **bold** markers)
-        label: Label before the text (default is 'Explanation:')
-        merge_cols: Number of columns to merge for the analysis cell (width of the box)
-        start_row: Optional specific row to start writing at
+def write_analysis_block(sheet, analysis_text: str, label: str = "Explanation:", merge_cols: int = 8):
     """
-    from openpyxl.utils import get_column_letter
-    from openpyxl.styles import Alignment, Font
-    import re
+    Appends a labeled and formatted analysis text block to an existing sheet,
+    with support for Markdown-style **bold** segments.
+    """
 
-    # Insert label
-    if start_row is None:
-        sheet.append([])
-        sheet.append([label])
-        start_row = sheet.max_row + 1
-    else:
-        sheet.cell(row=start_row, column=1, value=label)
-        start_row += 1
+    # Add spacing and label
+    sheet.append([])
+    sheet.append([label])
 
     # Estimate rows needed
     avg_chars_per_line = 80
@@ -305,32 +295,41 @@ def write_analysis_block(sheet, analysis_text: str, label: str = "Explanation:",
     text_lines = analysis_text.count("\n") + total_chars // avg_chars_per_line + 1
     merge_rows = max(5, text_lines)
 
+    # Merge cell range
+    start_row = sheet.max_row + 1
     end_row = start_row + merge_rows - 1
     start_col = 1
     end_col = merge_cols
-    merge_range = f"{get_column_letter(start_col)}{start_row}:{get_column_letter(end_col)}{end_row}"
-    sheet.merge_cells(merge_range)
+    top_left = f"{get_column_letter(start_col)}{start_row}"
+    bottom_right = f"{get_column_letter(end_col)}{end_row}"
+    sheet.merge_cells(f"{top_left}:{bottom_right}")
 
-    # Handle bold formatting inside the merged cell
+    # Prepare the cell
     cell = sheet.cell(row=start_row, column=start_col)
     cell.alignment = Alignment(wrap_text=True, vertical="top", horizontal="left")
 
-    if "**" in analysis_text:
-        from openpyxl.rich_text import CellRichText, TextBlock
-        parts = re.split(r"(\*\*[^*]+\*\*)", analysis_text)
-        rich_text = CellRichText()
-        for part in parts:
-            if part.startswith("**") and part.endswith("**"):
-                rich_text.append(TextBlock(part[2:-2], Font(bold=True)))
-            else:
-                rich_text.append(TextBlock(part))
-        cell.value = rich_text
-    else:
+    # If no bold markup, write plain text
+    if "**" not in analysis_text:
         cell.value = analysis_text
+    else:
+        from openpyxl.rich_text import CellRichText, TextBlock
 
-    # Set row heights
+        # Build CellRichText with bold and plain segments
+        segments = re.split(r"(\*\*[^*]+\*\*)", analysis_text)
+        rich_content = CellRichText()
+        for seg in segments:
+            if seg.startswith("**") and seg.endswith("**"):
+                rich_content.append(TextBlock(seg[2:-2], Font(bold=True)))
+            else:
+                rich_content.append(TextBlock(seg))
+
+        cell.value = rich_content
+
+    # Set row height
+    row_height = 20
     for r in range(start_row, end_row + 1):
-        sheet.row_dimensions[r].height = 20
+        sheet.row_dimensions[r].height = row_height
+
 
 def sanitize_row(row):
     return [v.item() if isinstance(v, ndarray) and v.size == 1 else v for v in row]
