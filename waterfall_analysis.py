@@ -185,45 +185,55 @@ def extract_and_aggregate_weekly_data(folder_path, material_number, plant, site,
         return None
 
     result_df = pd.concat(selected_data, ignore_index=True)
-
-    # === ADD CONSUMPTION ROWS ===
-    if cons_agg is not None and not cons_agg.empty:
-        cons_rows = []
-
-        for ww in selected_weeks:
-            quantity = cons_agg.loc[cons_agg["WW"] == ww, "Quantity"].sum()
-
-            row_data = {
-                "MaterialNumber": material_number,
-                "Plant": plant,
-                "Site": site,
-                "Measures": "Consumption",
-                "InventoryOn-Hand": None,
-                "LeadTime(Week)": None,
-                "Snapshot": ww,
-            }
-
-            # Set week values: consumption in matching week, 0 elsewhere
-            for week_col in weeks_range:
-                row_data[week_col] = quantity if week_col == ww else 0
-
-            cons_rows.append(row_data)
-
-        result_df = pd.concat([result_df, pd.DataFrame(cons_rows)], ignore_index=True)
-
-    # Reorder and sort
-    result_df = result_df[['Snapshot'] + [col for col in result_df.columns if col != 'Snapshot']]
-    result_df.sort_values(by=['Snapshot', 'Measures'], inplace=True)
-    result_df.reset_index(drop=True, inplace=True)
     
     #reorder columns to have week at the beginning.
     cols = result_df.columns.tolist()
     cols = ['Snapshot'] + [col for col in cols if col != 'Snapshot']
     result_df = result_df[cols]
 
+    result_df = adding_consumption_data_from_agg(result_df, cons_agg)
+
     # result_df = adding_consumption_data(result_df)
 
     return result_df, lead_value
+
+def adding_consumption_data_from_agg(result_df, cons_agg):
+    """
+    Modifies result_df in-place by filling 'Consumption' rows using cons_agg.
+    Each value is added on the diagonal (Snapshot == WW column), and other week columns are set to None.
+
+    Args:
+        result_df (pd.DataFrame): The target DataFrame with Snapshot and week columns.
+        cons_agg (pd.DataFrame): DataFrame with 'WW' and 'Quantity' columns.
+    
+    Returns:
+        pd.DataFrame: Updated DataFrame with Consumption values applied.
+    """
+    import pandas as pd
+
+    # Make a copy to avoid modifying the original dataframe
+    df = result_df.copy()
+
+    # Get week columns (e.g., WW04, WW05...)
+    week_cols = [col for col in df.columns if col.startswith("WW")]
+
+    # Convert cons_agg to a dict for quick lookup
+    cons_dict = dict(zip(cons_agg['WW'], cons_agg['Quantity']))
+
+    # Process only rows where Measures == 'Consumption'
+    for idx, row in df[df["Measures"] == "Consumption"].iterrows():
+        snapshot = row["Snapshot"]
+
+        # Set all week columns to None first
+        for col in week_cols:
+            df.at[idx, col] = None
+
+        # If snapshot exists as a key in cons_dict and is a valid column
+        if snapshot in cons_dict and snapshot in week_cols:
+            df.at[idx, snapshot] = cons_dict[snapshot]
+
+    return df
+
 
 def adding_consumption_data(df):
     # Step 1: Filter for Supply rows and sort by Snapshot
