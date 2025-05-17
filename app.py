@@ -544,11 +544,25 @@ elif tabs == "Waterfall Analysis":
                                             cond2_sheet.append(["Scenario 2 - POs push out or pull in due to changes in demand forecasts"])
                                             with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmpfile:
                                                 try:
-                                                    analysis_plot.write_image(tmpfile.name)
-                                                    img = XLImage(tmpfile.name)
-                                                    cond2_sheet.add_image(img, "A3")
+                                                    # First try: save Plotly figure to bytes
+                                                    try:
+                                                        img_bytes = analysis_plot.to_image(format="png")
+                                                        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
+                                                            tmpfile.write(img_bytes)
+                                                            tmpfile.flush()
+                                                            img = XLImage(tmpfile.name)
+                                                            cond2_sheet.add_image(img, "A3")
+                                                    except Exception as e1:
+                                                        # Second try: save to file using write_image
+                                                        try:
+                                                            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
+                                                                analysis_plot.write_image(tmpfile.name)
+                                                                img = XLImage(tmpfile.name)
+                                                                cond2_sheet.add_image(img, "A3")
+                                                        except Exception as e2:
+                                                            cond2_sheet.append(["[Error inserting image via both methods: {}, {}]".format(e1, e2)])
                                                 except Exception as e:
-                                                    cond2_sheet.append(["[Error inserting image: {}]".format(e)])
+                                                    cond2_sheet.append(["[Unexpected error inserting image: {}]".format(e)])
 
                                             # Leave space after image
                                             cond2_sheet.append([])
@@ -585,32 +599,40 @@ elif tabs == "Waterfall Analysis":
 
                                             cond6_sheet = writer.book.create_sheet("RCA Scenario 6")
                                             cond6_sheet.append(["Scenario 6 - Irregular Consumption Patterns"])
-
                                             # Insert Plotly figure right after title
                                             with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmpfile:
                                                 try:
-                                                    fig.write_image(tmpfile.name)
-                                                    img = XLImage(tmpfile.name)
-                                                    cond6_sheet.add_image(img, "A3")
+                                                    # First attempt: save Plotly figure to bytes and write to temp file
+                                                    try:
+                                                        img_bytes = fig.to_image(format="png")
+                                                        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
+                                                            tmpfile.write(img_bytes)
+                                                            tmpfile.flush()
+                                                            img = XLImage(tmpfile.name)
+                                                            cond6_sheet.add_image(img, "A3")
+                                                    except Exception as e1:
+                                                        # Fallback: use write_image directly to temp file
+                                                        try:
+                                                            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmpfile:
+                                                                fig.write_image(tmpfile.name)
+                                                                img = XLImage(tmpfile.name)
+                                                                cond6_sheet.add_image(img, "A3")
+                                                        except Exception as e2:
+                                                            cond6_sheet.append(["[Error inserting image via both methods: {}, {}]".format(e1, e2)])
                                                 except Exception as e:
-                                                    cond6_sheet.append(["[Error inserting image: {}]".format(e)])
-
+                                                    cond6_sheet.append(["[Unexpected error inserting image: {}]".format(e)])
                                             # Leave some space after the image
                                             cond6_sheet.append([])
                                             cond6_sheet.append(["Analysis of Consumption Against Planned Demand"])
-
                                             # Write comparison_df (consumption vs demand comparison table)
                                             for r in dataframe_to_rows(comparison_df, index=False, header=True):
                                                 cond6_sheet.append(r)
-
                                             # Leave some space after comparison table
                                             cond6_sheet.append([])
                                             cond6_sheet.append(["End-to-End Inventory and Consumption Tracking"])
-
                                             # Write condition6 (scenario 6 main results table)
                                             for r in dataframe_to_rows(condition6, index=False, header=True):
                                                 cond6_sheet.append(r)
-
                                             # Append analysis text block at the bottom
                                             write_analysis_block(cond6_sheet, analysis_6)
 
