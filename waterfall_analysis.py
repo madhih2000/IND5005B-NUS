@@ -806,9 +806,10 @@ def scenario_6_v2(waterfall_df, po_df):
         # Flag and explain if calculated and reported consumption differ significantly
         if abs(consumption_diff) > 5 and i < len(snapshots) - 1:
             irregular_pattern.append(
-                f"Consumption (Calc) = {consumption_calc} vs Consumption (Waterfall) = {consumption_waterfall} (difference of {consumption_diff}). "
-                f"This was calculated as: Consumption = Next Start Inventory ({next_start_inventory}) + Supply ({supply}) - Start Inventory ({start_inventory_waterfall}). "
-                f"A significant difference might indicate timing mismatches (e.g., GR posting delays), manual adjustments, or inconsistent inventory updates."
+                f"In week {snapshot}, the calculated consumption is {consumption_calc}, while the reported consumption is {consumption_waterfall} "
+                f"(difference of {consumption_diff}). The calculation used the formula: "
+                f"Consumption (Calc) = Next Start Inventory ({next_start_inventory}) − (Current Start Inventory ({start_inventory_waterfall}) + Supply ({supply})). "
+                f"This difference could suggest timing issues (e.g., late GR posting), manual inventory changes, or inconsistent reporting between weeks."
             )
 
         # Combine messages
