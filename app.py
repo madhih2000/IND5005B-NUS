@@ -339,10 +339,12 @@ elif tabs == "Waterfall Analysis":
     uploaded_file = st.file_uploader("Upload Zip file with Shortage Data (e.g. WW1.xlsx to WW52.xlsx)", type=["zip"])
     uploaded_file_op = st.file_uploader("Upload Order Placement Excel File", type="xlsx")
     uploaded_file_gr = st.file_uploader("Upload Goods Receipt Excel File", type="xlsx")
+    uploaded_file_cons = st.file_uploader("Upload Consumption Excel File for Analysis", type=["xlsx"])
 
-    if uploaded_file and uploaded_file_op and uploaded_file_gr:
+    if uploaded_file and uploaded_file_op and uploaded_file_gr and uploaded_file_cons:
         op_df = pd.read_excel(uploaded_file_op)
         gr_df = pd.read_excel(uploaded_file_gr)
+        cons_df = load_data_consumption_waterfall(uploaded_file_cons)
 
 
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -414,6 +416,15 @@ elif tabs == "Waterfall Analysis":
                             site = st.selectbox("Select Site", site_options)
 
                             num_weeks = st.number_input("Number of Weeks", min_value=1, max_value=26, value=12)
+
+                            # Filter the Consumption DataFrame based on the selected values
+                            cons_df_filtered = cons_df[
+                                (cons_df["Material Number"] == material_number) &
+                                (cons_df["Plant"] == plant) &
+                                (cons_df["Site"] == site)
+                            ]
+
+                            st.dataframe(cons_df_filtered)
 
                             # Submit button to extract & display data
                             if st.button("Run Waterfall Analysis"):
