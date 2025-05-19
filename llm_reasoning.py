@@ -562,11 +562,12 @@ def explain_waterfall_chart_with_groq(df, analysis_1, analysis_2, analysis_3, an
 
     def retrieve_scenario(text):
         embedding = embed_model.encode([text])
-        D, I = faiss_index.search(embedding, k=1)
-        return scenarios[I[0][0]]
+        D, I = faiss_index.search(embedding, k=6)
+       return [scenarios[i] for i in I[0]]
 
     def process_chunk(chunk_text):
-        retrieved_scenario = retrieve_scenario(chunk_text)
+        retrieved_scenarios = retrieve_scenario(chunk_text)
+        scenario_list = chr(10).join(retrieved_scenarios)
 
         system_prompt = f"""
         You are a supply chain analyst with deep expertise in the semiconductor industry.
@@ -587,13 +588,13 @@ def explain_waterfall_chart_with_groq(df, analysis_1, analysis_2, analysis_3, an
         - Only choose from the single retrieved scenario.
 
         Retrieved Root Cause Scenario:
-        {retrieved_scenario}
+        {scenario_list}
 
         Output Format:
         - Bullet points with observations.
         - One short paragraph justifying the cause.
         - One final line in this format:
-        **Root Cause:** {retrieved_scenario}
+        **Root Cause:** Scenario X: ...
         """
 
         user_prompt = f"Analyze this waterfall chart chunk:\n\n{chunk_text}"
