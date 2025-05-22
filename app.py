@@ -483,7 +483,7 @@ elif tabs == "Waterfall Analysis":
 
                                         #RCA Condition 3
                                         st.subheader('Scenario 3 - Adjustment to POs')
-                                        scen_3_df_output = waterfall_analysis.scenario_3(result_df, PO_df_filtered, scen_1_df_output)
+                                        scen_3_df_output = waterfall_analysis.scenario_3_simulation(result_df, PO_df_filtered, po_analysis_output)
                                         st.dataframe(scen_3_df_output)
                                         analysis_3 = ""
 

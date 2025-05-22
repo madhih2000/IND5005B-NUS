@@ -6,6 +6,7 @@ import os
 from io import BytesIO
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
+from collections import defaultdict 
 
 def style_dataframe(filtered_df):
     # Identify week columns (WW12, WW13, etc.)
@@ -997,7 +998,7 @@ def scenario_2(waterfall_df, po_df, lead_time: int): # Added lead_time argument
         
         # --- Calculate the metric as per user's formula ---
         # Metric: (demand for next 6 weeks - current week's end inventory) / 6
-        metric_value = (end_inventory_calc) / (demand_next_6_weeks / 6.0)
+        metric_value = (end_inventory_calc) / (demand_next_6_weeks / 6.0) if demand_next_6_weeks != 0 else (end_inventory_calc)
 
         # --- POs scheduled for this week (candidates for push-out) ---
         current_week_pos_df_candidates = po_df[
@@ -1695,7 +1696,207 @@ def old_scenario_2_v3(waterfall_df, po_df, start_week):
 
     return df_inventory_actions, df_recommendations
 
+def scenario_3_simulation(waterfall_df, po_df_original, scenario_2_results_df):
+    """
+    Simulates the impact of suggested PO pull-in/push-out actions from scenario_2_results_df
+    on future inventory and provides a revised view.
 
+    Args:
+        waterfall_df (pd.DataFrame): Original DataFrame with supply, demand, and inventory snapshots.
+        po_df_original (pd.DataFrame): Original DataFrame with purchase order details.
+        scenario_2_results_df (pd.DataFrame): The output DataFrame from scenario_2_refactored,
+                                            containing 'Identified Action', 'Suggested POs for Action',
+                                            'Quantity of POs in Suggested Action', 'Snapshot Week'.
+
+    Returns:
+        pd.DataFrame: DataFrame showing the simulated weekly analysis,
+                      including the impact of the suggested actions.
+    """
+    if scenario_2_results_df.empty:
+        print("Warning: scenario_2_results_df is empty. Cannot perform simulation.")
+        return pd.DataFrame()
+
+    # Create a mutable copy of po_df to apply suggested changes
+    po_df_simulated = po_df_original.copy()
+
+    # Track which POs were moved and their new GR WW for simulation
+    # Using a dictionary for faster lookups/modifications if POs are unique
+    po_current_gr_ww = {row['Purchasing Document']: row['GR WW'] for idx, row in po_df_simulated.iterrows()}
+    
+    simulated_po_moves = defaultdict(lambda: {'new_gr_ww': None, 'original_gr_ww': None})
+
+    # --- Apply suggested actions from Scenario 2 results to the simulated PO data ---
+    print("\n--- Applying Suggested PO Actions from Scenario 2 Results ---")
+    for index, row in scenario_2_results_df.iterrows():
+        action = row['Identified Action']
+        suggested_pos_str = row['Suggested POs for Action']
+        action_qty = row['Quantity of POs in Suggested Action']
+        snapshot_week_str = row['Snapshot Week']
+
+        if suggested_pos_str:
+            suggested_pos_list = [doc.strip() for doc in suggested_pos_str.split(',')]
+            
+            for po_doc_to_modify in suggested_pos_list:
+                if action == "Suggest Pull In":
+                    # Pull-in means moving the PO to the current snapshot_week
+                    # Ensure the PO actually exists and hasn't been moved by a previous action
+                    if po_doc_to_modify in po_current_gr_ww:
+                        original_gr_ww = po_current_gr_ww[po_doc_to_modify]
+                        target_week_num = int(snapshot_week_str.replace("WW", ""))
+                        
+                        # Only apply if it's a valid pull-in (moving from future to current)
+                        if original_gr_ww > target_week_num:
+                            # Update the simulated GR WW for this PO
+                            po_df_simulated.loc[
+                                po_df_simulated['Purchasing Document'] == po_doc_to_modify,
+                                'GR WW'
+                            ] = target_week_num
+                            
+                            simulated_po_moves[po_doc_to_modify] = {
+                                'new_gr_ww': target_week_num,
+                                'original_gr_ww': original_gr_ww
+                            }
+                            po_current_gr_ww[po_doc_to_modify] = target_week_num # Update current tracker
+                            print(f"  - Pulled in PO {po_doc_to_modify} from WW{original_gr_ww} to WW{target_week_num}")
+
+                elif action == "Suggest Push Out":
+                    # Push-out means moving the PO to the next week relative to the snapshot_week
+                    if po_doc_to_modify in po_current_gr_ww:
+                        original_gr_ww = po_current_gr_ww[po_doc_to_modify]
+                        current_snapshot_week_num = int(snapshot_week_str.replace("WW", ""))
+                        target_week_num = current_snapshot_week_num + 1 # Push out by one week
+
+                        # Only apply if it's a valid push-out (moving to future)
+                        if original_gr_ww == current_snapshot_week_num: # only push out if it was originally scheduled for this week
+                            po_df_simulated.loc[
+                                po_df_simulated['Purchasing Document'] == po_doc_to_modify,
+                                'GR WW'
+                            ] = target_week_num
+                            
+                            simulated_po_moves[po_doc_to_modify] = {
+                                'new_gr_ww': target_week_num,
+                                'original_gr_ww': original_gr_ww
+                            }
+                            po_current_gr_ww[po_doc_to_modify] = target_week_num # Update current tracker
+                            print(f"  - Pushed out PO {po_doc_to_modify} from WW{original_gr_ww} to WW{target_week_num}")
+    print("--- Finished Applying Actions ---")
+
+    # --- Now, re-run the inventory calculation using the modified POs and original waterfall data ---
+    supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
+    demand_rows = waterfall_df[waterfall_df['Measures'] == 'Demand w/o Buffer']
+
+    # Ensure 'Snapshot' is sorted to process weeks chronologically
+    snapshots = sorted(waterfall_df['Snapshot'].unique())
+    if not snapshots:
+        print("Warning: No snapshots found in waterfall_df for simulation.")
+        return pd.DataFrame()
+
+    # Determine initial inventory from the first snapshot (same as scenario_2)
+    initial_snapshot_data = supply_rows[supply_rows['Snapshot'] == snapshots[0]]
+    initial_inventory_calc = 0
+    if not initial_snapshot_data.empty and 'InventoryOn-Hand' in initial_snapshot_data.columns:
+        initial_inventory_calc = int(initial_snapshot_data['InventoryOn-Hand'].iloc[0])
+    else:
+        print(f"Warning: Could not determine initial inventory for simulation from snapshot {snapshots[0]}. Defaulting to 0.")
+
+    simulated_results = []
+    current_inventory_sim = initial_inventory_calc
+
+    for i, snapshot in enumerate(snapshots):
+        week_col = snapshot
+        try:
+            week_num = int(snapshot.replace("WW", ""))
+        except ValueError:
+            print(f"Warning: Could not parse week number from snapshot {snapshot}. Skipping this snapshot in simulation.")
+            continue
+
+        # --- Demand & Supply from Waterfall DF for the current week column (original) ---
+        demand_val_series = demand_rows.loc[demand_rows['Snapshot'] == snapshot, week_col]
+        supply_val_series = supply_rows.loc[supply_rows['Snapshot'] == snapshot, week_col]
+        demand_waterfall = int(demand_val_series.iloc[0]) if not demand_val_series.empty else 0
+        supply_waterfall = int(supply_val_series.iloc[0]) if not supply_val_series.empty else 0
+        
+        # --- Actual PO supply for this week from SIMULATED po_df ---
+        simulated_po_supply_this_week = po_df_simulated[po_df_simulated['GR WW'] == week_num]['GR Quantity'].sum()
+
+        # For this simulation, let's assume 'Supply' in waterfall_df includes *all* planned supply,
+        # and we are specifically interested in how *PO modifications* affect the total supply,
+        # so adjusting the 'Supply (Waterfall)' to reflect PO changes.
+        # A more robust approach might differentiate between static waterfall supply and dynamic PO supply.
+        # For simplicity in simulation, let's assume the 'Supply (Waterfall)' *was* based on original POs,
+        # and now we replace it with the *simulated PO supply* for the relevant weeks.
+        
+        # This is a critical assumption: how waterfall supply relates to POs.
+        # If waterfall supply is *independent* of POs, then PO changes are *additional* supply adjustments.
+        # If waterfall supply *includes* POs, then we need to calculate net change.
+        # Let's assume for this simulation that the 'Supply (Waterfall)' represents *original planned supply*,
+        # and we are *overriding* it with the new simulated PO supply for the sake of impact analysis.
+        # A more precise way would be to identify how much of 'Supply (Waterfall)' was from POs,
+        # remove that, and then add the new simulated PO supply.
+        
+        # For now, let's use the current week's PO supply for the 'Supply' component in our simulation.
+        # This means the 'Supply (Waterfall)' column in the result will represent the *effective* supply,
+        # which is largely driven by the simulated POs for that week.
+        effective_supply = simulated_po_supply_this_week
+
+        opening_inventory_sim = current_inventory_sim
+        end_inventory_sim = opening_inventory_sim + effective_supply - demand_waterfall
+
+        # --- Re-calculate metric based on simulated inventory ---
+        demand_next_6_weeks_sim = 0
+        current_snapshot_demand_view = demand_rows[demand_rows['Snapshot'] == snapshot]
+        if not current_snapshot_demand_view.empty:
+            for k_future_week_idx in range(1, 7): # Weeks t+1 to t+6
+                future_week_col_name = f"WW{week_num + k_future_week_idx}"
+                if future_week_col_name in current_snapshot_demand_view.columns:
+                    try:
+                        future_demand_val = current_snapshot_demand_view[future_week_col_name].iloc[0]
+                        if pd.notna(future_demand_val) and str(future_demand_val).strip() != '':
+                            demand_next_6_weeks_sim += int(float(str(future_demand_val)))
+                    except (ValueError, TypeError):
+                        demand_next_6_weeks_sim += 0
+        
+        # Metric: (demand for next 6 weeks - current week's end inventory) / 6
+        metric_value_sim = (end_inventory_sim) / (demand_next_6_weeks_sim / 6.0) if demand_next_6_weeks_sim != 0 else (end_inventory_sim)
+    
+        # Determine the action result for the simulation
+        simulated_action = "No Action"
+        simulated_action_detail = None
+        
+        # If there were POs suggested for action in S2 for this week, report their new state
+        original_s2_row = scenario_2_results_df[scenario_2_results_df['Snapshot Week'] == snapshot]
+        if not original_s2_row.empty:
+            original_s2_action = original_s2_row['Identified Action'].iloc[0]
+            original_s2_pos = original_s2_row['Suggested POs for Action'].iloc[0]
+            
+            if original_s2_action != "No Action" and original_s2_pos:
+                simulated_action = f"Applied S2: {original_s2_action}"
+                detail_parts = []
+                for po_doc in [p.strip() for p in original_s2_pos.split(',')]:
+                    if po_doc in simulated_po_moves:
+                        move_info = simulated_po_moves[po_doc]
+                        detail_parts.append(f"PO {po_doc} moved from WW{move_info['original_gr_ww']} to WW{move_info['new_gr_ww']}")
+                if detail_parts:
+                    simulated_action_detail = "; ".join(detail_parts)
+                else:
+                    simulated_action_detail = "No specific move recorded for this PO in simulation tracker."
+
+        simulated_results.append({
+            'Snapshot Week': snapshot,
+            'Start Inventory (Simulated)': opening_inventory_sim,
+            'Demand (Waterfall Ref)': demand_waterfall,
+            'Supply (Simulated POs)': effective_supply, # Reflects the new PO schedule
+            'End Inventory (Simulated)': end_inventory_sim,
+            'Future Demand (6 Weeks View)': demand_next_6_weeks_sim,
+            'Metric ((D_6wk - Inv) / 6) (Simulated)': round(metric_value_sim, 2),
+            'Simulated Action Taken': simulated_action,
+            'Simulated Action Detail': simulated_action_detail,
+            'Original S2 Action': original_s2_row['Identified Action'].iloc[0] if not original_s2_row.empty else 'N/A'
+        })
+
+        current_inventory_sim = end_inventory_sim
+        
+    return pd.DataFrame(simulated_results)
 
 def scenario_3(waterfall_df, po_df, scenario_1_results_df):
     """
