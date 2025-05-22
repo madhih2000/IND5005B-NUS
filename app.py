@@ -505,9 +505,28 @@ elif tabs == "Waterfall Analysis":
                                         st.plotly_chart(fig)
                                         st.write("Analysis of Consumption Against Planned Demand")
                                         st.dataframe(comparison_df)
-                                        st.write("End-to-End Inventory and Consumption Tracking")
                                         condition6 = waterfall_analysis.scenario_6(result_df, PO_df_filtered)
-                                        st.dataframe(condition6)
+                                        cons_reported_act = condition6[["Consumption (Waterfall)", "Consumption (Calc)"]]
+                                        cons_reported_act["Abs Diff"] = (cons_reported_act["Consumption (Waterfall)"] - cons_reported_act["Consumption (Calc)"]).abs()
+                                        def flag_discrepancy(row, threshold=0.15):
+                                            calc = row["Consumption (Calc)"]
+                                            rep = row["Consumption (Waterfall)"]
+                                            if calc == 0 and rep == 0:
+                                                return ""
+                                            if calc == 0 or rep == 0:
+                                                return "⚠️ Zero mismatch"
+                                            ratio = rep / calc
+                                            if ratio > 1 + threshold:
+                                                return f"⚠️ Over by {round((ratio - 1) * 100)}%"
+                                            elif ratio < 1 - threshold:
+                                                return f"⚠️ Under by {round((1 - ratio) * 100)}%"
+                                            return ""
+                                        cons_reported_act["Flag"] = cons_reported_act.apply(flag_discrepancy, axis=1)
+                                        st.write("Consumption Comparison (Reported vs Calculated)")
+                                        st.dataframe(cons_reported_act)
+                                        with st.expander("Show End-to-End Inventory and Consumption Tracking"):
+                                            st.write("End-to-End Inventory and Consumption Tracking")
+                                            st.dataframe(condition6)
                                         analysis_6 = llm_reasoning.explain_scenario_6_with_groq(condition6)
 
                                         rca_final = llm_reasoning.explain_waterfall_chart_with_groq(result_df, analysis_1, analysis_2, analysis_3, analysis_4, analysis_5, analysis_6)

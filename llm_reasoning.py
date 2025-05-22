@@ -690,8 +690,8 @@ def explain_waterfall_chart_with_groq(df, analysis_1, analysis_2, analysis_3, an
         st.error("Failed to process all chunks.")
 
 # Load embedding model and FAISS index
-embed_model = SentenceTransformer('all-MiniLM-L6-v2')
-
+device = 'cpu'
+embed_model = SentenceTransformer('all-MiniLM-L6-v2', device=device)
 
 
 
