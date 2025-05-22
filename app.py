@@ -462,72 +462,95 @@ elif tabs == "Waterfall Analysis":
 
                                         st.header("Root Cause Analysis")
 
-                                        #RCA Condition 1
-                                        st.subheader('Scenario 1 - PO Coverage is Inadequate')
-                                        scen_1_df_output = waterfall_analysis.scenario_1(result_df, PO_df_filtered)
-                                        styled_df = waterfall_analysis.style_dataframe(scen_1_df_output)
-                                        st.dataframe(styled_df, use_container_width=True)
-                                        analysis_1 = llm_reasoning.explain_scenario_1_with_groq(scen_1_df_output)
+                                        # RCA Condition 1
+                                        try:
+                                            st.subheader('Scenario 1 - PO Coverage is Inadequate')
+                                            scen_1_df_output = waterfall_analysis.scenario_1(result_df, PO_df_filtered)
+                                            styled_df = waterfall_analysis.style_dataframe(scen_1_df_output)
+                                            st.dataframe(styled_df, use_container_width=True)
+                                            analysis_1 = llm_reasoning.explain_scenario_1_with_groq(scen_1_df_output)
+                                        except Exception as e:
+                                            st.error(f"Error in Scenario 1: {e}")
 
-                                        #RCA Condition 2
-                                        st.subheader('Scenario 2 - POs push out or pull in due to changes in demand forecasts')
-                                        wos_list, analysis_plot, comparison_table = waterfall_analysis.plot_stock_prediction_plotly(result_df, start_week, lead_value, num_weeks)
-                                        st.plotly_chart(analysis_plot)
-                                        st.write("Forecast Accuracy Validation Table")
-                                        st.dataframe(comparison_table)
-                                        st.write("PO Timing Analysis")
-                                        po_analysis_output = waterfall_analysis.scenario_2(result_df, PO_df_filtered, lead_value)
-                                        st.dataframe(po_analysis_output)
-                                        #st.dataframe(po_2_output)
-                                        analysis_2 = ""
+                                        # RCA Condition 2
+                                        try:
+                                            st.subheader('Scenario 2 - POs push out or pull in due to changes in demand forecasts')
+                                            wos_list, analysis_plot, comparison_table = waterfall_analysis.plot_stock_prediction_plotly(result_df, start_week, lead_value, num_weeks)
+                                            st.plotly_chart(analysis_plot)
+                                            st.write("Forecast Accuracy Validation Table")
+                                            st.dataframe(comparison_table)
+                                            st.write("PO Timing Analysis")
+                                            po_analysis_output = waterfall_analysis.scenario_2(result_df, PO_df_filtered, lead_value)
+                                            st.dataframe(po_analysis_output)
+                                            analysis_2 = ""  # Add logic if needed
+                                        except Exception as e:
+                                            st.error(f"Error in Scenario 2: {e}")
+                                        
+                                        # RCA Condition 3
+                                        try:
+                                            st.subheader('Scenario 3 - Adjustment to POs')
+                                            scen_3_df_output = waterfall_analysis.scenario_3_simulation(result_df, PO_df_filtered, po_analysis_output)
+                                            st.dataframe(scen_3_df_output)
+                                            analysis_3 = ""  # Add logic if needed
+                                        except Exception as e:
+                                            st.error(f"Error in Scenario 3: {e}")
 
-                                        #RCA Condition 3
-                                        st.subheader('Scenario 3 - Adjustment to POs')
-                                        scen_3_df_output = waterfall_analysis.scenario_3_simulation(result_df, PO_df_filtered, po_analysis_output)
-                                        st.dataframe(scen_3_df_output)
-                                        analysis_3 = ""
+                                        # RCA Condition 4
+                                        try:
+                                            st.subheader('Scenario 4 - Longer Delivery Lead Time')
+                                            condition4 = waterfall_analysis.lead_time_check(result_df)
+                                            st.dataframe(condition4)
+                                            analysis_4 = llm_reasoning.explain_scenario_4_with_groq(condition4)
+                                        except Exception as e:
+                                            st.error(f"Error in Scenario 4: {e}")
 
-                                        #RCA Condition 4
-                                        condition4 = waterfall_analysis.lead_time_check(result_df)
-                                        st.subheader('Scenario 4 - Longer Delivery Lead Time')
-                                        st.dataframe(condition4)
-                                        analysis_4 = llm_reasoning.explain_scenario_4_with_groq(condition4)
+                                        # RCA Condition 5
+                                        try:
+                                            st.subheader('Scenario 5 - Irregular Demand w/o Buffer Patterns')
+                                            condition5 = waterfall_analysis.analyze_week_to_week_demand_changes(result_df, lead_time=lead_value)
+                                            st.dataframe(condition5)
+                                            analysis_5 = llm_reasoning.explain_scenario_5_with_groq(condition5)
+                                        except Exception as e:
+                                            st.error(f"Error in Scenario 5: {e}")
 
-                                        #RCA Condition 5
-                                        st.subheader('Scenario 5 - Irregular Demand w/o Buffer Patterns')
-                                        condition5 = waterfall_analysis.analyze_week_to_week_demand_changes(result_df, lead_time= lead_value)
-                                        st.dataframe(condition5)
-                                        analysis_5 = llm_reasoning.explain_scenario_5_with_groq(condition5)
+                                        # RCA Condition 6
+                                        try:
+                                            st.subheader('Scenario 6 - Irregular Consumption Patterns')
+                                            consumption_vals, fig, comparison_df = waterfall_analysis.plot_consumption_vs_demand_plotly(result_df)
+                                            st.plotly_chart(fig)
+                                            st.write("Analysis of Consumption Against Planned Demand")
+                                            st.dataframe(comparison_df)
 
-                                        #RCA Condition 6
-                                        st.subheader('Scenario 6 - Irregular Consumption Patterns')
-                                        consumption_vals, fig, comparison_df = waterfall_analysis.plot_consumption_vs_demand_plotly(result_df)
-                                        st.plotly_chart(fig)
-                                        st.write("Analysis of Consumption Against Planned Demand")
-                                        st.dataframe(comparison_df)
-                                        condition6 = waterfall_analysis.scenario_6(result_df, PO_df_filtered)
-                                        cons_reported_act = condition6[["Consumption (Waterfall)", "Consumption (Calc)"]]
-                                        cons_reported_act["Abs Diff"] = (cons_reported_act["Consumption (Waterfall)"] - cons_reported_act["Consumption (Calc)"]).abs()
-                                        def flag_discrepancy(row, threshold=0.15):
-                                            calc = row["Consumption (Calc)"]
-                                            rep = row["Consumption (Waterfall)"]
-                                            if calc == 0 and rep == 0:
+                                            condition6 = waterfall_analysis.scenario_6(result_df, PO_df_filtered)
+                                            cons_reported_act = condition6[["Consumption (Waterfall)", "Consumption (Calc)"]]
+                                            cons_reported_act["Abs Diff"] = (cons_reported_act["Consumption (Waterfall)"] - cons_reported_act["Consumption (Calc)"]).abs()
+
+                                            def flag_discrepancy(row, threshold=0.15):
+                                                calc = row["Consumption (Calc)"]
+                                                rep = row["Consumption (Waterfall)"]
+                                                if calc == 0 and rep == 0:
+                                                    return ""
+                                                if calc == 0 or rep == 0:
+                                                    return "⚠️ Zero mismatch"
+                                                ratio = rep / calc
+                                                if ratio > 1 + threshold:
+                                                    return f"⚠️ Over by {round((ratio - 1) * 100)}%"
+                                                elif ratio < 1 - threshold:
+                                                    return f"⚠️ Under by {round((1 - ratio) * 100)}%"
                                                 return ""
-                                            if calc == 0 or rep == 0:
-                                                return "⚠️ Zero mismatch"
-                                            ratio = rep / calc
-                                            if ratio > 1 + threshold:
-                                                return f"⚠️ Over by {round((ratio - 1) * 100)}%"
-                                            elif ratio < 1 - threshold:
-                                                return f"⚠️ Under by {round((1 - ratio) * 100)}%"
-                                            return ""
-                                        cons_reported_act["Flag"] = cons_reported_act.apply(flag_discrepancy, axis=1)
-                                        st.write("Consumption Comparison (Reported vs Calculated)")
-                                        st.dataframe(cons_reported_act)
-                                        with st.expander("Show End-to-End Inventory and Consumption Tracking"):
-                                            st.write("End-to-End Inventory and Consumption Tracking")
-                                            st.dataframe(condition6)
-                                        analysis_6 = llm_reasoning.explain_scenario_6_with_groq(condition6)
+
+                                            cons_reported_act["Flag"] = cons_reported_act.apply(flag_discrepancy, axis=1)
+
+                                            st.write("Consumption Comparison (Reported vs Calculated)")
+                                            st.dataframe(cons_reported_act)
+
+                                            with st.expander("Show End-to-End Inventory and Consumption Tracking"):
+                                                st.write("End-to-End Inventory and Consumption Tracking")
+                                                st.dataframe(condition6)
+
+                                            analysis_6 = llm_reasoning.explain_scenario_6_with_groq(condition6)
+                                        except Exception as e:
+                                            st.error(f"Error in Scenario 6: {e}")
 
                                         rca_final = llm_reasoning.explain_waterfall_chart_with_groq(result_df, analysis_1, analysis_2, analysis_3, analysis_4, analysis_5, analysis_6)
 
