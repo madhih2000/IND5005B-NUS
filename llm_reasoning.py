@@ -3,6 +3,7 @@ import streamlit as st
 import pandas as pd
 #import faiss
 import numpy as np
+import torch
 #from sentence_transformers import SentenceTransformer
 from transformers import AutoTokenizer, AutoModel
 from sklearn.metrics.pairwise import cosine_similarity
