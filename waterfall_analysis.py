@@ -908,8 +908,239 @@ def scenario_1(df, po_df):
 
     return filtered_df
 
+def scenario_2(waterfall_df, po_df, lead_time: int): # Added lead_time argument
+    """
+    Analyzes inventory based on waterfall data and identifies potential
+    pull-in or push-out actions for POs from po_df, based on specific metric conditions.
+    This version does not simulate the impact of actions on inventory.
 
-def old_scenario_2(waterfall_df, po_df):
+    Args:
+        waterfall_df (pd.DataFrame): DataFrame with supply, demand, and inventory snapshots.
+                                     Expected columns: 'Measures', 'Snapshot', 'InventoryOn-Hand',
+                                     and week columns (e.g., 'WW23').
+        po_df (pd.DataFrame): DataFrame with purchase order details.
+                              Expected columns: 'Purchasing Document', 'GR WW', 'Order WW', 'GR Quantity'.
+        lead_time (int): Lead time in weeks, used for pull-in condition.
+    Returns:
+        pd.DataFrame: DataFrame with weekly analysis, including suggested actions.
+    """
+    lead_time = lead_time.iloc[0]
+    supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
+    demand_rows = waterfall_df[waterfall_df['Measures'] == 'Demand w/o Buffer']
+
+    # Ensure 'Snapshot' is sorted to process weeks chronologically
+    snapshots = sorted(waterfall_df['Snapshot'].unique())
+    
+    if not snapshots:
+        print("Warning: No snapshots found in waterfall_df.")
+        return pd.DataFrame()
+
+    # Determine initial inventory from the first snapshot
+    initial_snapshot_data = supply_rows[supply_rows['Snapshot'] == snapshots[0]]
+    if not initial_snapshot_data.empty and 'InventoryOn-Hand' in initial_snapshot_data.columns:
+        initial_inventory_calc = int(initial_snapshot_data['InventoryOn-Hand'].iloc[0])
+    else:
+        print(f"Warning: Could not determine initial inventory from snapshot {snapshots[0]}. Defaulting to 0.")
+        initial_inventory_calc = 0
+
+    results = []
+    current_inventory_calc = initial_inventory_calc
+    # Tracks POs that have been suggested for an action to avoid re-suggesting them
+    suggested_action_po_docs_globally = set() 
+
+    for i, snapshot in enumerate(snapshots):
+        week_col = snapshot
+        try:
+            week_num = int(snapshot.replace("WW", ""))
+        except ValueError:
+            print(f"Warning: Could not parse week number from snapshot {snapshot}. Skipping this snapshot.")
+            continue
+
+        # --- Demand & Supply from Waterfall DF for the current week column ---
+        demand_val_series = demand_rows.loc[demand_rows['Snapshot'] == snapshot, week_col]
+        supply_val_series = supply_rows.loc[supply_rows['Snapshot'] == snapshot, week_col]
+        demand_waterfall = int(demand_val_series.iloc[0]) if not demand_val_series.empty else 0
+        supply_waterfall = int(supply_val_series.iloc[0]) if not supply_val_series.empty else 0
+        
+        # --- Waterfall Inventory Reference (Start of Week from 'InventoryOn-Hand' column) ---
+        inv_on_hand_series = supply_rows.loc[supply_rows['Snapshot'] == snapshot, 'InventoryOn-Hand']
+        start_inventory_waterfall_ref = int(inv_on_hand_series.iloc[0]) if not inv_on_hand_series.empty else 0
+
+        # --- Store current week's opening inventory (carried from previous week's close) ---
+        opening_inventory_calc = current_inventory_calc
+
+        # --- Calculated End Inventory (based purely on waterfall_df data for the week) ---
+        end_inventory_calc = opening_inventory_calc + supply_waterfall - demand_waterfall
+        
+        action = "No Action"
+        suggested_pos_for_this_action = [] # POs involved in the specific action this week
+        action_po_quantity_sum = 0
+        action_description = None
+        flags = []
+
+        # --- Calculate demand for the next 6 weeks from the current snapshot's perspective ---
+        demand_next_6_weeks = 0
+        current_snapshot_demand_view = demand_rows[demand_rows['Snapshot'] == snapshot]
+        if not current_snapshot_demand_view.empty:
+            for k_future_week_idx in range(1, 7): # Weeks t+1 to t+6
+                future_week_col_name = f"WW{week_num + k_future_week_idx}"
+                if future_week_col_name in current_snapshot_demand_view.columns:
+                    try:
+                        future_demand_val = current_snapshot_demand_view[future_week_col_name].iloc[0]
+                        # Ensure empty strings or non-convertible values become 0
+                        if pd.notna(future_demand_val) and str(future_demand_val).strip() != '':
+                            demand_next_6_weeks += int(float(str(future_demand_val))) # float for robustness then int
+                        else:
+                            demand_next_6_weeks += 0
+                    except (ValueError, TypeError):
+                        demand_next_6_weeks += 0 # If conversion fails, add 0
+        
+        # --- Calculate the metric as per user's formula ---
+        # Metric: (demand for next 6 weeks - current week's end inventory) / 6
+        metric_value = (end_inventory_calc) / (demand_next_6_weeks / 6.0)
+
+        # --- POs scheduled for this week (candidates for push-out) ---
+        current_week_pos_df_candidates = po_df[
+            (po_df['GR WW'] == week_num) & 
+            (~po_df['Purchasing Document'].isin(suggested_action_po_docs_globally))
+        ]
+        current_week_po_docs_from_po_df = [str(doc) for doc in current_week_pos_df_candidates['Purchasing Document']]
+        current_week_po_qty_from_po_df = current_week_pos_df_candidates['GR Quantity'].sum()
+
+        # --- Push-out Identification Logic ---
+        # Condition: metric_value > 20
+        # User's note: This condition implies future demand significantly exceeds current inventory.
+        # Pushing out POs in such a scenario is counter-intuitive for typical inventory management if it means reducing incoming supply.
+        # Implementing as per user's direct instruction.
+        if metric_value > 20:
+            if not current_week_pos_df_candidates.empty:
+                flags.append(f"Metric ({metric_value:.2f}) > 20. Identifying potential push-out.")
+                
+                po_to_push_out_row = current_week_pos_df_candidates.iloc[0] # Suggest pushing the first candidate
+                doc_to_push = str(po_to_push_out_row['Purchasing Document'])
+                qty_to_push = po_to_push_out_row['GR Quantity']
+
+                action = "Suggest Push Out"
+                suggested_pos_for_this_action.append(doc_to_push)
+                suggested_action_po_docs_globally.add(doc_to_push) # Mark as actioned
+                action_po_quantity_sum = qty_to_push 
+                
+                pushed_to_week_suggestion = week_num + 1 
+                action_description = (f"Metric ({metric_value:.2f}) > 20. "
+                                      f"Suggest pushing PO {doc_to_push} (Qty {qty_to_push}) "
+                                      f"from WW{week_num} to WW{pushed_to_week_suggestion}.")
+                flags.append(f"Push-out suggested for PO {doc_to_push}.")
+            else:
+                flags.append(f"Metric ({metric_value:.2f}) > 20, but no current week POs available to suggest for push-out.")
+        
+        # --- Pull-in Identification Logic ---
+        # Condition: metric_value < lead_time (integer variable from function args)
+        elif metric_value < lead_time:
+            flags.append(f"Metric ({metric_value:.2f}) < Lead Time ({lead_time}). Identifying potential pull-in.")
+            action = "Suggest Pull In" # Tentatively set action
+
+            target_pull_in_quantity = 0
+            if end_inventory_calc < 0:
+                target_pull_in_quantity = abs(end_inventory_calc)
+                flags.append(f"Current inventory ({end_inventory_calc}) is negative. Targeting to cover this deficit ({target_pull_in_quantity}).")
+            else:
+                # Proactive pull-in: inventory is non-negative, but metric suggests a need.
+                # Target pulling in approximately one average week of future demand as a proactive measure.
+                if demand_next_6_weeks > 0:
+                    avg_one_week_future_demand = demand_next_6_weeks / 6.0
+                    target_pull_in_quantity = avg_one_week_future_demand
+                    flags.append(f"Proactive pull-in. Targeting ~1 avg future week's demand ({target_pull_in_quantity:.0f}).")
+                else: 
+                    # No future demand, inventory non-negative, but metric triggered pull-in.
+                    # This case (e.g., positive inventory, metric = -inv/6 < lead_time) is complex.
+                    # Pulling more when no future demand and positive inventory might be undesirable.
+                    # For now, set a nominal small target to see if any PO can be pulled.
+                    target_pull_in_quantity = 1 
+                    flags.append("Proactive pull-in triggered with no future demand. Nominal target (1 unit) to identify next PO.")
+            
+            if target_pull_in_quantity > 0:
+                future_po_candidates_for_pull = po_df[
+                    (po_df['GR WW'] > week_num) & 
+                    (~po_df['Purchasing Document'].isin(suggested_action_po_docs_globally))
+                ].sort_values(by=['GR WW', 'Order WW'])
+
+                qty_identified_for_pull_in_total = 0
+                pulled_in_details_desc_list = []
+                # Make a copy of target for loop modification
+                remaining_qty_to_target_for_pull = target_pull_in_quantity 
+
+                for _, po_row in future_po_candidates_for_pull.iterrows():
+                    # If we've met or exceeded the target, and have identified at least one PO
+                    if remaining_qty_to_target_for_pull <= 0 and qty_identified_for_pull_in_total > 0:
+                        break 
+
+                    po_doc = str(po_row['Purchasing Document'])
+                    po_qty = po_row['GR Quantity']
+                    original_gr_ww = po_row['GR WW']
+
+                    qty_identified_for_pull_in_total += po_qty
+                    suggested_pos_for_this_action.append(po_doc)
+                    suggested_action_po_docs_globally.add(po_doc) # Mark as actioned
+                    pulled_in_details_desc_list.append(f"{po_doc} (Qty {po_qty} from WW{original_gr_ww})")
+                    
+                    remaining_qty_to_target_for_pull -= po_qty
+                
+                if qty_identified_for_pull_in_total > 0:
+                    action_po_quantity_sum = qty_identified_for_pull_in_total
+                    action_description = (f"Metric ({metric_value:.2f}) < Lead Time ({lead_time}). "
+                                          f"Suggest pulling to WW{week_num}: {'; '.join(pulled_in_details_desc_list)}.")
+                    if remaining_qty_to_target_for_pull > 0: # Means we couldn't cover the full target
+                         flags.append(f"Suggested pull-in may be insufficient for the calculated target need of {target_pull_in_quantity:.0f}.")
+                    else:
+                         flags.append(f"Suggested pull-in likely covers/exceeds calculated target need of {target_pull_in_quantity:.0f}.")
+                else:
+                    flags.append(f"Metric condition for pull-in met (target {target_pull_in_quantity:.0f}), but no available POs identified.")
+                    action = "No Action" # Revert action if no POs found
+            else: # target_pull_in_quantity was 0 or less.
+                flags.append(f"Metric condition for pull-in met, but calculated target quantity for pull-in is zero or less. No specific POs targeted.")
+                action = "No Action" # Revert action
+        else: # Neither Push Out nor Pull In conditions met based on the metric
+            action = "No Action" 
+            flags.append(f"Metric ({metric_value:.2f}) did not trigger push-out (>20) or pull-in (<{lead_time}). Conditions OK.")
+
+        # Ensure 'OK' is the primary flag if no specific action/warning arose.
+        if action == "No Action" and not any("risk" in f.lower() or "negative" in f.lower() or "insufficient" in f.lower() or "push-out suggested" in f.lower() or "pull-in suggested" in f.lower() for f in flags):
+            # If it's "No Action" and no other critical flags, simplify to "OK" or the metric status.
+            if not (metric_value > 20 or metric_value < lead_time): # If metric is in the "OK" band
+                 flags = [f"Metric ({metric_value:.2f}) is within acceptable range. OK."]
+            # else, the existing flags about metric conditions not being met are fine.
+
+
+        final_flags = [f for f in flags if f] # Remove empty strings
+        if not final_flags: # Should not happen if logic above is complete
+             final_flags.append("OK")
+
+
+        results.append({
+            'Snapshot Week': snapshot,
+            'Start Inventory (Waterfall Ref)': start_inventory_waterfall_ref,
+            'Start Inventory (Calc)': opening_inventory_calc,
+            'Demand (Waterfall)': demand_waterfall,
+            'Supply (Waterfall)': supply_waterfall,
+            'Demand Next 6 Weeks (View)': demand_next_6_weeks, # Added for transparency
+            'Metric ((D_6wk - Inv) / 6)': round(metric_value, 2), # Added for transparency
+            'PO Docs Scheduled This Week (po_df)': ", ".join(current_week_po_docs_from_po_df) if current_week_po_docs_from_po_df else None,
+            'PO Qty Scheduled This Week (po_df)': current_week_po_qty_from_po_df,
+            'End Inventory (Calc)': end_inventory_calc,
+            'Suggested POs for Action': ", ".join(suggested_pos_for_this_action) if suggested_pos_for_this_action else None,
+            'Quantity of POs in Suggested Action': action_po_quantity_sum,
+            'Suggested Action Detail': action_description,
+            'Flags': ", ".join(final_flags),
+            'Identified Action': action
+        })
+
+        # Update calculated inventory for the next iteration
+        current_inventory_calc = end_inventory_calc
+        
+    return pd.DataFrame(results)
+
+
+def scenario_2_test(waterfall_df, po_df):
     supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
     demand_rows = waterfall_df[waterfall_df['Measures'] == 'Demand w/o Buffer']
 
@@ -1170,7 +1401,7 @@ def scenario_2_old_v2(waterfall_df, po_df, lead_time=6):
 
     return pd.DataFrame(results)
 
-def scenario_2(waterfall_df, po_df, start_week):
+def old_scenario_2_v3(waterfall_df, po_df, start_week):
     """
     Simulates inventory levels, plans actions (pull-in/push-out), and provides
     supply-demand adequacy recommendations based on lead time.

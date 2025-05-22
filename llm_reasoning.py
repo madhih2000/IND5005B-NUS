@@ -563,7 +563,7 @@ def explain_waterfall_chart_with_groq(df, analysis_1, analysis_2, analysis_3, an
     def retrieve_scenario(text):
         embedding = embed_model.encode([text])
         D, I = faiss_index.search(embedding, k=6)
-       return [scenarios[i] for i in I[0]]
+        return [scenarios[i] for i in I[0]]
 
     def process_chunk(chunk_text):
         retrieved_scenarios = retrieve_scenario(chunk_text)
