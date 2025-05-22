@@ -17,5 +17,6 @@ streamlit-aggrid
 streamlit-ext
 transformers
 torch
+torchvision
 #sentence-transformers 
 #faiss-cpu
