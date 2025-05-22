@@ -15,5 +15,7 @@ pillow
 kaleido
 streamlit-aggrid
 streamlit-ext
-sentence-transformers 
-faiss-cpu
+transformers
+torch
+#sentence-transformers 
+#faiss-cpu
