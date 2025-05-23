@@ -15,6 +15,5 @@ pillow
 kaleido
 streamlit-aggrid
 streamlit-ext
-transformers
 sentence-transformers 
 faiss-cpu
