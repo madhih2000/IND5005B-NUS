@@ -2033,3 +2033,48 @@ def scenario_3(waterfall_df, po_df, scenario_1_results_df):
         current_projected_inventory = projected_inventory
 
     return pd.DataFrame(results)
+
+# --- Discrepancy Analysis ---
+def analyze_discrepancy(row):
+    planned_supply = row['Planned_Supply']
+    incoming_po_gr = row['Incoming_PO_GR_Quantity']
+    po_docs = ", ".join(map(str, row['Purchasing_Documents'])) if row['Purchasing_Documents'] else "None"
+
+    discrepancy_flag = False
+    discrepancy_detail = "No discrepancy."
+
+    if planned_supply == 0 and incoming_po_gr != 0:
+        discrepancy_flag = True
+        discrepancy_detail = (f"Discrepancy: Planned Supply is 0, but Goods Receipt (GR) from PO(s) is {incoming_po_gr}. "
+                              f"Affected PO(s): {po_docs}.")
+    elif planned_supply != 0 and incoming_po_gr == 0:
+        discrepancy_flag = True
+        discrepancy_detail = (f"Discrepancy: Planned Supply is {planned_supply}, but Goods Receipt (GR) from PO(s) is 0. "
+                              f"Expected PO(s) (if any based on other data): {po_docs}.") # PO docs might be empty if no POs were due
+    elif planned_supply != 0 and incoming_po_gr != 0 and planned_supply != incoming_po_gr:
+        discrepancy_flag = True
+        difference = incoming_po_gr - planned_supply
+        if difference > 0:
+            discrepancy_detail = (f"Discrepancy: Planned Supply ({planned_supply}) is less than Goods Receipt (GR) from PO(s) ({incoming_po_gr}) by {difference}. "
+                                  f"Affected PO(s): {po_docs}.")
+        else:
+            discrepancy_detail = (f"Discrepancy: Planned Supply ({planned_supply}) is greater than Goods Receipt (GR) from PO(s) ({incoming_po_gr}) by {-difference}. "
+                                  f"Affected PO(s): {po_docs}.")
+    elif planned_supply == 0 and incoming_po_gr == 0:
+        # This case is technically no discrepancy in terms of mismatch, but we can note it if needed.
+        # For now, it falls under "No discrepancy." if not caught by other conditions.
+        # If POs were expected but GR is 0, it's covered by the second condition if planned_supply was > 0.
+        # If no POs were expected and planned supply was 0, then it's fine.
+        pass
+
+
+    # If there are PO documents but no discrepancy was flagged by quantity mismatch,
+    # it implies planned supply matched incoming PO GR, or both were zero.
+    # We can add a note about POs if they exist and no other discrepancy was found.
+    if not discrepancy_flag and po_docs != "None":
+        discrepancy_detail = f"Planned Supply matches Goods Receipt from PO(s). PO(s) for this week: {po_docs}."
+    elif not discrepancy_flag and po_docs == "None":
+         discrepancy_detail = "No discrepancy. No POs scheduled for GR this week."
+
+
+    return pd.Series([discrepancy_flag, discrepancy_detail])
