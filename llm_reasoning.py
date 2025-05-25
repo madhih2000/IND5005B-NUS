@@ -565,9 +565,9 @@ def explain_scenario_7_with_groq(df):
     - Detect and summarize major mismatches between planned supply and PO GRs.
     - Each week may have planned supply, GRs, or both.
     - A discrepancy exists if:
-        • Planned Supply is zero but GR is non-zero (unexpected fulfillment)
-        • GR is zero but Planned Supply is non-zero (missed fulfillment)
-        • Planned Supply and GR differ materially (±10 units or more)
+        - Planned Supply is zero but GR is non-zero (unexpected fulfillment)
+        - GR is zero but Planned Supply is non-zero (missed fulfillment)
+        - Planned Supply and GR differ materially (±10 units or more)
 
     Columns:
     - Snapshot Week: e.g., WW05
