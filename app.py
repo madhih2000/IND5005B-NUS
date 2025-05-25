@@ -570,7 +570,10 @@ elif tabs == "Waterfall Analysis":
 
                                             # Apply the discrepancy function here
                                             summary_df[['Discrepancy_Flag', 'Discrepancy_Detail', 'Abs_Difference']] = summary_df.apply(waterfall_analysis.analyze_discrepancy_scen_7, axis=1)
+                                            cols = ['Snapshot Week', 'Supply (Waterfall)', 'GR Quantity', 'Abs_Difference',
+                                                    'Purchasing Document', 'Discrepancy_Flag', 'Discrepancy_Detail']
 
+                                            summary_df = summary_df[cols]
                                             st.dataframe(summary_df)
                                         except Exception as e:
                                             st.error(f"Error in Scenario 7: {e}")
