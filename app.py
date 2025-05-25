@@ -522,7 +522,7 @@ elif tabs == "Waterfall Analysis":
                                             st.dataframe(comparison_df)
 
                                             condition6 = waterfall_analysis.scenario_6(result_df, PO_df_filtered)
-                                            cons_reported_act = condition6[["Consumption (Waterfall)", "Consumption (Calc)"]]
+                                            cons_reported_act = condition6[["Snapshot Week", "Consumption (Waterfall)", "Consumption (Calc)"]]
                                             cons_reported_act["Abs Diff"] = (cons_reported_act["Consumption (Waterfall)"] - cons_reported_act["Consumption (Calc)"]).abs()
 
                                             def flag_discrepancy(row, threshold=0.15):
@@ -551,6 +551,14 @@ elif tabs == "Waterfall Analysis":
                                             analysis_6 = llm_reasoning.explain_scenario_6_with_groq(condition6)
                                         except Exception as e:
                                             st.error(f"Error in Scenario 6: {e}")
+
+                                        try:
+                                            st.subheader('Scenario 7 - Supply vs Goods Receipt Analysis')
+                                            condition_7 = condition6[["Snapshot Week", "Supply (Waterfall)", "PO GR Quantity"]].rename(columns={"PO GR Quantity": "GR Quantity"})
+                                            st.dataframe(condition_7)
+                                        except Exception as e:
+                                            st.error(f"Error in Scenario 7: {e}")
+
 
                                         rca_final = llm_reasoning.explain_waterfall_chart_with_groq(result_df, analysis_1, analysis_2, analysis_3, analysis_4, analysis_5, analysis_6)
 
