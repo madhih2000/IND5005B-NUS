@@ -567,17 +567,26 @@ def explain_scenario_7_with_groq(df):
     - Abs_Difference: Absolute value of the delta between supply and GR
     - Purchasing Document: List of PO numbers involved
 
+    Additionally:
+    - Add a likely reason for each mismatch. Possible reasons include:
+        • Early delivery by supplier
+        • Late or missed delivery
+        • Planning system error
+        • Purchase Order timing issue
+        • In-transit inventory not accounted
+        • Quantity change after planning snapshot
+
     Formatting rules:
     - One bullet per week with a material discrepancy (Abs_Difference ≥ 10)
     - Sort bullets by Abs_Difference (descending)
     - Each bullet format:
-      • WW07 - Mismatch of 40 units (Supply 0 vs GR 40): Unexpected receipt from PO(s): 123456, 789123.
+    • WW07 - Mismatch of 40 units (Supply 0 vs GR 40): Unexpected receipt from PO(s): 123456, 789123. Reason: Early delivery by supplier.
 
     - If no material discrepancy but GR exists:
-      • WW08 - Match: Supply and GR aligned at 120 units. PO(s): 456789.
+    • WW08 - Match: Supply and GR aligned at 120 units. PO(s): 456789.
 
     - If no GR and no supply:
-      • WW09 - No Activity: No planned supply or receipts.
+    • WW09 - No Activity: No planned supply or receipts.
 
     Limit: Maximum 10 bullets. Skip weeks with <10 unit difference unless both values are zero.
 
