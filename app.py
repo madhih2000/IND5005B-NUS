@@ -561,13 +561,15 @@ elif tabs == "Waterfall Analysis":
                                                                 left_on='Snapshot Week Num', right_on='GR WW', how='left')
                                             # Drop the temporary merge key if you don't want it in the final result
                                             merged_df.drop(columns=["Snapshot Week Num"], inplace=True)
-                                            st.dataframe(merged_df)
                                             # Group and aggregate POs by week
                                             summary_df = merged_df.groupby("Snapshot Week").agg({
                                                 "Supply (Waterfall)": "first",
                                                 "GR Quantity": "first",
                                                 "Purchasing Document": lambda x: list(x.dropna())
                                             }).reset_index()
+
+                                            # Apply the discrepancy function here
+                                            summary_df[['Discrepancy_Flag', 'Discrepancy_Detail']] = summary_df.apply(analyze_discrepancy_scen_7, axis=1)
 
                                             st.dataframe(summary_df)
                                         except Exception as e:
