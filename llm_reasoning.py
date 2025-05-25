@@ -433,8 +433,8 @@ def explain_scenario_5_with_groq(df):
     Your objective:
         - **Write a clean, executive-level summary** with **one bullet per Week**, highlighting the **most material change**.
 
-       Rules:
-        1. For each Week:
+    Rules:
+    1. For each Week:
         - Pick the **row with the largest absolute WoW Change** (in units).
         - Show both the **unit delta** and the **% delta** from that row.
         - Label the type as either:
@@ -442,18 +442,27 @@ def explain_scenario_5_with_groq(df):
             - `Crash` (negative change ≤-10 units & ≤-30%)
             - Otherwise, skip that Week unless it's the **largest move overall** that week.
 
-        2. Formatting:
+    2. Formatting:
         - Bullet format must be one per line, like:
             - WW07 - Surge +44 units (+314%): sharp rebound after three flat rows.
 
+    3. Missing Data:
         - For missing weeks (no data at all):
-            - WW09 - Missing: No data available this week.
+            - WW09 - Missing: No data available this week, possibly due to late planner submission or system error.
 
-        3. Include **no more than 10 bullets total**, prioritize by **absolute unit change**, then **% change**.
+    4. Explanation Objective:
+        - For each selected bullet (Surge, Crash, or Missing), include a **brief hypothesis (10–15 words)** explaining what might have caused the change.
+        - Use realistic, supply-chain-aware reasoning:
+            - customer pull-in/pushout, forecast override, backlog clearance, planner/system error, seasonality, etc.
+        - Write this explanation **after the colon**, immediately following the unit and % change.
+        - Be thoughtful but concise; do not over-explain or speculate wildly.
 
-        4. Do NOT include:
-        - Rows with <10 unit change **or** <30% change.
-        - Repeated bullets for the same week.
+    5. Prioritization & Limits:
+        - Include **no more than 10 bullets total**.
+        - Prioritize by **absolute unit change**, then **% change**.
+        - Do NOT include:
+            - Rows with <10 unit change **or** <30% change.
+            - Repeated bullets for the same week.
 
     Do not include introductory phrases or summaries. Start directly with bullet points.
     """
