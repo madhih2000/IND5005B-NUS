@@ -564,8 +564,8 @@ elif tabs == "Waterfall Analysis":
                                             st.dataframe(merged_df)
                                             # Group and aggregate POs by week
                                             summary_df = merged_df.groupby("Snapshot Week").agg({
-                                                "Supply (Waterfall)": "sum",
-                                                "GR Quantity": "sum",
+                                                "Supply (Waterfall)": "first",
+                                                "GR Quantity": "first",
                                                 "Purchasing Document": lambda x: list(x.dropna())
                                             }).reset_index()
 
