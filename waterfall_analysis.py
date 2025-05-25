@@ -2037,28 +2037,30 @@ def scenario_3(waterfall_df, po_df, scenario_1_results_df):
 def analyze_discrepancy_scen_7(row):
     planned_supply = row['Supply (Waterfall)']
     incoming_po_gr = row['GR Quantity']
-    po_docs = ", ".join(map(str, row['Purchasing Document'])) if row['Purchasing Document'] else "None"
+    po_docs = ", ".join(str(int(x)) for x in row['Purchasing Document']) if row['Purchasing Document'] else "None"
 
     discrepancy_flag = False
     discrepancy_detail = "No discrepancy."
 
-    if planned_supply == 0 and incoming_po_gr != 0:
+    abs_diff = abs(planned_supply - incoming_po_gr)
+
+        if planned_supply == 0 and incoming_po_gr != 0:
         discrepancy_flag = True
-        discrepancy_detail = (f"Discrepancy: Planned Supply is 0, but Goods Receipt (GR) from PO(s) is {incoming_po_gr}. "
-                              f"Affected PO(s): {po_docs}.")
+        discrepancy_detail = (f"Discrepancy: Planned Supply is 0, but Goods Receipt (GR) from PO(s) is {incoming_po_gr} "
+                              f"(difference of {abs_diff}). Affected PO(s): {po_docs}.")
     elif planned_supply != 0 and incoming_po_gr == 0:
         discrepancy_flag = True
-        discrepancy_detail = (f"Discrepancy: Planned Supply is {planned_supply}, but Goods Receipt (GR) from PO(s) is 0. "
-                              f"Expected PO(s) (if any based on other data): {po_docs}.")
+        discrepancy_detail = (f"Discrepancy: Planned Supply is {planned_supply}, but Goods Receipt (GR) from PO(s) is 0 "
+                              f"(difference of {abs_diff}). Expected PO(s): {po_docs}.")
     elif planned_supply != 0 and incoming_po_gr != 0 and planned_supply != incoming_po_gr:
         discrepancy_flag = True
         difference = incoming_po_gr - planned_supply
         if difference > 0:
-            discrepancy_detail = (f"Discrepancy: Planned Supply ({planned_supply}) is less than Goods Receipt (GR) from PO(s) ({incoming_po_gr}) by {difference}. "
-                                  f"Affected PO(s): {po_docs}.")
+            discrepancy_detail = (f"Discrepancy: Planned Supply ({planned_supply}) is less than Goods Receipt (GR) from PO(s) "
+                                  f"({incoming_po_gr}) by {abs_diff}. Affected PO(s): {po_docs}.")
         else:
-            discrepancy_detail = (f"Discrepancy: Planned Supply ({planned_supply}) is greater than Goods Receipt (GR) from PO(s) ({incoming_po_gr}) by {-difference}. "
-                                  f"Affected PO(s): {po_docs}.")
+            discrepancy_detail = (f"Discrepancy: Planned Supply ({planned_supply}) is greater than Goods Receipt (GR) from PO(s) "
+                                  f"({incoming_po_gr}) by {abs_diff}. Affected PO(s): {po_docs}.")
     elif planned_supply == 0 and incoming_po_gr == 0:
         pass
 
