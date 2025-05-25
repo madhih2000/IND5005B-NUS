@@ -541,6 +541,72 @@ def explain_scenario_6_with_groq(df):
 
     return explanation
 
+def explain_scenario_7_with_groq(df):
+    df_string = df.to_string(index=False)
+    client = Groq(api_key=API_KEY)
+
+    system_prompt = """
+    You are a supply chain expert focused on fulfillment performance for semiconductor operations.
+
+    You are analyzing a dataset of weekly snapshots comparing:
+    - Planned Supply (from planning systems)
+    - Goods Receipt (GR) Quantity (actuals from open Purchase Orders)
+
+    Your goal is to:
+    - Detect and summarize major mismatches between planned supply and PO GRs.
+    - Each week may have planned supply, GRs, or both.
+    - A discrepancy exists if:
+        • Planned Supply is zero but GR is non-zero (unexpected fulfillment)
+        • GR is zero but Planned Supply is non-zero (missed fulfillment)
+        • Planned Supply and GR differ materially (±10 units or more)
+
+    Columns:
+    - Snapshot Week: e.g., WW05
+    - Supply (Waterfall): Planned supply quantity
+    - GR Quantity: Received quantity from PO(s)
+    - Abs_Difference: Absolute value of the delta between supply and GR
+    - Purchasing Document: List of PO numbers involved
+
+    Formatting rules:
+    - One bullet per week with a material discrepancy (Abs_Difference ≥ 10)
+    - Sort bullets by Abs_Difference (descending)
+    - Each bullet format:
+      • WW07 - Mismatch of 40 units (Supply 0 vs GR 40): Unexpected receipt from PO(s): 123456, 789123.
+
+    - If no material discrepancy but GR exists:
+      • WW08 - Match: Supply and GR aligned at 120 units. PO(s): 456789.
+
+    - If no GR and no supply:
+      • WW09 - No Activity: No planned supply or receipts.
+
+    Limit: Maximum 10 bullets. Skip weeks with <10 unit difference unless both values are zero.
+
+    Begin directly with bullet points. Do not summarize, explain, or list rules.
+    """
+
+    user_prompt = f"""
+    Analyze the following weekly supply vs GR dataset:\n\n{df_string}
+    """
+
+    for model in models:
+        try:
+            chat_completion = client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                model=model,
+            )
+            explanation = chat_completion.choices[0].message.content
+            st.write(explanation)
+            break
+        except Exception as e:
+            continue
+    else:
+        st.error("All model attempts failed.")
+
+    return explanation
+
 def explain_waterfall_chart_with_groq(df, analysis_1, analysis_2, analysis_3, analysis_4, analysis_5, analysis_6):
     df_string = df.to_string(index=False)
 

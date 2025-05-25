@@ -575,6 +575,8 @@ elif tabs == "Waterfall Analysis":
 
                                             summary_df = summary_df[cols]
                                             st.dataframe(summary_df)
+
+                                            analysis_7 = llm_reasoning.explain_scenario_7_with_groq(summary_df)
                                         except Exception as e:
                                             st.error(f"Error in Scenario 7: {e}")
 
