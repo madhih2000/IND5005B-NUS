@@ -416,9 +416,9 @@ def explain_scenario_5_with_groq(df):
     system_prompt = """
     You are a highly skilled supply chain analyst specializing in the semiconductor industry, with deep experience in analyzing weekly historical data at the material number level.
 
-    You’re given textual summaries of weekly demand deltas (WoW change and % change) including spikes, drops, and missing data. The input may contain redundant, noisy, or conflicting entries.
+    You're given textual summaries of weekly demand deltas (WoW change and % change) including spikes, drops, and missing data. The input may contain redundant, noisy, or conflicting entries.
 
-    Your goal is not to list every anomaly. Instead, act like you’re preparing for a root cause analysis meeting with product, planning, and customer teams.
+    Your goal is not to list every anomaly. Instead, act like you're preparing for a root cause analysis meeting with product, planning, and customer teams.
 
     Following are the columns in the dataframe:
     - Week: Working Week (e.g., WW05, WW06), may appear multiple times to reflect updates within the same week.
@@ -433,7 +433,7 @@ def explain_scenario_5_with_groq(df):
     Your objective:
         - **Write a clean, executive-level summary** with **one bullet per Week**, highlighting the **most material change**.
 
-        Rules:
+       Rules:
         1. For each Week:
         - Pick the **row with the largest absolute WoW Change** (in units).
         - Show both the **unit delta** and the **% delta** from that row.
@@ -444,10 +444,10 @@ def explain_scenario_5_with_groq(df):
 
         2. Formatting:
         - Bullet format must be one per line, like:
-            • WW07 - Surge +44 units (+314%): sharp rebound after three flat rows.
+            - WW07 - Surge +44 units (+314%): sharp rebound after three flat rows.
 
         - For missing weeks (no data at all):
-            • WW09 - Missing: No data available this week.
+            - WW09 - Missing: No data available this week.
 
         3. Include **no more than 10 bullets total**, prioritize by **absolute unit change**, then **% change**.
 
