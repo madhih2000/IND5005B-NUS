@@ -569,7 +569,7 @@ elif tabs == "Waterfall Analysis":
                                             }).reset_index()
 
                                             # Apply the discrepancy function here
-                                            summary_df[['Discrepancy_Flag', 'Discrepancy_Detail']] = summary_df.apply(analyze_discrepancy_scen_7, axis=1)
+                                            summary_df[['Discrepancy_Flag', 'Discrepancy_Detail']] = summary_df.apply(waterfall_analysis.analyze_discrepancy_scen_7, axis=1)
 
                                             st.dataframe(summary_df)
                                         except Exception as e:
