@@ -888,158 +888,398 @@ def simulate_ordering(order_distribution_name, order_distribution_params, num_si
         print(f"Error simulating ordering: {e}")
         return None
 
-# Inventory Simulation
-def simulate_inventory(filtered_consumption, filtered_orders, filtered_receipts, initial_inventory, reorder_point, order_quantity, lead_time, lead_time_std_dev, demand_surge_weeks, demand_surge_factor, consumption_distribution_params, consumption_type, consumption_best_distribution, consumption_values, num_weeks, order_distribution_params,order_distribution_best, order_quantity_type, min_order_qty):
-    inventory = initial_inventory
-    orders_pending = {}
+# # Inventory Simulation
+# def simulate_inventory(filtered_consumption, filtered_orders, filtered_receipts, initial_inventory, reorder_point, order_quantity, lead_time, lead_time_std_dev, demand_surge_weeks, demand_surge_factor, consumption_distribution_params, consumption_type, consumption_best_distribution, consumption_values, num_weeks, order_distribution_params,order_distribution_best, order_quantity_type, min_order_qty):
+#     inventory = initial_inventory
+#     orders_pending = {}
+#     inventory_history = []
+#     stockout_weeks = []
+#     wos_history = []
+
+#     proactive_inventory = initial_inventory
+#     proactive_orders_pending = {}
+#     proactive_inventory_history = []
+#     proactive_stockout_weeks = []
+#     proactive_wos_history = []
+
+#     consumption_history = []
+#     weeks = list(range(1, num_weeks + 1))
+#     weekly_events = []
+#     logging.warning("Simulation started.")
+
+#     for i, week in enumerate(weeks):
+#         logging.warning(f"Week {week} - Starting Inventory (Reactive): {inventory}, (Proactive): {proactive_inventory}")
+#         event_description = f"**Week {week}**\n"
+#         event_description += f"Starting Inventory (Reactive): {inventory}\n"
+#         event_description += f"Starting Inventory (Proactive): {proactive_inventory}\n"
+
+#         # Add receipts
+#         if week in orders_pending:
+#             inventory += orders_pending[week]
+#             logging.warning(f"Reactive Order of {orders_pending[week]} arrived.")
+#             event_description += f"Reactive Order of {orders_pending[week]} arrived.\n"
+#             del orders_pending[week]
+        
+#         event_description += f"Interim Inventory (Reactive): {inventory}\n"
+
+#         if week in proactive_orders_pending:
+#             proactive_inventory += proactive_orders_pending[week]
+#             logging.warning(f"Proactive Order of {proactive_orders_pending[week]} arrived.")
+#             event_description += f"Proactive Order of {proactive_orders_pending[week]} arrived.\n"
+#             del proactive_orders_pending[week]
+        
+#         event_description += f"Interim Inventory (Proactive): {proactive_inventory}\n"
+
+
+#         # Consumption
+#         consumption_source = "Fixed" if consumption_type == "Fixed" else f"Distribution ({consumption_best_distribution} with parameters {consumption_distribution_params})" if consumption_distribution_params else "Unknown Distribution"
+#         if consumption_type == "Fixed":
+#             consumption_this_week = consumption_values[i] if i < len(consumption_values) else 0 # Handle if user provides less consumption values than weeks.
+#         elif consumption_type == "Distribution" and consumption_distribution_params:
+#             consumption_this_week = simulate_consumption(consumption_best_distribution, consumption_distribution_params)
+#             if consumption_this_week is None:
+#                 consumption_this_week = 0
+#         else:
+#             consumption_this_week = 0
+
+#         consumption_this_week = int(consumption_this_week)
+#         # Apply demand surge (override distribution)
+#         if f"WW{i + 1}" in demand_surge_weeks: 
+#             consumption_this_week = consumption_this_week * demand_surge_factor
+#             logging.warning(f"Demand surge applied: Consumption increased to {consumption_this_week}.")
+#             event_description += f"Demand surge applied. Consumption increased by {demand_surge_factor}x.\n"
+
+
+#         # Deduct consumption
+#         inventory -= consumption_this_week
+#         if inventory < 0:
+#             stockout_weeks.append(week)
+#             inventory = 0
+#             logging.warning(f"Stockout occurred in week {week}.")
+#             event_description += "Stockout occurred.\n"
+
+#         # Proactive inventory deduction
+#         proactive_inventory -= consumption_this_week
+#         if proactive_inventory < 0:
+#             proactive_stockout_weeks.append(week)
+#             proactive_inventory = 0
+#             logging.warning(f"Proactive stockout occurred in week {week}.")
+#             event_description += "Proactive stockout occurred.\n"
+
+        
+#         consumption_history.append(consumption_this_week)
+#         logging.warning(f"Consumption this week: {consumption_this_week}")
+#         event_description += f"Consumption this week: {consumption_this_week} (Source: {consumption_source})\n"
+#         consumption_df_for_forecasting = pd.DataFrame({
+#             'Year': [2025] * len(consumption_history),
+#             'Week': [i + 1 for i in range(len(consumption_history))],
+#             'Consumption': consumption_history
+#         })
+
+#         forecast_results_df = forecast_models.forecast_weekly_consumption_xgboost_v3(filtered_consumption, consumption_df_for_forecasting, int(lead_time * 1.5))
+#         forecasted_values = forecast_results_df.predicted_consumption.values
+#         forecasted_values = forecasted_values[:-1]
+#         sum_of_forecasted_values = int(forecasted_values.sum())
+#         logging.warning(f"Forecasted consumption for next {lead_time} weeks: {sum_of_forecasted_values}")
+#         event_description += f"Forecasted consumption for next {lead_time} weeks is {sum_of_forecasted_values}.\n"
+
+#         total_proactive_inventory = proactive_inventory + sum(qty for wk, qty in proactive_orders_pending.items() if i < weeks.index(wk) < num_weeks) # Ensure arrival within simulation window
+
+#         proactive_forecast = False
+#         variation = round(random.gauss(0, lead_time_std_dev))
+#         # Check for reorder
+#         if total_proactive_inventory  <= sum_of_forecasted_values:
+#             order_quantity_to_use = sum_of_forecasted_values - total_proactive_inventory
+#             order_quantity_to_use = max(min_order_qty, int(order_quantity_to_use)) 
+
+#             order_arrival = int(i + lead_time + variation)
+#             if order_arrival < num_weeks:
+#                 proactive_orders_pending[weeks[order_arrival]] = order_quantity_to_use
+#                 logging.warning(f"Proactive Order of {order_quantity_to_use} placed for week {weeks[order_arrival]}.")
+#                 event_description += f"Proactive Order of {order_quantity_to_use} placed due to forecasted consumption. Arrival in week {weeks[order_arrival]}.\n"
+#                 event_description += f"Proactive Order will arrive in week {weeks[order_arrival]}.\n"
+#                 proactive_forecast = True
+#         else:
+#             event_description += "No Proactive Order placed due to forecasting this week.\n"
+
+#         # Check if an order is already pending that will bring inventory above the reorder point within the simulation window
+#         future_inventory = proactive_inventory + sum(qty for wk, qty in proactive_orders_pending.items() if i < weeks.index(wk) < num_weeks and weeks.index(wk) > i)
+#         # Check for reorder
+#         if (inventory <= reorder_point) or (future_inventory <= reorder_point and not proactive_forecast):
+#             order_quantity_to_use = order_quantity
+#             order_values = filtered_orders.iloc[:, 3:].values.flatten()
+#             if order_quantity_type == "Distribution" and order_distribution_params:
+#                 order_quantity_to_use = simulate_ordering(order_distribution_best, order_distribution_params)
+#                 order_quantity_to_use = max(min_order_qty, int(order_quantity_to_use))
+#                 if order_quantity_to_use is None:
+#                     order_quantity_to_use = 0
+#             average_consumption = np.max(order_values)
+#             order_quantity_to_use = max(average_consumption, int(order_quantity_to_use))
+#             order_arrival = int(i + lead_time + variation)
+
+#             if order_arrival < num_weeks:
+#                 orders_pending[weeks[order_arrival]] = order_quantity_to_use
+#                 # Check if the proactive condition is met before adding to proactive_orders_pending
+#                 if future_inventory <= reorder_point and not proactive_forecast:
+#                     proactive_orders_pending[weeks[order_arrival]] = order_quantity_to_use
+#                     logging.warning(f"Proactive Order of {order_quantity_to_use} placed for week {weeks[order_arrival]} due to reorder point.")
+#                     event_description += f"Proactive Order of {order_quantity_to_use} placed due to reorder point. Arrival in week {weeks[order_arrival]}.\n"
+#                     event_description += f"Proactive Order will arrive in week {weeks[order_arrival]}.\n"
+#                 event_description += f"Reactive Order of {order_quantity_to_use} placed due to reorder point. Arrival in week {weeks[order_arrival]}.\n"
+#                 event_description += f"Reactive Order will arrive in week {weeks[order_arrival]}.\n"
+#         else:
+#             event_description += "No Reactive Order placed this week.\n"
+
+#         # Calculate WoS
+#         #average_consumption = sum(consumption_history[max(0, i - 5):i + 1]) / len(consumption_history[max(0, i - 5):i + 1])
+#         average_consumption = sum(consumption_history[max(0, i - lead_time + 1):i + 1]) / len(consumption_history[max(0, i - lead_time + 1):i + 1])
+#         wos = inventory / average_consumption if average_consumption > 0 else 0
+#         wos_history.append(wos)
+
+#         proactive_average_consumption = average_consumption
+#         proactive_wos = proactive_inventory / proactive_average_consumption if proactive_average_consumption > 0 else 0
+#         proactive_wos_history.append(proactive_wos)
+
+#         inventory_history.append(inventory)
+#         proactive_inventory_history.append(proactive_inventory)
+#         event_description += f"Reactive Ending Inventory: {inventory}\n"
+#         event_description += f"Proactive Ending Inventory: {proactive_inventory}\n"
+#         logging.warning(f"Week {week} - Ending Inventory (Reactive): {inventory}, (Proactive): {proactive_inventory}")
+#         event_description += "---\n"
+#         weekly_events.append(event_description)
+    
+#     logging.warning("Simulation completed.")
+#     return inventory_history, proactive_inventory_history, stockout_weeks, proactive_stockout_weeks, wos_history, proactive_wos_history, consumption_history, weekly_events
+
+def simulate_inventory(
+    filtered_consumption, filtered_orders, filtered_receipts,
+    initial_inventory, reorder_point, order_quantity,
+    lead_time, lead_time_std_dev,
+    demand_surge_weeks, demand_surge_factor,
+    consumption_distribution_params, consumption_type, consumption_best_distribution, consumption_values,
+    num_weeks,
+    order_distribution_params, order_distribution_best, order_quantity_type, min_order_qty
+):
+    """
+    Simulates inventory management over a period of weeks using both
+    reactive (reorder point) and proactive (forecast-driven) strategies.
+    The proactive strategy is enhanced with forward-thinking lead time consumption.
+    """
+    
+    # --- Initialize Inventory and Order Tracking ---
+    inventory = initial_inventory  # Reactive strategy's current inventory
+    orders_pending = {}  # Reactive strategy's pending orders {arrival_week: quantity}
     inventory_history = []
     stockout_weeks = []
     wos_history = []
 
-    proactive_inventory = initial_inventory
-    proactive_orders_pending = {}
+    proactive_inventory = initial_inventory  # Proactive strategy's current inventory
+    proactive_orders_pending = {}  # Proactive strategy's pending orders {arrival_week: quantity}
     proactive_inventory_history = []
     proactive_stockout_weeks = []
     proactive_wos_history = []
 
-    consumption_history = []
+    consumption_history = [] # To keep track of actual consumption for forecasting and WoS
     weeks = list(range(1, num_weeks + 1))
-    weekly_events = []
-    logging.warning("Simulation started.")
+    weekly_events = [] # Detailed log of events for each week
+    
+    logging.warning("Inventory simulation started.")
 
+    # --- Main Simulation Loop (Week by Week) ---
     for i, week in enumerate(weeks):
-        logging.warning(f"Week {week} - Starting Inventory (Reactive): {inventory}, (Proactive): {proactive_inventory}")
+        logging.warning(f"--- Week {week} ---")
         event_description = f"**Week {week}**\n"
         event_description += f"Starting Inventory (Reactive): {inventory}\n"
         event_description += f"Starting Inventory (Proactive): {proactive_inventory}\n"
 
-        # Add receipts
+        # --- Process Incoming Orders (Receipts) ---
+        # Reactive Orders Arriving
         if week in orders_pending:
             inventory += orders_pending[week]
             logging.warning(f"Reactive Order of {orders_pending[week]} arrived.")
             event_description += f"Reactive Order of {orders_pending[week]} arrived.\n"
-            del orders_pending[week]
-        
-        event_description += f"Interim Inventory (Reactive): {inventory}\n"
+            del orders_pending[week] # Remove from pending once arrived
+        event_description += f"Interim Inventory (Reactive after receipts): {inventory}\n"
 
+        # Proactive Orders Arriving
         if week in proactive_orders_pending:
             proactive_inventory += proactive_orders_pending[week]
             logging.warning(f"Proactive Order of {proactive_orders_pending[week]} arrived.")
             event_description += f"Proactive Order of {proactive_orders_pending[week]} arrived.\n"
-            del proactive_orders_pending[week]
-        
-        event_description += f"Interim Inventory (Proactive): {proactive_inventory}\n"
+            del proactive_orders_pending[week] # Remove from pending once arrived
+        event_description += f"Interim Inventory (Proactive after receipts): {proactive_inventory}\n"
 
-
-        # Consumption
-        consumption_source = "Fixed" if consumption_type == "Fixed" else f"Distribution ({consumption_best_distribution} with parameters {consumption_distribution_params})" if consumption_distribution_params else "Unknown Distribution"
+        # --- Determine Current Week's Consumption ---
+        consumption_source = "Fixed"
         if consumption_type == "Fixed":
-            consumption_this_week = consumption_values[i] if i < len(consumption_values) else 0 # Handle if user provides less consumption values than weeks.
+            # Use provided fixed consumption values
+            consumption_this_week = consumption_values[i] if i < len(consumption_values) else 0
         elif consumption_type == "Distribution" and consumption_distribution_params:
+            # Simulate consumption based on chosen distribution
             consumption_this_week = simulate_consumption(consumption_best_distribution, consumption_distribution_params)
-            if consumption_this_week is None:
-                consumption_this_week = 0
+            if consumption_this_week is None: consumption_this_week = 0 # Handle potential None from mock
+            consumption_source = f"Distribution ({consumption_best_distribution})"
         else:
-            consumption_this_week = 0
+            consumption_this_week = 0 # Default if no valid consumption type/params
+            consumption_source = "Default (0)"
 
         consumption_this_week = int(consumption_this_week)
-        # Apply demand surge (override distribution)
+
+        # Apply demand surge if applicable for this week
         if f"WW{i + 1}" in demand_surge_weeks: 
-            consumption_this_week = consumption_this_week * demand_surge_factor
+            consumption_this_week = int(consumption_this_week * demand_surge_factor)
             logging.warning(f"Demand surge applied: Consumption increased to {consumption_this_week}.")
             event_description += f"Demand surge applied. Consumption increased by {demand_surge_factor}x.\n"
-
-
-        # Deduct consumption
-        inventory -= consumption_this_week
-        if inventory < 0:
-            stockout_weeks.append(week)
-            inventory = 0
-            logging.warning(f"Stockout occurred in week {week}.")
-            event_description += "Stockout occurred.\n"
-
-        # Proactive inventory deduction
-        proactive_inventory -= consumption_this_week
-        if proactive_inventory < 0:
-            proactive_stockout_weeks.append(week)
-            proactive_inventory = 0
-            logging.warning(f"Proactive stockout occurred in week {week}.")
-            event_description += "Proactive stockout occurred.\n"
-
         
-        consumption_history.append(consumption_this_week)
+        consumption_history.append(consumption_this_week) # Record actual consumption for this week
         logging.warning(f"Consumption this week: {consumption_this_week}")
         event_description += f"Consumption this week: {consumption_this_week} (Source: {consumption_source})\n"
+
+        # --- Deduct Consumption from Inventory ---
+        # Reactive Inventory Deduction
+        inventory -= consumption_this_week
+        if inventory < 0:
+            stockout_weeks.append(week) # Record stockout
+            inventory = 0 # Inventory cannot go below zero
+            logging.warning(f"Stockout occurred in week {week} (Reactive).")
+            event_description += "Stockout occurred (Reactive).\n"
+
+        # Proactive Inventory Deduction
+        proactive_inventory -= consumption_this_week
+        if proactive_inventory < 0:
+            proactive_stockout_weeks.append(week) # Record stockout
+            proactive_inventory = 0 # Inventory cannot go below zero
+            logging.warning(f"Proactive stockout occurred in week {week} (Proactive).")
+            event_description += "Stockout occurred (Proactive).\n"
+
+        # --- Forecasting for Proactive Strategy ---
+        # Prepare consumption data for the forecasting model (current week's consumption included)
         consumption_df_for_forecasting = pd.DataFrame({
             'Year': [2025] * len(consumption_history),
-            'Week': [i + 1 for i in range(len(consumption_history))],
+            'Week': [j + 1 for j in range(len(consumption_history))],
             'Consumption': consumption_history
         })
 
-        forecast_results_df = forecast_models.forecast_weekly_consumption_xgboost_v3(filtered_consumption, consumption_df_for_forecasting, int(lead_time * 1.5))
-        forecasted_values = forecast_results_df.predicted_consumption.values
-        forecasted_values = forecasted_values[:-1]
-        sum_of_forecasted_values = int(forecasted_values.sum())
-        logging.warning(f"Forecasted consumption for next {lead_time} weeks: {sum_of_forecasted_values}")
-        event_description += f"Forecasted consumption for next {lead_time} weeks is {sum_of_forecasted_values}.\n"
+        # Forecast consumption for the proactive strategy's planning horizon
+        # (e.g., 1.5 times the lead time, to allow for a buffer beyond just replenishment)
+        forecast_horizon_weeks = int(lead_time * 1.5)
+        forecast_results_df = forecast_models.forecast_weekly_consumption_xgboost_v3(
+            filtered_consumption, consumption_df_for_forecasting, forecast_horizon_weeks
+        )
+        
+        # Extract forecasted values (should represent future weeks starting from week i+1)
+        forecasted_values = forecast_results_df['predicted_consumption'].values
+        # Ensure forecasted_values are integers for consistency
+        forecasted_values = [int(val) for val in forecasted_values]
 
-        total_proactive_inventory = proactive_inventory + sum(qty for wk, qty in proactive_orders_pending.items() if i < weeks.index(wk) < num_weeks) # Ensure arrival within simulation window
+        # Target for proactive ordering: total forecasted consumption over the planning horizon
+        target_inventory_after_new_order_arrival = int(sum(forecasted_values))
+        logging.warning(f"Forecasted consumption for next {forecast_horizon_weeks} weeks: {target_inventory_after_new_order_arrival}")
+        event_description += f"Forecasted consumption for next {forecast_horizon_weeks} weeks is {target_inventory_after_new_order_arrival}.\n"
 
-        proactive_forecast = False
-        variation = round(random.gauss(0, lead_time_std_dev))
-        # Check for reorder
-        if total_proactive_inventory  <= sum_of_forecasted_values:
-            order_quantity_to_use = sum_of_forecasted_values - total_proactive_inventory
-            order_quantity_to_use = max(min_order_qty, int(order_quantity_to_use)) 
+        # --- Proactive Ordering Logic (Forward-Thinking) ---
+        proactive_forecast_triggered = False # Flag to indicate if a proactive order was placed
 
-            order_arrival = int(i + lead_time + variation)
-            if order_arrival < num_weeks:
-                proactive_orders_pending[weeks[order_arrival]] = order_quantity_to_use
-                logging.warning(f"Proactive Order of {order_quantity_to_use} placed for week {weeks[order_arrival]}.")
-                event_description += f"Proactive Order of {order_quantity_to_use} placed due to forecasted consumption. Arrival in week {weeks[order_arrival]}.\n"
-                event_description += f"Proactive Order will arrive in week {weeks[order_arrival]}.\n"
-                proactive_forecast = True
+        # Calculate total proactive inventory position (on-hand + all outstanding orders)
+        # We include orders that will arrive in the current week (if any remaining) and future weeks.
+        total_proactive_inventory = proactive_inventory + sum(qty for wk, qty in proactive_orders_pending.items() if weeks.index(wk) >= i)
+
+        # Calculate projected consumption during the lead time of a *newly placed* order.
+        # This uses the first 'lead_time' forecasted values, as they represent demand during the wait.
+        consumption_during_new_order_lead_time = 0
+        if len(forecasted_values) >= lead_time:
+            consumption_during_new_order_lead_time = sum(forecasted_values[:lead_time])
+        elif len(forecasted_values) > 0:
+            # If the forecast horizon is shorter than lead_time, use all available forecast
+            consumption_during_new_order_lead_time = sum(forecasted_values)
+        
+        # Project inventory level at the exact point a new order would arrive (after lead time consumption)
+        projected_proactive_inventory_at_arrival = total_proactive_inventory - consumption_during_new_order_lead_time
+
+        # Decision: If the projected inventory at arrival is below our target (sum of forecasted values for horizon)
+        if projected_proactive_inventory_at_arrival < target_inventory_after_new_order_arrival:
+            # Calculate the quantity needed to bring projected inventory up to the target
+            order_quantity_to_use_proactive = target_inventory_after_new_order_arrival - projected_proactive_inventory_at_arrival
+            # Ensure order quantity is at least the minimum allowed
+            order_quantity_to_use_proactive = max(min_order_qty, int(order_quantity_to_use_proactive))
+
+            # Determine arrival week for the new proactive order (current week + lead time + variability)
+            variation = round(random.gauss(0, lead_time_std_dev))
+            order_arrival_week_proactive = int(i + lead_time + variation)
+
+            # Place the order if its arrival is within the simulation window
+            if order_arrival_week_proactive < num_weeks:
+                proactive_orders_pending[weeks[order_arrival_week_proactive]] = order_quantity_to_use_proactive
+                logging.warning(f"Proactive Order of {order_quantity_to_use_proactive} placed for week {weeks[order_arrival_week_proactive]} due to forecasted consumption (forward-thinking).")
+                event_description += f"Proactive Order of {order_quantity_to_use_proactive} placed due to forecasted consumption. Arrival in week {weeks[order_arrival_week_proactive]}.\n"
+                proactive_forecast_triggered = True # Mark that a proactive order was placed
         else:
             event_description += "No Proactive Order placed due to forecasting this week.\n"
 
-        # Check if an order is already pending that will bring inventory above the reorder point within the simulation window
-        future_inventory = proactive_inventory + sum(qty for wk, qty in proactive_orders_pending.items() if i < weeks.index(wk) < num_weeks and weeks.index(wk) > i)
-        # Check for reorder
-        if (inventory <= reorder_point) or (future_inventory <= reorder_point and not proactive_forecast):
-            order_quantity_to_use = order_quantity
-            order_values = filtered_orders.iloc[:, 3:].values.flatten()
-            if order_quantity_type == "Distribution" and order_distribution_params:
-                order_quantity_to_use = simulate_ordering(order_distribution_best, order_distribution_params)
-                order_quantity_to_use = max(min_order_qty, int(order_quantity_to_use))
-                if order_quantity_to_use is None:
-                    order_quantity_to_use = 0
-            average_consumption = np.max(order_values)
-            order_quantity_to_use = max(average_consumption, int(order_quantity_to_use))
-            order_arrival = int(i + lead_time + variation)
+        # --- Reactive Ordering Logic (for Reactive Strategy & Backup for Proactive) ---
+        # `future_inventory` for proactive strategy's reactive backup check:
+        # This looks at proactive's current on-hand + *future* pending proactive orders (those arriving after current week).
+        future_inventory_proactive_for_reactive_check = proactive_inventory + sum(qty for wk, qty in proactive_orders_pending.items() if weeks.index(wk) > i)
 
-            if order_arrival < num_weeks:
-                orders_pending[weeks[order_arrival]] = order_quantity_to_use
-                # Check if the proactive condition is met before adding to proactive_orders_pending
-                if future_inventory <= reorder_point and not proactive_forecast:
-                    proactive_orders_pending[weeks[order_arrival]] = order_quantity_to_use
-                    logging.warning(f"Proactive Order of {order_quantity_to_use} placed for week {weeks[order_arrival]} due to reorder point.")
-                    event_description += f"Proactive Order of {order_quantity_to_use} placed due to reorder point. Arrival in week {weeks[order_arrival]}.\n"
-                    event_description += f"Proactive Order will arrive in week {weeks[order_arrival]}.\n"
-                event_description += f"Reactive Order of {order_quantity_to_use} placed due to reorder point. Arrival in week {weeks[order_arrival]}.\n"
-                event_description += f"Reactive Order will arrive in week {weeks[order_arrival]}.\n"
+        # Reactive order trigger:
+        # 1. For the 'Reactive' strategy: if its inventory hits reorder_point.
+        # 2. For the 'Proactive' strategy (as a fallback): if its *future* inventory
+        #    hits reorder_point AND no forecast-driven proactive order was placed this week.
+        if (inventory <= reorder_point) or \
+           (future_inventory_proactive_for_reactive_check <= reorder_point and not proactive_forecast_triggered):
+            
+            order_quantity_to_use_reactive = order_quantity # Default reactive order quantity
+            
+            # If reactive order quantity is based on a distribution
+            if order_quantity_type == "Distribution" and order_distribution_params:
+                order_quantity_to_use_reactive = simulate_ordering(order_distribution_best, order_distribution_params)
+                order_quantity_to_use_reactive = max(min_order_qty, int(order_quantity_to_use_reactive))
+                if order_quantity_to_use_reactive is None: order_quantity_to_use_reactive = 0
+
+            # This part attempts to ensure the order quantity is at least some 'average consumption'.
+            # Based on original code's use of 'np.max(order_values)', assuming it refers to a baseline order size.
+            # If 'order_values' actually represents historical consumption, a rolling average of 'consumption_history'
+            # would be more appropriate here. I'm keeping the original logic for 'average_consumption' as is.
+            if filtered_orders is not None and not filtered_orders.empty:
+                order_values_flat = filtered_orders.iloc[:, 3:].values.flatten()
+                if len(order_values_flat) > 0:
+                    baseline_order_qty_from_history = np.max(order_values_flat)
+                    order_quantity_to_use_reactive = max(baseline_order_qty_from_history, int(order_quantity_to_use_reactive))
+            else:
+                order_quantity_to_use_reactive = max(order_quantity, int(order_quantity_to_use_reactive)) # Use base order_quantity if no historical data
+
+            # Determine arrival week for the new reactive order
+            variation = round(random.gauss(0, lead_time_std_dev))
+            order_arrival_week_reactive = int(i + lead_time + variation)
+
+            # Place order if arrival is within simulation window
+            if order_arrival_week_reactive < num_weeks:
+                # Place order for the pure reactive strategy
+                orders_pending[weeks[order_arrival_week_reactive]] = order_quantity_to_use_reactive
+                event_description += f"Reactive Order of {order_quantity_to_use_reactive} placed due to reorder point. Arrival in week {weeks[order_arrival_week_reactive]}.\n"
+
+                # If the proactive strategy also triggered this reorder (as a fallback)
+                if future_inventory_proactive_for_reactive_check <= reorder_point and not proactive_forecast_triggered:
+                    proactive_orders_pending[weeks[order_arrival_week_reactive]] = order_quantity_to_use_reactive
+                    logging.warning(f"Proactive (Backup) Order of {order_quantity_to_use_reactive} placed for week {weeks[order_arrival_week_reactive]} due to reorder point (fallback).")
+                    event_description += f"Proactive (Backup) Order of {order_quantity_to_use_reactive} placed due to reorder point. Arrival in week {weeks[order_arrival_week_reactive]}.\n"
         else:
             event_description += "No Reactive Order placed this week.\n"
 
-        # Calculate WoS
-        #average_consumption = sum(consumption_history[max(0, i - 5):i + 1]) / len(consumption_history[max(0, i - 5):i + 1])
-        average_consumption = sum(consumption_history[max(0, i - lead_time + 1):i + 1]) / len(consumption_history[max(0, i - lead_time + 1):i + 1])
-        wos = inventory / average_consumption if average_consumption > 0 else 0
+        # --- Calculate Weeks of Supply (WoS) ---
+        # Calculate average consumption over the past 'lead_time' weeks for WoS
+        wos_lookback_period = consumption_history[max(0, i - lead_time + 1):i + 1]
+        avg_consumption_for_wos = sum(wos_lookback_period) / len(wos_lookback_period) if len(wos_lookback_period) > 0 else 0
+
+        # Reactive WoS
+        wos = inventory / avg_consumption_for_wos if avg_consumption_for_wos > 0 else 0
         wos_history.append(wos)
 
-        proactive_average_consumption = average_consumption
-        proactive_wos = proactive_inventory / proactive_average_consumption if proactive_average_consumption > 0 else 0
+        # Proactive WoS
+        proactive_wos = proactive_inventory / avg_consumption_for_wos if avg_consumption_for_wos > 0 else 0
         proactive_wos_history.append(proactive_wos)
 
+        # --- Record End of Week Inventory and Events ---
         inventory_history.append(inventory)
         proactive_inventory_history.append(proactive_inventory)
         event_description += f"Reactive Ending Inventory: {inventory}\n"
@@ -1048,8 +1288,15 @@ def simulate_inventory(filtered_consumption, filtered_orders, filtered_receipts,
         event_description += "---\n"
         weekly_events.append(event_description)
     
-    logging.warning("Simulation completed.")
-    return inventory_history, proactive_inventory_history, stockout_weeks, proactive_stockout_weeks, wos_history, proactive_wos_history, consumption_history, weekly_events
+    logging.warning("Inventory simulation completed.")
+
+    return (
+        inventory_history, proactive_inventory_history,
+        stockout_weeks, proactive_stockout_weeks,
+        wos_history, proactive_wos_history,
+        consumption_history, weekly_events
+    )
+
 
 def run_monte_carlo_simulation(N, *args):
     all_inventory_histories = []
