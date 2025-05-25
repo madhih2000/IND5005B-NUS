@@ -2044,7 +2044,7 @@ def analyze_discrepancy_scen_7(row):
 
     abs_diff = abs(planned_supply - incoming_po_gr)
 
-        if planned_supply == 0 and incoming_po_gr != 0:
+    if planned_supply == 0 and incoming_po_gr != 0:
         discrepancy_flag = True
         discrepancy_detail = (f"Discrepancy: Planned Supply is 0, but Goods Receipt (GR) from PO(s) is {incoming_po_gr} "
                               f"(difference of {abs_diff}). Affected PO(s): {po_docs}.")
@@ -2069,4 +2069,4 @@ def analyze_discrepancy_scen_7(row):
     elif not discrepancy_flag and po_docs == "None":
         discrepancy_detail = "No discrepancy. No POs scheduled for GR this week."
 
-    return pd.Series([discrepancy_flag, discrepancy_detail])
+    return pd.Series([discrepancy_flag, discrepancy_detail, abs_diff])
