@@ -556,17 +556,16 @@ elif tabs == "Waterfall Analysis":
                                             st.subheader('Scenario 7 - Supply vs Goods Receipt Analysis')
                                             condition6["Snapshot Week Num"] = condition6["Snapshot Week"].str.replace("WW", "").astype(int)
                                             condition_7 = condition6[["Snapshot Week", "Snapshot Week Num", "Supply (Waterfall)", "PO GR Quantity"]].rename(columns={"PO GR Quantity": "GR Quantity"})
-                                            merged_df = pd.merge(condition_7, PO_df_filtered, left_on='Snapshot Week Num', right_on='GR WW', how='left')
+                                            # Merge on week number
+                                            merged_df = pd.merge(condition_7, PO_df_filtered[["GR WW", "Purchasing Document"]], 
+                                                                left_on='Snapshot Week Num', right_on='GR WW', how='left')
                                             # Drop the temporary merge key if you don't want it in the final result
                                             merged_df.drop(columns=["Snapshot Week Num"], inplace=True)
                                             st.dataframe(merged_df)
-                                            # Fill NaN values that might result from the merge (e.g., if a week in scen_7 has no POs)
-                                            merged_df['Incoming_GR_Quantity'] = merged_df['Incoming_GR_Quantity'].fillna(0).astype(int)
-                                            merged_df['Purchasing_Documents'] = merged_df['Purchasing_Documents'].apply(lambda x: x if isinstance(x, list) else [])
-                                            # Apply the discrepancy analysis function
-                                            merged_df[['Discrepancy_Flag', 'Discrepancy_Detail']] = merged_df.apply(waterfall_analysis.analyze_discrepancy, axis=1)
+                                            # Group and aggregate POs by week
+                                            summary_df = merged_df.groupby("Snapshot Week")["Purchasing Document"].agg(lambda x: list(x.dropna())).reset_index()
 
-                                            st.dataframe(merged_df)
+                                            st.dataframe(summary_df)
                                         except Exception as e:
                                             st.error(f"Error in Scenario 7: {e}")
 
