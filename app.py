@@ -554,9 +554,13 @@ elif tabs == "Waterfall Analysis":
 
                                         try:
                                             st.subheader('Scenario 7 - Supply vs Goods Receipt Analysis')
-                                            condition_7 = condition6[["Snapshot Week", "Supply (Waterfall)", "PO GR Quantity"]].rename(columns={"PO GR Quantity": "GR Quantity"})
+                                            condition6["Snapshot Week Num"] = condition6["Snapshot Week"].str.replace("WW", "").astype(int)
+                                            condition_7 = condition6[["Snapshot Week", "Snapshot Week Num", "Supply (Waterfall)", "PO GR Quantity"]].rename(columns={"PO GR Quantity": "GR Quantity"})
                                             merged_df = pd.merge(condition_7, PO_df_filtered, left_on='Snapshot Week', right_on='GR WW', how='left')
+                                            # Drop the temporary merge key if you don't want it in the final result
+                                            merged_df.drop(columns=["Snapshot Week Num"], inplace=True)
                                             # Fill NaN values that might result from the merge (e.g., if a week in scen_7 has no POs)
+                                            
                                             merged_df['Incoming_GR_Quantity'] = merged_df['Incoming_GR_Quantity'].fillna(0).astype(int)
                                             merged_df['Purchasing_Documents'] = merged_df['Purchasing_Documents'].apply(lambda x: x if isinstance(x, list) else [])
                                             # Apply the discrepancy analysis function
