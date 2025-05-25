@@ -563,7 +563,11 @@ elif tabs == "Waterfall Analysis":
                                             merged_df.drop(columns=["Snapshot Week Num"], inplace=True)
                                             st.dataframe(merged_df)
                                             # Group and aggregate POs by week
-                                            summary_df = merged_df.groupby("Snapshot Week")["Purchasing Document"].agg(lambda x: list(x.dropna())).reset_index()
+                                            summary_df = merged_df.groupby("Snapshot Week").agg({
+                                                "Supply (Waterfall)": "sum",
+                                                "GR Quantity": "sum",
+                                                "Purchasing Document": lambda x: list(x.dropna())
+                                            }).reset_index()
 
                                             st.dataframe(summary_df)
                                         except Exception as e:
