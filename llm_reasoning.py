@@ -451,7 +451,7 @@ def explain_scenario_5_with_groq(df):
             - WW09 - Missing: No data available this week, possibly due to late planner submission or system error.
 
     4. Explanation Objective:
-        - For each selected bullet (Surge, Crash, or Missing), include a **brief hypothesis (10–15 words)** explaining what might have caused the change.
+        - For each selected bullet (Surge, Crash, or Missing), include a **brief hypothesis (10-15 words)** explaining what might have caused the change.
         - Use realistic, supply-chain-aware reasoning:
             - customer pull-in/pushout, forecast override, backlog clearance, planner/system error, seasonality, etc.
         - Write this explanation **after the colon**, immediately following the unit and % change.
@@ -578,24 +578,24 @@ def explain_scenario_7_with_groq(df):
 
     Additionally:
     - Add a likely reason for each mismatch. Possible reasons include:
-        • Early delivery by supplier
-        • Late or missed delivery
-        • Planning system error
-        • Purchase Order timing issue
-        • In-transit inventory not accounted
-        • Quantity change after planning snapshot
+        - Early delivery by supplier
+        - Late or missed delivery
+        - Planning system error
+        - Purchase Order timing issue
+        - In-transit inventory not accounted
+        - Quantity change after planning snapshot
 
     Formatting rules:
     - One bullet per week with a material discrepancy (Abs_Difference ≥ 10)
     - Sort bullets by Abs_Difference (descending)
     - Each bullet format:
-    • WW07 - Mismatch of 40 units (Supply 0 vs GR 40): Unexpected receipt from PO(s): 123456, 789123. Reason: Early delivery by supplier.
+        - WW07 - Mismatch of 40 units (Supply 0 vs GR 40): Unexpected receipt from PO(s): 123456, 789123. Reason: Early delivery by supplier.
 
     - If no material discrepancy but GR exists:
-    • WW08 - Match: Supply and GR aligned at 120 units. PO(s): 456789.
+        -  WW08 - Match: Supply and GR aligned at 120 units. PO(s): 456789.
 
     - If no GR and no supply:
-    • WW09 - No Activity: No planned supply or receipts.
+        - WW09 - No Activity: No planned supply or receipts.
 
     Limit: Maximum 10 bullets. Skip weeks with <10 unit difference unless both values are zero.
 
