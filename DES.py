@@ -1031,7 +1031,8 @@ def simulate_inventory(filtered_consumption, filtered_orders, filtered_receipts,
             event_description += "No Reactive Order placed this week.\n"
 
         # Calculate WoS
-        average_consumption = sum(consumption_history[max(0, i - 5):i + 1]) / len(consumption_history[max(0, i - 5):i + 1])
+        #average_consumption = sum(consumption_history[max(0, i - 5):i + 1]) / len(consumption_history[max(0, i - 5):i + 1])
+        average_consumption = sum(consumption_history[max(0, i - lead_time + 1):i + 1]) / len(consumption_history[max(0, i - lead_time + 1):i + 1])
         wos = inventory / average_consumption if average_consumption > 0 else 0
         wos_history.append(wos)
 
