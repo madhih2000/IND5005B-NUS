@@ -1128,7 +1128,7 @@ def scenario_2(waterfall_df, po_df, lead_time: int): # Added lead_time argument
             'Demand (Waterfall)': demand_waterfall,
             'Supply (Waterfall)': supply_waterfall,
             'Demand Next 6 Weeks (View)': demand_next_6_weeks, # Added for transparency
-            'Metric ((D_6wk - Inv) / 6)': round(metric_value, 2), # Added for transparency
+            'WOS': round(metric_value, 2), # Added for transparency
             'PO Docs Scheduled This Week (po_df)': ", ".join(current_week_po_docs_from_po_df) if current_week_po_docs_from_po_df else None,
             'PO Qty Scheduled This Week (po_df)': current_week_po_qty_from_po_df,
             'End Inventory (Calc)': end_inventory_calc,
