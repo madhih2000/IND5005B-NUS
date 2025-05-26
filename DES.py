@@ -1065,6 +1065,7 @@ def simulate_inventory(
     reactive (reorder point) and proactive (forecast-driven) strategies.
     The proactive strategy is enhanced with forward-thinking lead time consumption.
     """
+    lead_time = int(lead_time)
     
     # --- Initialize Inventory and Order Tracking ---
     inventory = initial_inventory  # Reactive strategy's current inventory
