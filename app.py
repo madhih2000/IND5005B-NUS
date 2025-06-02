@@ -473,7 +473,7 @@ elif tabs == "Waterfall Analysis":
                                             st.error(f"Error in Scenario 1: {e}")
 
                                         try:
-                                            st.subheader('Scenario 2 - Comparison of Actual & Predicted WoS')
+                                            st.subheader('Scenario 2 and 3 - POs push out or pull in due to changes in demand forecasts')
                                             wos_list, analysis_plot, comparison_table = waterfall_analysis.plot_stock_prediction_plotly(result_df, start_week, lead_value, num_weeks)
                                             st.plotly_chart(analysis_plot)
                                             st.write("Forecast Accuracy Validation Table")
@@ -483,6 +483,7 @@ elif tabs == "Waterfall Analysis":
                                             st.error(f"Error in Scenario 2: {e}")
 
                                         # RCA Condition 3
+                                        '''
                                         try:
                                             st.subheader('Scenario 3 - Inventory Analysis and Optimized PO Adjustment Strategies')                                        
                                             st.write("PO Timing Analysis")
@@ -491,6 +492,7 @@ elif tabs == "Waterfall Analysis":
                                             analysis_3 = ""  # Add logic if needed
                                         except Exception as e:
                                             st.error(f"Error in Scenario 3: {e}")
+                                        '''
 
                                         # RCA Condition 4
                                         try:
