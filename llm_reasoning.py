@@ -404,6 +404,74 @@ def explain_scenario_2_with_groq(df):
         st.error("All model attempts failed.")
         return "Explanation could not be generated."
 
+def explain_scenario_3_with_groq(df):
+    """
+    Explains weekly inventory decisions such as pull-in and push-out based on
+    calculated Weeks of Supply (WOS) and suggested PO movements from scenario_3 output.
+
+    Parameters:
+    - df (pd.DataFrame): Output from scenario_3(), expected to have columns like:
+        'Snapshot Week', 'WOS', 'Identified Action', 'Suggested Action Detail',
+        'PO Docs Scheduled This Week (po_df)', 'Suggested POs for Action', etc.
+
+    Returns:
+    - str: LLM-generated summary of weekly actions and reasoning.
+    """
+    df_string = df.to_string(index=False)
+    client = Groq(api_key=API_KEY)
+
+    system_prompt = """
+    You are a supply chain analyst reviewing weekly inventory planning decisions based on
+    calculated Weeks of Supply (WOS) and open Purchase Orders (POs).
+
+    The dataset contains one row per week and includes:
+    - Opening inventory, demand, supply
+    - WOS (Weeks of Supply): Calculated as (End Inventory) / (Avg Demand Next Lead Time (e.g. 6) Weeks)
+    - Suggested inventory actions (e.g., Pull In, Push Out) and which POs are affected
+
+    Your task is to:
+    * Explain why a Pull In or Push Out was recommended based on WOS and inventory trends
+    * Describe if the decision aligns with typical planning logic
+    * Mention specific PO documents and their quantities when relevant
+    * Comment if no action was taken and the reason (e.g., WOS in healthy range)
+    
+    Formatting Rules:
+    * One bullet per week (sorted chronologically)
+    * Start with the week name, e.g., WW23 -
+    * If action was suggested:
+        * Format: 
+          WW23 - Action: Suggest Pull In for PO(s) 456789 (Qty 30). WOS was low (1.2) due to high upcoming demand. Action aligns with proactive risk mitigation.
+    * If no action:
+        * Format:
+          WW24 - No Action. WOS at 4.1 was within acceptable range. Inventory level healthy.
+    * Mention "insufficient pull-in", "high surplus", or "low WOS" only if clearly justified
+    * Max 10 bullets. Skip weeks with no meaningful inventory change or recommendation.
+
+    Start directly with bullet points. Do not summarize or list rules.
+    """
+
+    user_prompt = f"""
+    Analyze the following weekly inventory planning and PO recommendation dataset:\n\n{df_string}
+    """
+
+    for model in models:
+        try:
+            chat_completion = client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                model=model,
+            )
+            explanation = chat_completion.choices[0].message.content
+            st.write(explanation)
+            break
+        except Exception as e:
+            continue
+    else:
+        st.error("All model attempts failed.")
+
+    return explanation
 
 
 def explain_scenario_4_with_groq(df):

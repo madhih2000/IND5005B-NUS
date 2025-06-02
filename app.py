@@ -488,7 +488,7 @@ elif tabs == "Waterfall Analysis":
                                             st.write("PO Timing Analysis")
                                             po_analysis_output = waterfall_analysis.scenario_3(result_df, PO_df_filtered, lead_value)
                                             st.dataframe(po_analysis_output)
-                                            analysis_3 = ""  # Add logic if needed
+                                            analysis_3 = llm_reasoning.explain_scenario_3_with_groq(comparison_table)
                                         except Exception as e:
                                             st.error(f"Error in Scenario 3: {e}")
 
