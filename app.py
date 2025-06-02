@@ -478,7 +478,7 @@ elif tabs == "Waterfall Analysis":
                                             st.plotly_chart(analysis_plot)
                                             st.write("Forecast Accuracy Validation Table")
                                             st.dataframe(comparison_table)
-                                            analysis_2 = llm_reasoning.explain_scenario_2_with_groq(scen_1_df_output)
+                                            analysis_2 = llm_reasoning.explain_scenario_2_with_groq(comparison_table)
                                         except Exception as e:
                                             st.error(f"Error in Scenario 2: {e}")
 

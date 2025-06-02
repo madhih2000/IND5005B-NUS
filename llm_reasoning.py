@@ -12,8 +12,9 @@ models = [
     "llama-3.1-8b-instant",
     "gemma2-9b-it",
     "llama-guard-3-8b",
+    "meta-llama/llama-guard-4-12b",
     "llama3-70b-8192",
-    "llama3-8b-8192"
+    "llama3-8b-8192"    
 ]
 
 
