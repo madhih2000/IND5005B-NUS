@@ -727,7 +727,10 @@ elif tabs == "Waterfall Analysis":
 
                                             # Start writing summary_df table starting from row 3
                                             current_row = 3
-                                            if 'summary_df' in locals():
+                                            if 'summary_df' in locals() and "Purchasing Document" in summary_df.columns:
+                                                summary_df["Purchasing Document"] = summary_df["Purchasing Document"].apply(
+                                                    lambda x: ", ".join(map(str, x)) if isinstance(x, list) else str(x)
+                                                )
                                                 for row in dataframe_to_rows(summary_df, index=False, header=True):
                                                     for col_idx, cell_value in enumerate(row, start=1):
                                                         cond7_sheet.cell(row=current_row, column=col_idx, value=cell_value)
