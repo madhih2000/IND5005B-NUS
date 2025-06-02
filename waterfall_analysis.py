@@ -585,8 +585,17 @@ def apply_coloring_to_output(excel_buffer, lead_time, sheet_names):
             continue
 
         ws = wb[sheet_name]
+        # Detect header row
+        if sheet_name == "RCA Scenario 1":
+            header_row_idx = 2
+        else:
+            header_row_idx = 1
+
         header = [cell.value for cell in next(ws.iter_rows(min_row=1, max_row=1))]
         ww_col_indices = [i + 1 for i, h in enumerate(header) if str(h).startswith("WW")]
+        
+        if not ww_col_indices:
+            continue
 
         if sheet_name == "Waterfall Chart":
             # Only apply to 'Weeks of Stock' rows
