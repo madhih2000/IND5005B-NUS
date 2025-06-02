@@ -570,42 +570,62 @@ def check_wos_against_lead_time(wos_list, lead_time):
 
     return messages, order_immediately
 
-def apply_coloring_to_output(excel_buffer, lead_time, sheet_name):
+def apply_coloring_to_output(excel_buffer, lead_time, sheet_names):
     # Rewind buffer and load workbook
     excel_buffer.seek(0)
     wb = load_workbook(excel_buffer)
-    ws = wb[sheet_name]
 
-    # Define colors
+    # Fill colors
     red_fill = PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
     yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
     green_fill = PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
 
-    # Identify relevant columns
-    header = [cell.value for cell in next(ws.iter_rows(min_row=1, max_row=1))]
-    measures_col_idx = header.index('Measures') + 1
-    ww_col_indices = [i + 1 for i, h in enumerate(header) if str(h).startswith("WW")]
+    for sheet_name in sheet_names:
+        if sheet_name not in wb.sheetnames:
+            continue
 
-    # Apply coloring logic
-    for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
-        if row[measures_col_idx - 1].value == 'Weeks of Stock':
-            for idx in ww_col_indices:
-                cell = row[idx - 1]
-                raw_val = cell.value
-                try:
-                    val = float(raw_val)
-                except (TypeError, ValueError):
-                    continue  # Skip non-numeric
+        ws = wb[sheet_name]
+        header = [cell.value for cell in next(ws.iter_rows(min_row=1, max_row=1))]
+        ww_col_indices = [i + 1 for i, h in enumerate(header) if str(h).startswith("WW")]
 
-                
-                if val < 0:
-                    cell.fill = red_fill
-                elif val < lead_time.iloc[0]:
-                    cell.fill = yellow_fill
-                else:
-                    cell.fill = green_fill
+        if sheet_name == "Waterfall Chart":
+            # Only apply to 'Weeks of Stock' rows
+            try:
+                measures_col_idx = header.index("Measures") + 1
+            except ValueError:
+                continue
 
-    # Save again to a new BytesIO
+            for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+                if row[measures_col_idx - 1].value == 'Weeks of Stock':
+                    for idx in ww_col_indices:
+                        cell = row[idx - 1]
+                        try:
+                            val = float(cell.value)
+                            if val < 0:
+                                cell.fill = red_fill
+                            elif val < lead_time.iloc[0]:
+                                cell.fill = yellow_fill
+                            else:
+                                cell.fill = green_fill
+                        except (TypeError, ValueError):
+                            continue
+
+        elif sheet_name == "RCA Scenario 1":
+            # Apply to all cells in WW columns (no Measures check)
+            for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+                for idx in ww_col_indices:
+                    cell = row[idx - 1]
+                    try:
+                        val = float(cell.value)
+                        if val < 0:
+                            cell.fill = red_fill
+                        elif val < lead_time.iloc[0]:
+                            cell.fill = yellow_fill
+                        else:
+                            cell.fill = green_fill
+                    except (TypeError, ValueError):
+                        continue
+
     colored_output = BytesIO()
     wb.save(colored_output)
     colored_output.seek(0)

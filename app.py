@@ -742,7 +742,11 @@ elif tabs == "Waterfall Analysis":
 
                                         output.seek(0)
                                         # Apply coloring on 'Waterfall Chart' sheet
-                                        colored_output = waterfall_analysis.apply_coloring_to_output(output, lead_time=lead_value, sheet_name="Waterfall Chart")
+                                       colored_output = waterfall_analysis.apply_coloring_to_output(
+                                                        output,
+                                                        lead_time=lead_value,
+                                                        sheet_names=["Waterfall Chart", "RCA Scenario 1"]
+                                                    )
                                         # Display download button
                                         ste.download_button(
                                             label="📥 Download Excel File",
