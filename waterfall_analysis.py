@@ -572,6 +572,7 @@ def check_wos_against_lead_time(wos_list, lead_time):
 
 def apply_coloring_to_output(excel_buffer, lead_time, sheet_names):
     # Rewind buffer and load workbook
+    # Rewind buffer and load workbook
     excel_buffer.seek(0)
     wb = load_workbook(excel_buffer)
 
@@ -585,26 +586,23 @@ def apply_coloring_to_output(excel_buffer, lead_time, sheet_names):
             continue
 
         ws = wb[sheet_name]
-        # Detect header row
-        if sheet_name == "RCA Scenario 1":
-            header_row_idx = 2
-        else:
-            header_row_idx = 1
 
-        header = [cell.value for cell in next(ws.iter_rows(min_row=1, max_row=1))]
+        # Detect header row
+        header_row_idx = 2 if sheet_name == "RCA Scenario 1" else 1
+
+        header = [cell.value for cell in next(ws.iter_rows(min_row=header_row_idx, max_row=header_row_idx))]
         ww_col_indices = [i + 1 for i, h in enumerate(header) if str(h).startswith("WW")]
-        
+
         if not ww_col_indices:
             continue
 
         if sheet_name == "Waterfall Chart":
-            # Only apply to 'Weeks of Stock' rows
             try:
                 measures_col_idx = header.index("Measures") + 1
             except ValueError:
                 continue
 
-            for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+            for row in ws.iter_rows(min_row=header_row_idx + 1, max_row=ws.max_row):
                 if row[measures_col_idx - 1].value == 'Weeks of Stock':
                     for idx in ww_col_indices:
                         cell = row[idx - 1]
@@ -620,8 +618,7 @@ def apply_coloring_to_output(excel_buffer, lead_time, sheet_names):
                             continue
 
         elif sheet_name == "RCA Scenario 1":
-            # Apply to all cells in WW columns (no Measures check)
-            for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+            for row in ws.iter_rows(min_row=header_row_idx + 1, max_row=ws.max_row):
                 for idx in ww_col_indices:
                     cell = row[idx - 1]
                     try:
