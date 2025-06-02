@@ -623,33 +623,33 @@ def explain_scenario_7_with_groq(df):
     - Purchasing Document: List of PO numbers involved
 
     Explanation Guidelines:
-    - For each mismatch, include a plausible reason. Choose from:
-        - Early delivery by supplier
-        - Late or missed delivery
-        - Planning system error
-        - Purchase Order timing issue
-        - In-transit inventory not accounted
-        - Quantity change after planning snapshot
-        - Unplanned fulfillment (e.g., emergency PO, manual override)
-        - Data sync delay between systems
+    * For each mismatch, include a plausible reason. Choose from:
+        * Early delivery by supplier
+        * Late or missed delivery
+        * Planning system error
+        * Purchase Order timing issue
+        * In-transit inventory not accounted
+        * Quantity change after planning snapshot
+        * Unplanned fulfillment (e.g., emergency PO, manual override)
+        * Data sync delay between systems
 
-    - If multiple causes are plausible, select the **most likely one based on pattern**. Vary reasons across weeks where appropriate, and avoid repeating the same reason unless clearly justified by the data.
+    * If multiple causes are plausible, select the **most likely one based on pattern**. Vary reasons across weeks where appropriate, and avoid repeating the same reason unless clearly justified by the data.
 
     Formatting rules:
-    - One bullet per week with a material discrepancy (Abs_Difference ≥ 10)
-    - Sort bullets by Abs_Difference (descending)
-    - Each bullet format:
-        - WW07 - Mismatch of 40 units (Supply 0 vs GR 40): Unexpected receipt from PO(s): 123456, 789123. Reason: Early delivery by supplier.
+    * One bullet per week with a material discrepancy (Abs_Difference ≥ 10)
+    * Sort bullets by Abs_Difference (descending)
+    * Each bullet format:
+        * WW07 - Mismatch of 40 units (Supply 0 vs GR 40): Unexpected receipt from PO(s): 123456, 789123. Reason: Early delivery by supplier.
 
-    - If no material discrepancy but GR exists:
-        - WW08 - Match: Supply and GR aligned at 120 units. PO(s): 456789.
+    * If no material discrepancy but GR exists:
+        * WW08 - Match: Supply and GR aligned at 120 units. PO(s): 456789.
 
-    - If no GR and no supply:
-        - WW09 - No Activity: No planned supply or receipts.
+    * If no GR and no supply:
+        * WW09 - No Activity: No planned supply or receipts.
 
     Limit:
-    - Maximum 10 bullets.
-    - Skip weeks with <10 unit difference unless both values are zero.
+    * Maximum 10 bullets.
+    * Skip weeks with <10 unit difference unless both values are zero.
 
     Begin directly with bullet points. Do not summarize, explain, or list rules.
     """
