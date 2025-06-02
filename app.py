@@ -464,7 +464,7 @@ elif tabs == "Waterfall Analysis":
 
                                         # RCA Condition 1
                                         try:
-                                            st.subheader('Scenario 1 - PO Coverage is Inadequate')
+                                            st.subheader('Scenario 1 - Validation of WoS levels against PO coverage')
                                             scen_1_df_output = waterfall_analysis.scenario_1(result_df, PO_df_filtered)
                                             styled_df = waterfall_analysis.style_dataframe(scen_1_df_output)
                                             st.dataframe(styled_df, use_container_width=True)
@@ -472,26 +472,23 @@ elif tabs == "Waterfall Analysis":
                                         except Exception as e:
                                             st.error(f"Error in Scenario 1: {e}")
 
-                                        # RCA Condition 2
                                         try:
                                             st.subheader('Scenario 2 and 3 - POs push out or pull in due to changes in demand forecasts')
                                             wos_list, analysis_plot, comparison_table = waterfall_analysis.plot_stock_prediction_plotly(result_df, start_week, lead_value, num_weeks)
                                             st.plotly_chart(analysis_plot)
                                             st.write("Forecast Accuracy Validation Table")
                                             st.dataframe(comparison_table)
-                                            st.write("PO Timing Analysis")
-                                            po_analysis_output = waterfall_analysis.scenario_2(result_df, PO_df_filtered, lead_value)
-                                            st.dataframe(po_analysis_output)
-                                            analysis_2 = ""  # Add logic if needed
+                                            analysis_2 = llm_reasoning.explain_scenario_2_with_groq(comparison_table)
                                         except Exception as e:
                                             st.error(f"Error in Scenario 2: {e}")
-                                        
+
                                         # RCA Condition 3
                                         '''
                                         try:
-                                            st.subheader('Scenario 3 - Adjustment to POs')
-                                            scen_3_df_output = waterfall_analysis.scenario_3_simulation(result_df, PO_df_filtered, po_analysis_output)
-                                            st.dataframe(scen_3_df_output)
+                                            st.subheader('Scenario 3 - Inventory Analysis and Optimized PO Adjustment Strategies')                                        
+                                            st.write("PO Timing Analysis")
+                                            po_analysis_output = waterfall_analysis.scenario_3(result_df, PO_df_filtered, lead_value)
+                                            st.dataframe(po_analysis_output)
                                             analysis_3 = ""  # Add logic if needed
                                         except Exception as e:
                                             st.error(f"Error in Scenario 3: {e}")
@@ -508,7 +505,7 @@ elif tabs == "Waterfall Analysis":
 
                                         # RCA Condition 5
                                         try:
-                                            st.subheader('Scenario 5 - Irregular Demand w/o Buffer Patterns')
+                                            st.subheader('Scenario 5 - Inspection of Demand w/o Buffer Patterns')
                                             condition5 = waterfall_analysis.analyze_week_to_week_demand_changes(result_df, lead_time=lead_value)
                                             st.dataframe(condition5)
                                             analysis_5 = llm_reasoning.explain_scenario_5_with_groq(condition5)
@@ -517,7 +514,7 @@ elif tabs == "Waterfall Analysis":
 
                                         # RCA Condition 6
                                         try:
-                                            st.subheader('Scenario 6 - Irregular Consumption Patterns')
+                                            st.subheader('Scenario 6 - Inspection of Consumption Patterns')
                                             consumption_vals, fig, comparison_df = waterfall_analysis.plot_consumption_vs_demand_plotly(result_df)
                                             st.plotly_chart(fig)
                                             st.write("Analysis of Consumption Against Planned Demand")
@@ -555,7 +552,7 @@ elif tabs == "Waterfall Analysis":
                                             st.error(f"Error in Scenario 6: {e}")
 
                                         try:
-                                            st.subheader('Scenario 7 - Supply vs Goods Receipt Analysis')
+                                            st.subheader('Scenario 7 - Supply vs Goods Receipt Gap Analysis')
                                             condition6["Snapshot Week Num"] = condition6["Snapshot Week"].str.replace("WW", "").astype(int)
                                             condition_7 = condition6[["Snapshot Week", "Snapshot Week Num", "Supply (Waterfall)", "PO GR Quantity"]].rename(columns={"PO GR Quantity": "GR Quantity"})
                                             # Merge on week number
@@ -582,8 +579,7 @@ elif tabs == "Waterfall Analysis":
                                         except Exception as e:
                                             st.error(f"Error in Scenario 7: {e}")
 
-
-                                        rca_final = llm_reasoning.explain_waterfall_chart_with_groq(result_df, analysis_1, analysis_2, analysis_3, analysis_4, analysis_5, analysis_6)
+                                        rca_final = llm_reasoning.explain_waterfall_chart_with_groq(result_df, analysis_1, analysis_2, analysis_3, analysis_4, analysis_5, analysis_6, analysis_7)
 
                                         # Download button
                                         output = BytesIO()
@@ -614,60 +610,50 @@ elif tabs == "Waterfall Analysis":
 
                                             write_analysis_block(cond1_sheet, analysis_1)
 
+                                            # --- Scenario 2: Comparison of Actual & Predicted Weeks of Supply ---
                                             cond2_sheet = writer.book.create_sheet("RCA Scenario 2")
-                                            cond2_sheet.append(["Scenario 2 - POs push out or pull in due to changes in demand forecasts"])
+                                            cond2_sheet.append(["Scenario 2 - Comparison of Actual & Predicted Weeks of Supply"])
+
+                                            # Insert Plotly Forecast Accuracy Chart
                                             try:
-                                                # Convert plotly figure to PNG bytes in memory
                                                 img_bytes = analysis_plot.to_image(format="png", width=1000, height=600)
                                                 img_stream = BytesIO(img_bytes)
-
-                                                # Create openpyxl image from bytes stream
                                                 img = XLImage(img_stream)
-                                                img.anchor = "A3"  # Position image starting at cell A3
+                                                img.anchor = "A3"  # Place image starting at cell A3
                                                 cond2_sheet.add_image(img)
-
                                             except Exception as e:
-                                                cond2_sheet.append([f"[Error inserting image: {e}]"])
+                                                cond2_sheet.append([f"[Error inserting forecast chart image: {e}]"])
 
-                                            # Start writing from row 30
-                                            start_row = 35
-                                            current_row = start_row
+                                            # Start writing tabular data below image
+                                            current_row = 35
 
-                                            # Write "Forecast Accuracy Validation Table" heading
+                                            # Forecast Accuracy Table
                                             cond2_sheet.cell(row=current_row, column=1, value="Forecast Accuracy Validation Table")
                                             current_row += 1
+                                            if 'comparison_table' in locals():
+                                                for r in dataframe_to_rows(comparison_table, index=False, header=True):
+                                                    for col_idx, cell_value in enumerate(r, start=1):
+                                                        cond2_sheet.cell(row=current_row, column=col_idx, value=cell_value)
+                                                    current_row += 1
 
-                                            # Write comparison_table
-                                            for r in dataframe_to_rows(comparison_table, index=False, header=True):
-                                                for col_idx, cell_value in enumerate(r, start=1):
-                                                    cond2_sheet.cell(row=current_row, column=col_idx, value=cell_value)
-                                                current_row += 1
+                                            # Analysis text (LLM reasoning)
+                                            current_row += 2
+                                            write_analysis_block(cond2_sheet, locals().get('analysis_2', ""), start_row=current_row)
 
-                                            # Leave a blank row
-                                            current_row += 1
-
-                                            # Write "PO Timing Analysis" heading
-                                            cond2_sheet.cell(row=current_row, column=1, value="PO Timing Analysis")
-                                            current_row += 1
-
-                                            # Write po_analysis_output
-                                            for r in dataframe_to_rows(po_analysis_output, index=False, header=True):
-                                                for col_idx, cell_value in enumerate(r, start=1):
-                                                    cond2_sheet.cell(row=current_row, column=col_idx, value=cell_value)
-                                                current_row += 1
-
-                                            # Leave a blank row
-                                            current_row += 1
-
-                                            # Write the analysis text block
-                                            write_analysis_block(cond2_sheet, analysis_2, start_row=current_row)
-
-
+                                            # --- Scenario 3: Inventory & PO Adjustment Analysis ---
                                             cond3_sheet = writer.book.create_sheet("RCA Scenario 3")
-                                            cond3_sheet.append(["Scenario 3 - Adjustment to POs"])
-                                            for r in dataframe_to_rows(scen_3_df_output, index=False, header=True):
-                                                cond3_sheet.append(r)
-                                            write_analysis_block(cond3_sheet, analysis_3)
+                                            cond3_sheet.append(["Scenario 3 - Inventory Analysis and Optimized PO Adjustment Strategies"])
+
+                                            current_row = 3
+                                            if 'po_analysis_output' in locals():
+                                                for r in dataframe_to_rows(po_analysis_output, index=False, header=True):
+                                                    for col_idx, cell_value in enumerate(r, start=1):
+                                                        cond3_sheet.cell(row=current_row, column=col_idx, value=cell_value)
+                                                    current_row += 1
+
+                                            # Analysis block (if available)
+                                            current_row += 2
+                                            write_analysis_block(cond3_sheet, locals().get('analysis_3', ""), start_row=current_row)
 
                                             cond4_sheet = writer.book.create_sheet("RCA Scenario 4")
                                             cond4_sheet.append(sanitize_row(["Scenario 4 - Longer Delivery Lead Time"]))
@@ -710,6 +696,19 @@ elif tabs == "Waterfall Analysis":
                                             # Leave a blank row
                                             current_row += 1
 
+                                            # Write Reported vs Calculated Consumption Comparison table
+                                            cond6_sheet.cell(row=current_row, column=1, value="Reported vs Calculated Consumption Comparison")
+                                            current_row += 1
+
+                                            if 'cons_reported_act' in locals():
+                                                for row in dataframe_to_rows(cons_reported_act, index=False, header=True):
+                                                    for col_idx, cell_value in enumerate(row, start=1):
+                                                        cond6_sheet.cell(row=current_row, column=col_idx, value=cell_value)
+                                                    current_row += 1
+
+                                            # Leave a blank row
+                                            current_row += 1
+
                                             # Write condition6 table
                                             cond6_sheet.cell(row=current_row, column=1, value="End-to-End Inventory and Consumption Tracking")
                                             current_row += 1
@@ -723,6 +722,25 @@ elif tabs == "Waterfall Analysis":
 
                                             # Write the analysis block below
                                             write_analysis_block(cond6_sheet, analysis_6, start_row=current_row)
+
+                                            # --- Scenario 7: Supply vs Goods Receipt Gap Analysis ---
+                                            cond7_sheet = writer.book.create_sheet("RCA Scenario 7")
+                                            cond7_sheet.append(["Scenario 7 - Supply vs Goods Receipt Gap Analysis"])
+
+                                            # Start writing summary_df table starting from row 3
+                                            current_row = 3
+                                            if 'summary_df' in locals() and "Purchasing Document" in summary_df.columns:
+                                                summary_df["Purchasing Document"] = summary_df["Purchasing Document"].apply(
+                                                    lambda x: ", ".join(map(str, x)) if isinstance(x, list) else str(x)
+                                                )
+                                                for row in dataframe_to_rows(summary_df, index=False, header=True):
+                                                    for col_idx, cell_value in enumerate(row, start=1):
+                                                        cond7_sheet.cell(row=current_row, column=col_idx, value=cell_value)
+                                                    current_row += 1
+
+                                            # Leave a gap and write the analysis block (LLM reasoning)
+                                            current_row += 2
+                                            write_analysis_block(cond7_sheet, locals().get('analysis_7', ""), start_row=current_row)
 
                                         output.seek(0)
                                         # Apply coloring on 'Waterfall Chart' sheet

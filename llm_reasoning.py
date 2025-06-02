@@ -12,8 +12,9 @@ models = [
     "llama-3.1-8b-instant",
     "gemma2-9b-it",
     "llama-guard-3-8b",
+    "meta-llama/llama-guard-4-12b",
     "llama3-70b-8192",
-    "llama3-8b-8192"
+    "llama3-8b-8192"    
 ]
 
 
@@ -325,8 +326,6 @@ def explain_scenario_1_with_groq(df):
 
     Perform the following tasks:
 
-    *Perform the following tasks:
-
     * Identify and explain inventory health issues such as stockouts, excess inventory, or significant fluctuations.
     * Highlight whether purchase orders (POs) were sufficient to cover supply commitments, noting any discrepancies.
     * Point out weeks where the inventory went negative or PO coverage was missing/incomplete.
@@ -358,6 +357,53 @@ def explain_scenario_1_with_groq(df):
         st.error("All model attempts failed.")
 
     return explanation
+
+
+def explain_scenario_2_with_groq(df):
+    df_string = df.to_string(index=False)
+    client = Groq(api_key=API_KEY)
+
+    system_prompt = """
+    You are a seasoned supply chain forecasting expert. You are reviewing a weekly forecast performance report that compares predicted inventory levels (Weeks of Stock) to the actual outcomes.
+
+    The table contains:
+    - Week: Week identifier.
+    - Actual: Actual Weeks of Stock observed.
+    - Predicted: Forecasted Weeks of Stock for the same week.
+    - Deviation_Flag: Boolean indicating if a significant deviation occurred.
+    - Deviation_Detail: Describes the nature of the deviation.
+
+    Please analyze the table and:
+    * Identify where and how forecasts significantly diverged from actuals.
+    * Explain if there is a pattern of consistent overestimation or underestimation.
+    * Mention weeks where the forecast was zero but actual stock was not (and vice versa).
+    * Avoid generic insights; use exact weeks and percentages from the data.
+
+    Start directly with bullet points. Avoid preambles or summaries.
+    """
+
+    user_prompt = f"""
+    Analyze the following forecast deviation summary:\n\n{df_string}
+    """
+
+    for model in models:
+        try:
+            chat_completion = client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                model=model,
+            )
+            explanation = chat_completion.choices[0].message.content
+            st.write(explanation)
+            return explanation
+        except Exception as e:
+            continue
+    else:
+        st.error("All model attempts failed.")
+        return "Explanation could not be generated."
+
 
 
 def explain_scenario_4_with_groq(df):
@@ -631,17 +677,18 @@ def explain_scenario_7_with_groq(df):
 
     return explanation
 
-def explain_waterfall_chart_with_groq(df, analysis_1, analysis_2, analysis_3, analysis_4, analysis_5, analysis_6):
+def explain_waterfall_chart_with_groq(df, analysis_1, analysis_2, analysis_3, analysis_4, analysis_5, analysis_6, analysis_7):
     df_string = df.to_string(index=False)
 
     # Prepare dynamic scenarios from user input
     scenarios = [
         f"Scenario 1: PO Coverage is Inadequate — {analysis_1}",
-        f"Scenario 2: POs push out or pull in due to changes in demand forecasts — {analysis_2}",
-        f"Scenario 3: Adjustment to POs — {analysis_3}",
+        f"Scenario 2: Comparison of Actual & Predicted WoSs — {analysis_2}",
+        f"Scenario 3: Inventory Analysis and Optimized PO Adjustment Strategies — {analysis_3}",
         f"Scenario 4: Longer Delivery Lead Time — {analysis_4}",
         f"Scenario 5: Irregular Demand w/o Buffer Patterns — {analysis_5}",
-        f"Scenario 6: Irregular Consumption Patterns — {analysis_6}"
+        f"Scenario 6: Irregular Consumption Patterns — {analysis_6}",
+        f"Scenario 7: Supply vs Goods Receipt Gap Analysis — {analysis_7}",
     ]
 
     # Build FAISS index
@@ -652,7 +699,7 @@ def explain_waterfall_chart_with_groq(df, analysis_1, analysis_2, analysis_3, an
 
     def retrieve_scenario(text):
         embedding = embed_model.encode([text])
-        D, I = faiss_index.search(embedding, k=6)
+        D, I = faiss_index.search(embedding, k=7)
         return [scenarios[i] for i in I[0]]
 
     def process_chunk(chunk_text):
@@ -782,171 +829,6 @@ def explain_waterfall_chart_with_groq(df, analysis_1, analysis_2, analysis_3, an
 # Load embedding model and FAISS index
 device = 'cpu'
 embed_model = SentenceTransformer('all-MiniLM-L6-v2', device=device)
-
-
-
-# def explain_waterfall_chart_with_groq(df, analysis_1, analysis_2, analysis_3, analysis_4, analysis_5, analysis_6):
-#     """
-#     Explains the root cause analysis of a waterfall chart, with chunking for large inputs.
-
-#     Args:
-#         df (pd.DataFrame): The DataFrame containing the data.
-#     """
-#     df_string = df.to_string(index=False)
-#     client = Groq(api_key=API_KEY)
-
-#     system_prompt = """
-
-#     You are a supply chain analyst with deep expertise in the semiconductor industry and extensive experience interpreting weekly, material-level historical data. Your task is to analyze a text-based description of a waterfall chart dataframe that represents weekly supply chain metrics (labelled “WW” followed by the week number).
-
-#     Your analysis must produce bullet-point insights followed by a single root cause conclusion. Anchor all insights in data and temporal logic — each week’s values reflect prior decisions, constraints, and events.
-
-#     Focus areas:
-
-#     * **Weeks of Stock**  
-#     - Identify negative values.  
-#     - Highlight any week-to-week drops exceeding 4 weeks.
-
-#     * **Demand w/o Buffer**  
-#     - Detect significant week-to-week changes.  
-#     - Flag inconsistencies or demand spikes.
-
-#     * **EOH w/o Buffer** (End of Hand, without safety/buffer stock)  
-#     - Flag negative values.  
-#     - For any negative EOH, assess the corresponding week’s supply, inventory, or demand issues.
-
-#     * **Irregular Consumption Patterns**  
-#     - Use "Demand w/o Buffer" to flag sharp increases or decreases week-over-week.  
-#     - Connect abnormal consumption trends to any resulting inventory impacts.
-
-#     Avoid generic commentary. All insights must be specific, data-driven, and time-referenced.
-
-#     ### Root Cause Determination:
-
-#     Based on the bullet-point insights, provide a **brief paragraph** explaining why the selected root cause scenario best fits the data trends. Focus on timing, causality, and consistency of patterns.
-
-#     You MUST select one root cause from the six predefined options below.  
-#     You MUST use the exact scenario number, name, and explanation.  
-#     Do NOT paraphrase or modify any part of the scenario explanation.  
-#     If the explanation does not exactly match one of these six, your output is invalid.
-
-#     Available options (do not modify):
-
-#     - **Scenario 1: PO Coverage is Inadequate** — {analysis_1}
-
-#     - **Scenario 2: POs push out or pull in due to changes in demand forecasts** — {analysis_2}
-
-#     - **Scenario 3: Adjustment to POs** — {analysis_3}
-
-#     - **Scenario 4: Longer Delivery Lead Time** — {analysis_4}
-
-#     - **Scenario 5: Irregular Demand w/o Buffer Patterns** — {analysis_5}
-
-#     - **Scenario 6: Irregular Consumption Patterns** — {analysis_6}
-
-#     ### Output Format:
-#     - Bullet points with data-driven observations.
-#     - One paragraph justifying the chosen root cause, grounded in trends and data.
-#     - A single final line in this format:
-
-#     Your final output MUST end with a line in this format:  
-#     **Root Cause:** Scenario X: [scenario name] — [scenario explanation]
-#     """
-
-#     def process_chunk(chunk_text):
-#             user_prompt = f"Explain the root cause analysis for the following waterfall chart data:\n\n{chunk_text}"
-#             for model in models:
-#                 try:
-#                     client = Groq(api_key=API_KEY)
-#                     chat_completion = client.chat.completions.create(
-#                         messages=[
-#                             {"role": "system", "content": system_prompt},
-#                             {"role": "user", "content": user_prompt},
-#                         ],
-#                         model=model,
-#                     )
-#                     return chat_completion.choices[0].message.content
-#                 except Exception as e:
-#                     # st.warning(f"Model {model} failed: {e}")
-#                     continue
-#             return "All model attempts failed."
-
-#     try:
-#         explanation = process_chunk(df_string)
-#         if "All model attempts failed." not in explanation:
-#             st.header("Root Cause Analysis")
-#             st.write(explanation)
-#         else:
-#             raise Exception("Large input or model limits reached. Chunking required.")
-#     except Exception:
-#         # st.warning("Large input detected or failure occurred. Chunking the data for processing...")
-
-#         max_divisor = 10
-#         df_rows = df.shape[0]
-#         chunk_results = []
-
-#         for divisor in range(2, max_divisor + 1):
-#             chunk_size = df_rows // divisor
-#             chunks = [df.iloc[i:i + chunk_size] for i in range(0, df_rows, chunk_size)]
-#             chunk_results.clear()
-#             chunk_failed = False
-
-#             for chunk in chunks:
-#                 chunk_text = chunk.to_string(index=False)
-#                 chunk_result = process_chunk(chunk_text)
-#                 if "All model attempts failed." in chunk_result:
-#                     chunk_failed = True
-#                     break
-#                 else:
-#                     chunk_results.append(chunk_result)
-
-#             if not chunk_failed:
-#                 break  # All chunks succeeded
-
-#         if chunk_results:
-#             combined_insights = "\n".join(chunk_results)
-
-#             final_prompt = f"""
-#             You are a supply chain analyst. Consolidate the following root cause analyses into a clean, non-redundant summary.
-
-#             Requirements:
-#             - Merge overlapping insights and remove duplicates.
-#             - Ensure all insights are logically ordered and clearly attributed to specific WW weeks.
-#             - Preserve a bullet-point format for observations.
-#             - After the bullet points, include a short paragraph explaining *why* the selected root cause is the most appropriate, grounded in the data trends.
-#             - Then, include exactly one root cause at the end — choose the most well-supported scenario.
-#             - Use the following format for the root cause (no modifications):
-
-#             **Root Cause:** Scenario X: [scenario name] — [scenario explanation]
-
-#             Data Insights:
-#             {combined_insights}
-
-#             Do not include introductions, summaries, or any extra explanation outside the required format.
-#             """
-
-#             for model in models:
-#                 try:
-#                     client = Groq(api_key=API_KEY)
-#                     final_summary = client.chat.completions.create(
-#                         messages=[
-#                             {"role": "system", "content": "You are a senior supply chain analyst. Output clear, concise insights as requested."},
-#                             {"role": "user", "content": final_prompt},
-#                         ],
-#                         model=model,
-#                     ).choices[0].message.content
-#                     st.header("Root Cause Analysis (Final Summary)")
-#                     st.write(final_summary)
-#                     return final_summary
-#                 except Exception as e:
-#                     print(f"Final consolidation model {model} failed: {e}")
-#                     # st.warning(f"Final consolidation model {model} failed: {e}")
-#             else:
-#                 st.error("All model attempts failed for final consolidation.")
-#         else:
-#             st.error("Failed to process the data even after chunking.")
-
-
 
 def explain_inventory_events(representative_weekly_events, reorder_point, lead_time, lead_time_std_dev, consumption_distribution_params, consumption_type, consumption_best_distribution, order_distribution_params, order_quantity_type, order_distribution_best):
     """
