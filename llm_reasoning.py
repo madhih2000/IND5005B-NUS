@@ -326,8 +326,6 @@ def explain_scenario_1_with_groq(df):
 
     Perform the following tasks:
 
-    *Perform the following tasks:
-
     * Identify and explain inventory health issues such as stockouts, excess inventory, or significant fluctuations.
     * Highlight whether purchase orders (POs) were sufficient to cover supply commitments, noting any discrepancies.
     * Point out weeks where the inventory went negative or PO coverage was missing/incomplete.
@@ -376,10 +374,10 @@ def explain_scenario_2_with_groq(df):
     - Deviation_Detail: Describes the nature of the deviation.
 
     Please analyze the table and:
-    - Identify where and how forecasts significantly diverged from actuals.
-    - Explain if there is a pattern of consistent overestimation or underestimation.
-    - Mention weeks where the forecast was zero but actual stock was not (and vice versa).
-    - Avoid generic insights; use exact weeks and percentages from the data.
+    * Identify where and how forecasts significantly diverged from actuals.
+    * Explain if there is a pattern of consistent overestimation or underestimation.
+    * Mention weeks where the forecast was zero but actual stock was not (and vice versa).
+    * Avoid generic insights; use exact weeks and percentages from the data.
 
     Start directly with bullet points. Avoid preambles or summaries.
     """
