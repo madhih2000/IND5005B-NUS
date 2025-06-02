@@ -464,7 +464,7 @@ elif tabs == "Waterfall Analysis":
 
                                         # RCA Condition 1
                                         try:
-                                            st.subheader('Scenario 1 - Validation of WoS levels against PO coverage')
+                                            st.subheader('Validation of WoS levels against PO coverage')
                                             scen_1_df_output = waterfall_analysis.scenario_1(result_df, PO_df_filtered)
                                             styled_df = waterfall_analysis.style_dataframe(scen_1_df_output)
                                             st.dataframe(styled_df, use_container_width=True)
@@ -473,7 +473,7 @@ elif tabs == "Waterfall Analysis":
                                             st.error(f"Error in Scenario 1: {e}")
 
                                         try:
-                                            st.subheader('Scenario 2 - Comparison of Actual & Predicted WoS')
+                                            st.subheader('Comparison of Actual & Predicted WoS')
                                             wos_list, analysis_plot, comparison_table = waterfall_analysis.plot_stock_prediction_plotly(result_df, start_week, lead_value, num_weeks)
                                             st.plotly_chart(analysis_plot)
                                             st.write("Forecast Accuracy Validation Table")
@@ -484,7 +484,7 @@ elif tabs == "Waterfall Analysis":
 
                                         # RCA Condition 3
                                         try:
-                                            st.subheader('Scenario 3 - Inventory Analysis and Optimized PO Adjustment Strategies')                                        
+                                            st.subheader('Scenario 3 - Visualization of Inventory Levels and PO Adjustment Strategies')                                        
                                             st.write("PO Timing Analysis")
                                             po_analysis_output = waterfall_analysis.scenario_3(result_df, PO_df_filtered, lead_value)
                                             st.dataframe(po_analysis_output)
@@ -494,7 +494,7 @@ elif tabs == "Waterfall Analysis":
 
                                         # RCA Condition 4
                                         try:
-                                            st.subheader('Scenario 4 - Longer Delivery Lead Time')
+                                            st.subheader('Changes in Lead Time')
                                             condition4 = waterfall_analysis.lead_time_check(result_df)
                                             st.dataframe(condition4)
                                             analysis_4 = llm_reasoning.explain_scenario_4_with_groq(condition4)
@@ -503,7 +503,7 @@ elif tabs == "Waterfall Analysis":
 
                                         # RCA Condition 5
                                         try:
-                                            st.subheader('Scenario 5 - Inspection of Demand w/o Buffer Patterns')
+                                            st.subheader('Inspection of Demand w/o Buffer Patterns')
                                             condition5 = waterfall_analysis.analyze_week_to_week_demand_changes(result_df, lead_time=lead_value)
                                             st.dataframe(condition5)
                                             analysis_5 = llm_reasoning.explain_scenario_5_with_groq(condition5)
@@ -512,7 +512,7 @@ elif tabs == "Waterfall Analysis":
 
                                         # RCA Condition 6
                                         try:
-                                            st.subheader('Scenario 6 - Inspection of Consumption Patterns')
+                                            st.subheader('Inspection of Consumption Patterns')
                                             consumption_vals, fig, comparison_df = waterfall_analysis.plot_consumption_vs_demand_plotly(result_df)
                                             st.plotly_chart(fig)
                                             st.write("Analysis of Consumption Against Planned Demand")
@@ -550,7 +550,7 @@ elif tabs == "Waterfall Analysis":
                                             st.error(f"Error in Scenario 6: {e}")
 
                                         try:
-                                            st.subheader('Scenario 7 - Supply vs Goods Receipt Gap Analysis')
+                                            st.subheader('Supply vs Goods Receipt Gap Analysis')
                                             condition6["Snapshot Week Num"] = condition6["Snapshot Week"].str.replace("WW", "").astype(int)
                                             condition_7 = condition6[["Snapshot Week", "Snapshot Week Num", "Supply (Waterfall)", "PO GR Quantity"]].rename(columns={"PO GR Quantity": "GR Quantity"})
                                             # Merge on week number
