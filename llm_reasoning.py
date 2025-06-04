@@ -329,8 +329,7 @@ def explain_scenario_1_with_groq(df):
     * Identify and explain inventory health issues such as stockouts, excess inventory, or significant fluctuations.
     * Highlight whether purchase orders (POs) were sufficient to cover supply commitments, noting any discrepancies.
     * Point out weeks where the inventory went negative or PO coverage was missing/incomplete.
-    * Assess patterns across multiple weeks and whether the root causes are persistent or one-off, considering the flags and reasons provided.
-    
+    * Assess patterns across multiple weeks and whether the root causes are persistent or one-off, considering the flags and reasons provided.   
 
     Avoid generic comments. Use the table's specific data and flag insights to guide your explanation. Do not include summaries or preambles — start directly with bullet points.
     """
@@ -378,6 +377,7 @@ def explain_scenario_2_with_groq(df):
     * Explain if there is a pattern of consistent overestimation or underestimation.
     * Mention weeks where the forecast was zero but actual stock was not (and vice versa).
     * Avoid generic insights; use exact weeks and percentages from the data.
+    * Ignore the first row of data in your analysis
 
     Start directly with bullet points. Avoid preambles or summaries.
     """
@@ -430,7 +430,7 @@ def explain_scenario_3_with_groq(df):
     - Suggested inventory actions (e.g., Pull In, Push Out) and which POs are affected
 
     Your task is to:
-    * Explain why a Pull In or Push Out was recommended based on WOS and inventory trends
+    * Only highlight weeks that suggests a Pull In or Push Out in the Flags Column and explain why it was recommended based on WOS and inventory trends
     * Describe if the decision aligns with typical planning logic
     * Mention specific PO documents and their quantities when relevant
     * Comment if no action was taken and the reason (e.g., WOS in healthy range)
@@ -751,7 +751,7 @@ def explain_waterfall_chart_with_groq(df, analysis_1, analysis_2, analysis_3, an
     # Prepare dynamic scenarios from user input
     scenarios = [
         f"Scenario 1: PO Coverage is Inadequate — {analysis_1}",
-        f"Scenario 2: Comparison of Actual & Predicted WoSs — {analysis_2}",
+        f"Scenario 2: Comparison of Actual & Predicted WoS — {analysis_2}",
         f"Scenario 3: Inventory Analysis and Optimized PO Adjustment Strategies — {analysis_3}",
         f"Scenario 4: Longer Delivery Lead Time — {analysis_4}",
         f"Scenario 5: Irregular Demand w/o Buffer Patterns — {analysis_5}",
