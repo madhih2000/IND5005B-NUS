@@ -528,7 +528,7 @@ def explain_scenario_5_with_groq(df, sd_table):
     sd_string = sd_table.to_string(index=False)
     client = Groq(api_key=API_KEY)
 
-    system_prompt = """
+    system_prompt = f"""
     You are a highly skilled supply chain analyst specializing in the semiconductor industry, with deep experience in analyzing weekly historical data at the material number level.
 
     You're given textual summaries of weekly demand deltas (WoW change and % change) including spikes, drops, and missing data. The input may contain redundant, noisy, or conflicting entries.
