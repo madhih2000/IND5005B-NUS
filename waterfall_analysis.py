@@ -739,14 +739,7 @@ def calculate_weekly_demand_summary(data):
     sd = data.groupby("Week")["Demand w/o Buffer"].std().reset_index()
     sd.columns = ["Week", "SD"]
     sd["SD"] = sd["SD"].round(2)
-
-    # Coefficient of Variation (CV)
-    mean_demand = data.groupby("Week")["Demand w/o Buffer"].mean().reset_index()
-    mean_demand.columns = ["Week", "Mean"]
-    cv = sd.merge(mean_demand, on="Week")
-    cv["CV"] = (cv["SD"] / cv["Mean"]).round(2)
-    cv = cv.drop(columns=["Mean"])
-
+    
     # Anomaly Counts
     anomaly_counts = data.groupby("Week")[["Spike", "Drop", "Sudden % Spike", "Sudden % Drop"]].sum().reset_index()
 

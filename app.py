@@ -484,7 +484,7 @@ elif tabs == "Waterfall Analysis":
 
                                         # RCA Condition 3
                                         try:
-                                            st.subheader('Scenario 3 - Visualization of Inventory Levels and PO Adjustment Strategies')                                        
+                                            st.subheader('Visualization of Inventory Levels and PO Adjustment Strategies')                                        
                                             st.write("PO Timing Analysis")
                                             po_analysis_output = waterfall_analysis.scenario_3(result_df, PO_df_filtered, lead_value)
                                             st.dataframe(po_analysis_output)

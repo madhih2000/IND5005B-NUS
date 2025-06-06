@@ -557,10 +557,9 @@ def explain_scenario_5_with_groq(df, summary_table):
     **Volatility Summary Table (summary_string):**
     This table includes one row per Week with the following statistical metrics:
     - SD: Standard Deviation of demand — measures how much demand fluctuated. High SD indicates erratic updates.
-    - CV: Coefficient of Variation — SD divided by the mean demand, useful for normalizing volatility.
     - Spike / Drop / Sudden % Spike / Sudden % Drop: Count of how many anomalies occurred in the week.
     - Avg Abs WoW Change: Average of the absolute week-over-week demand changes.
-    - Irregularity Score: Composite metric based on SD, CV, anomaly counts, and average movement, normalized to [0,1].
+    - Irregularity Score: Composite metric based on SD, anomaly counts, and average movement, normalized to [0,1].
 
     ---
 
@@ -582,7 +581,7 @@ def explain_scenario_5_with_groq(df, summary_table):
     2. **Volatility Tagging:**
         - Use the `SD` and `Irregularity Score` to flag **unusual volatility**:
             - A week is considered volatile if:
-                - SD or CV is in the **top 25%** of all values **or**
+                - SD is in the **top 25%** of all values **or**
                 - Irregularity Score is **above 0.75**.
         - If no Surge/Crash occurred that week, but the volatility is high, add:
             - `WW10 - Volatile: Demand fluctuated without a clear trend (SD = 21.4, Irregularity Score = 0.83).`
