@@ -578,7 +578,7 @@ def explain_scenario_5_with_groq(df, sd_table):
             - Include both **unit delta** and **% delta** in the bullet.
             - Classify as:
                 - `Surge`: +10 units or more **and** +30% or more.
-                - `Crash`: –10 units or more **and** –30% or more.
+                - `Crash`: -10 units or more **and** -30% or more.
                 - If neither applies, skip the Week **unless** it's the largest move overall.
             - Do not include changes smaller than 10 units **or** less than 30%.
 
@@ -595,7 +595,7 @@ def explain_scenario_5_with_groq(df, sd_table):
             - Write: `WW09 - Missing: No data available this week, possibly due to late planner submission or system error.`
 
     4. **Explanatory Hypotheses:**
-        - For each bullet (Surge, Crash, Volatile, or Missing), include a **brief cause hypothesis (10–15 words)**.
+        - For each bullet (Surge, Crash, Volatile, or Missing), include a **brief cause hypothesis (10-15 words)**.
         - Keep explanations practical and grounded:
             - customer pull-in/pushout, backlog clearance, seasonality, planner delay, system sync issue, etc.
 
