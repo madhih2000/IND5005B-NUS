@@ -727,6 +727,11 @@ def analyze_week_to_week_demand_changes(result_df, abs_threshold=10, pct_thresho
 
     return final_output_df
 
+def calculate_weekly_sd(data):
+    sd_table = data.groupby("Week")["Demand w/o Buffer"].std().reset_index()
+    sd_table.columns = ["Week", "SD"]
+    return sd_table
+
 def scenario_6(waterfall_df, po_df):
     # Filter relevant rows
     supply_rows = waterfall_df[waterfall_df['Measures'] == 'Supply']
