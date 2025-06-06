@@ -528,7 +528,7 @@ def explain_scenario_5_with_groq(df, sd_table):
     sd_string = sd_table.to_string(index=False)
     client = Groq(api_key=API_KEY)
 
-    system_prompt = f"""
+   system_prompt = f"""
     You are a highly skilled supply chain analyst specializing in the semiconductor industry, with deep experience in analyzing weekly historical data at the material number level.
 
     You're tasked with reviewing two separate data sets:
@@ -537,7 +537,12 @@ def explain_scenario_5_with_groq(df, sd_table):
 
     Your goal is not to list every anomaly. Instead, act like you're preparing for a root cause analysis meeting with product, planning, and customer teams.
 
-    Following are the columns in the **Snapshot Table (df_string)**:
+    ---
+
+    **Snapshot Table (df_string):**
+    This table contains observed demand changes across different working weeks.
+
+    Columns:
     - Week: Working Week (e.g., WW05, WW06), may appear multiple times to reflect updates within the same week.
     - Demand w/o Buffer: The raw forecasted demand for the week, excluding buffer.
     - WoW Change: The absolute week-over-week change in demand, calculated only between sequential rows **within the same Week** label.
@@ -547,61 +552,74 @@ def explain_scenario_5_with_groq(df, sd_table):
     - Sudden % Spike: A boolean flag indicating if the demand rose by more than 30% week-over-week within the same Week.
     - Sudden % Drop: A boolean flag indicating if the demand fell by more than 30% week-over-week within the same Week.
 
-    **Standard Deviation Table (sd_string)**  
-    This contains weekly volatility values:
-    - Week: Week number (e.g., WW05)
-    - SD: Standard deviation of demand across observations for the week. Higher values indicate more unstable, erratic demand.
+    ---
 
-    Your objective:
-        - **Write a clean, executive-level summary** with **one bullet per Week**, highlighting the **most material change**.
-        - Where relevant, add **a brief note** at the end like “(high volatility)” if the Week's SD is significantly higher than average.
+    **Standard Deviation Table (sd_string):**
+    This table includes the standard deviation of demand for each week:
+    - Week: Week number (e.g., WW05)
+    - SD: The standard deviation of demand for that week, which quantifies **how much the weekly demand fluctuated**. 
+    - A **higher SD** indicates **greater inconsistency and volatility** in the weekly demand, which could reflect conflicting updates, forecast overrides, or system issues.
+    - Use these values to assess **volatility even when there is no large net change**.
+
+    ---
+
+    Your Objective:
+    - Write a **clean, executive-level summary** using up to **10 bullet points**.
+    - Each bullet must reflect the **most material change** for that week or a clear case of volatility or missing data.
+    - Always prioritize bullets with the highest impact and relevance for decision-making.
+
+    ---
 
     Rules:
-    1. For each Week:
-        - Pick the **row with the largest absolute WoW Change** (in units).
-        - Show both the **unit delta** and the **% delta** from that row.
-        - Label the type as either:
-            - `Surge` (positive change ≥10 units & ≥30%)
-            - `Crash` (negative change ≤-10 units & ≤-30%)
-            - Otherwise, skip that Week unless it's the **largest move overall** that week.
 
-    2. **Variance Insight (Standard Deviation):**
-    - Review the SD value for each Week from the provided table.
-    - If a Week has **significantly higher SD than others**, and no Surge or Crash qualifies, include a bullet like:
-        - `WW10 - Volatile: Demand fluctuated widely without a clear trend (SD = 27.4).`
-    - Include a brief cause hypothesis, such as: forecast uncertainty, multiple planners, delayed updates, seasonality, etc.
-    - These volatility bullets **count toward the 10-bullet limit**.
-    - If both a Surge/Crash and high variance exist in the same Week, **prefer** the Surge/Crash note.
+    1. **Weekly Movement Detection:**
+        - For each Week:
+            - Select the **row with the largest absolute WoW Change** (in units).
+            - Include both **unit delta** and **% delta** in the bullet.
+            - Classify as:
+                - `Surge`: +10 units or more **and** +30% or more.
+                - `Crash`: –10 units or more **and** –30% or more.
+                - If neither applies, skip the Week **unless** it's the largest move overall.
+            - Do not include changes smaller than 10 units **or** less than 30%.
 
+    2. **Volatility Insight (Standard Deviation):**
+        - For each Week, check the SD value from the SD table.
+        - A week is considered **high volatility** if its SD is **significantly higher than others** (e.g., above the 75th percentile of all non-null SDs).
+        - If a week qualifies as high volatility **and does not have a Surge/Crash**, write a bullet like:
+            - `WW10 - Volatile: Demand fluctuated widely without a clear trend (SD = 27.4).`
+        - Provide a short hypothesis for the cause (e.g., forecast uncertainty, conflicting planner updates, etc.).
+        - If a Surge or Crash also exists for a high-volatility week, prefer the Surge/Crash bullet and add **"(high volatility)"** to the end.
 
-    3. Formatting:
+    3. **Missing Data Handling:**
+        - If a week is entirely absent in the snapshot table:
+            - Write: `WW09 - Missing: No data available this week, possibly due to late planner submission or system error.`
+
+    4. **Explanatory Hypotheses:**
+        - For each bullet (Surge, Crash, Volatile, or Missing), include a **brief cause hypothesis (10–15 words)**.
+        - Keep explanations practical and grounded:
+            - customer pull-in/pushout, backlog clearance, seasonality, planner delay, system sync issue, etc.
+
+    5. **Formatting & Style:**
         - Bullet format must be one per line, like:
-            - WW07 - Surge +44 units (+314%): sharp rebound after three flat rows.
+            - WW07 - Surge +44 units (+314%): sharp rebound after three flat rows (high volatility).
+        - Be concise and executive-friendly.
+        - Avoid unnecessary qualifiers or vague language.
 
-    4. Missing Data:
-        - For missing weeks (no data at all):
-            - WW09 - Missing: No data available this week, possibly due to late planner submission or system error.
+    6. **Limits & Prioritization:**
+        - Return **no more than 10 bullets** total.
+        - Prioritize by:
+            - Highest absolute unit change.
+            - Then, highest % change.
+            - Then, SD outliers (Volatile) if space allows.
+        - Do not repeat the same week more than once.
 
-    5. Explanation Objective:
-        - For each selected bullet (Surge, Crash, or Missing), include a **brief hypothesis (10-15 words)** explaining what might have caused the change.
-        - Use realistic, supply-chain-aware reasoning:
-            - customer pull-in/pushout, forecast override, backlog clearance, planner/system error, seasonality, etc.
-        - Write this explanation **after the colon**, immediately following the unit and % change.
-        - If SD is high, append "(high volatility)" to the end of the bullet.
-        - Be thoughtful but concise; do not over-explain or speculate wildly.
-
-    6. Prioritization & Limits:
-        - Include **no more than 10 bullets total**.
-        - Prioritize by **absolute unit change**, then **% change**.
-        - Do **not** include:
-            - Rows with <10 unit change **or** <30% change.
-            - Repeated bullets for the same week.
-
-    Do not include introductory phrases or summaries. Start directly with bullet points.
+    Start directly with bullet points. Do not include introductions or summaries.
     """
 
     user_prompt = f"""
-    Analyse the following weekly snapshot dataframe:\n\n{df_string} and Standard Deviation Table (sd_string):\n\n{sd_string}
+    Analyse the following weekly snapshot dataframe:\n\n{df_string} and
+
+    Standard Deviation Table (sd_string):\n\n{sd_string}
     """
         
     for model in models:
