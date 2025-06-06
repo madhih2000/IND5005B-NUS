@@ -573,40 +573,37 @@ def explain_scenario_5_with_groq(df, summary_table):
     Rules:
 
     1. **Identify Material Demand Movements:**
-        - For each Week, select the row with the **largest absolute WoW Change**.
-        - If the change is **+10 units and +30%**, classify it as a `Surge`.
-        - If the change is **-10 units and -30%**, classify it as a `Crash`.
-        - Skip other rows **unless** it's the only significant activity that week.
+        * For each Week, select the row with the **largest absolute WoW Change**.
+        * If the change is **+10 units and +30%**, classify it as a `Surge`.
+        * If the change is **-10 units and -30%**, classify it as a `Crash`.
+        * Skip other rows **unless** it's the only significant activity that week.
 
     2. **Volatility Tagging:**
-        - Use the `SD` and `Irregularity Score` to flag **unusual volatility**:
-            - A week is considered volatile if:
-                - SD is in the **top 25%** of all values **or**
-                - Irregularity Score is **above 0.75**.
-        - If no Surge/Crash occurred that week, but the volatility is high, add:
-            - `WW10 - Volatile: Demand fluctuated without a clear trend (SD = 21.4, Irregularity Score = 0.83).`
-        - Provide a short cause hypothesis (e.g., planner delays, conflicting updates, forecast overrides, etc.)
-        - If a Surge/Crash and high SD exist together, prefer the Surge/Crash and append `(high volatility)` at the end.
+        * Use the `SD` and `Irregularity Score` to flag **unusual volatility**:
+            * A week is considered volatile if:
+                * SD is in the **top 25%** of all values **or**
+                * Irregularity Score is **above 0.75**.
+        * If no Surge/Crash occurred that week, but the volatility is high, add:
+            * `WW10 - Volatile: Demand fluctuated without a clear trend (SD = 21.4, Irregularity Score = 0.83).`
+        * Provide a short cause hypothesis (e.g., planner delays, conflicting updates, forecast overrides, etc.)
+        * If a Surge/Crash and high SD exist together, prefer the Surge/Crash and append `(high volatility)` at the end.
 
     3. **Missing Weeks:**
-        - If a week from the summary is **not present** in the snapshot data:
-            - `WW09 - Missing: No data available, possibly due to delayed planner input or system sync issue.`
+        * If a week from the summary is **not present** in the snapshot data:
+            * `WW09 - Missing: No data available, possibly due to delayed planner input or system sync issue.`
 
     4. **Cause Hypotheses:**
-        - For each Surge, Crash, or Volatile event, include a short (10-15 word) hypothesis after the colon.
-        - Use grounded supply chain logic: customer pull-ins, pushouts, backlog clearance, late planner submission, etc.
+        * For each Surge, Crash, or Volatile event, include a short (10-15 word) hypothesis after the colon.
+        * Use grounded supply chain logic: customer pull-ins, pushouts, backlog clearance, late planner submission, etc.
 
     5. **Formatting Rules:**
-        - Each insight must be on its own line in this format:
-            - WW07 - Surge +44 units (+314%): sharp rebound after three flat rows (high volatility).
-        - Round SD and Irregularity Score to two decimals when used in text.
+        * Each insight must be on its own line in this format:
+            * WW07 - Surge +44 units (+314%): sharp rebound after three flat rows (high volatility).
+        * Round SD and Irregularity Score to two decimals when used in text.
 
     6. **Bullet Prioritization & Cap:**
-        - Return a maximum of **10 bullets**.
-        - Prioritize by:
-            - Highest absolute unit change (Surge/Crash)
-            - Then Irregularity Score (Volatile)
-        - Do not repeat a week in multiple bullets.
+        * Return a maximum of **10 bullets**.
+        * Do not repeat a week in multiple bullets.
 
     Start directly with bullet points. Do not include any introductory or summary text.
     """
