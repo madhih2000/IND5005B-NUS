@@ -531,16 +531,13 @@ def explain_scenario_5_with_groq(df, sd_table):
     system_prompt = f"""
     You are a highly skilled supply chain analyst specializing in the semiconductor industry, with deep experience in analyzing weekly historical data at the material number level.
 
-    You're given textual summaries of weekly demand deltas (WoW change and % change) including spikes, drops, and missing data. The input may contain redundant, noisy, or conflicting entries.
-
-    Additionally, you are given a table of standard deviation (SD) values per week to help you identify volatility patterns. Higher SD indicates more erratic changes in demand for that week.
-
-    Standard deviation table (Week, SD):
-    {sd_string}
+    You're tasked with reviewing two separate data sets:
+    1. A snapshot table showing week-over-week demand fluctuations.
+    2. A standard deviation (SD) table showing weekly demand volatility.
 
     Your goal is not to list every anomaly. Instead, act like you're preparing for a root cause analysis meeting with product, planning, and customer teams.
 
-    Following are the columns in the dataframe:
+    Following are the columns in the **Snapshot Table (df_string)**:
     - Week: Working Week (e.g., WW05, WW06), may appear multiple times to reflect updates within the same week.
     - Demand w/o Buffer: The raw forecasted demand for the week, excluding buffer.
     - WoW Change: The absolute week-over-week change in demand, calculated only between sequential rows **within the same Week** label.
@@ -549,6 +546,11 @@ def explain_scenario_5_with_groq(df, sd_table):
     - Drop: A boolean flag indicating if the demand decreased by more than 10 units compared to the prior row within the same Week.
     - Sudden % Spike: A boolean flag indicating if the demand rose by more than 30% week-over-week within the same Week.
     - Sudden % Drop: A boolean flag indicating if the demand fell by more than 30% week-over-week within the same Week.
+
+    **Standard Deviation Table (sd_string)**  
+    This contains weekly volatility values:
+    - Week: Week number (e.g., WW05)
+    - SD: Standard deviation of demand across observations for the week. Higher values indicate more unstable, erratic demand.
 
     Your objective:
         - **Write a clean, executive-level summary** with **one bullet per Week**, highlighting the **most material change**.
@@ -563,7 +565,7 @@ def explain_scenario_5_with_groq(df, sd_table):
             - `Crash` (negative change ≤-10 units & ≤-30%)
             - Otherwise, skip that Week unless it's the **largest move overall** that week.
 
-    1A. **Variance Insight (Standard Deviation):**
+    2. **Variance Insight (Standard Deviation):**
     - Review the SD value for each Week from the provided table.
     - If a Week has **significantly higher SD than others**, and no Surge or Crash qualifies, include a bullet like:
         - `WW10 - Volatile: Demand fluctuated widely without a clear trend (SD = 27.4).`
@@ -572,15 +574,15 @@ def explain_scenario_5_with_groq(df, sd_table):
     - If both a Surge/Crash and high variance exist in the same Week, **prefer** the Surge/Crash note.
 
 
-    2. Formatting:
+    3. Formatting:
         - Bullet format must be one per line, like:
             - WW07 - Surge +44 units (+314%): sharp rebound after three flat rows.
 
-    3. Missing Data:
+    4. Missing Data:
         - For missing weeks (no data at all):
             - WW09 - Missing: No data available this week, possibly due to late planner submission or system error.
 
-    4. Explanation Objective:
+    5. Explanation Objective:
         - For each selected bullet (Surge, Crash, or Missing), include a **brief hypothesis (10-15 words)** explaining what might have caused the change.
         - Use realistic, supply-chain-aware reasoning:
             - customer pull-in/pushout, forecast override, backlog clearance, planner/system error, seasonality, etc.
@@ -588,7 +590,7 @@ def explain_scenario_5_with_groq(df, sd_table):
         - If SD is high, append "(high volatility)" to the end of the bullet.
         - Be thoughtful but concise; do not over-explain or speculate wildly.
 
-    5. Prioritization & Limits:
+    6. Prioritization & Limits:
         - Include **no more than 10 bullets total**.
         - Prioritize by **absolute unit change**, then **% change**.
         - Do **not** include:
@@ -599,7 +601,7 @@ def explain_scenario_5_with_groq(df, sd_table):
     """
 
     user_prompt = f"""
-    Analyse the following weekly snapshot dataframe:\n\n{df_string}
+    Analyse the following weekly snapshot dataframe:\n\n{df_string} and Standard Deviation Table (sd_string):\n\n{sd_string}
     """
         
     for model in models:
