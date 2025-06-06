@@ -508,19 +508,19 @@ elif tabs == "Waterfall Analysis":
                                             st.dataframe(condition5)
                                             weekly_demand_summary = waterfall_analysis.calculate_weekly_demand_summary(condition5)
                                             st.info("""
-                                                **Weekly Demand Variability Summary — Column Guide**
+                                                ### **Weekly Demand Variability Summary — Column Guide**
 
                                                 - **Week**: The working week (e.g., WW12) associated with demand observations.
 
                                                 - **SD (Standard Deviation)**: Measures the amount of variation or volatility in weekly demand.  
-                                                - High SD suggests unstable forecasts or frequent changes.
+                                                High SD suggests unstable forecasts or frequent changes.
 
                                                 - **CV (Coefficient of Variation)**: Normalized measure of volatility (SD divided by average demand).  
-                                                - Useful for comparing variability across products with different volumes.
+                                                Useful for comparing variability across products with different volumes.
 
-                                                - **Spike**: Number of times demand increased by **more than 10 units** compared to the prior update within the same week.
+                                                - **Spike**: Count of times demand increased by **more than 10 units** within the same week.
 
-                                                - **Drop**: Number of times demand decreased by **more than 10 units** compared to the prior update within the same week.
+                                                - **Drop**: Count of times demand decreased by **more than 10 units** within the same week.
 
                                                 - **Sudden % Spike**: Count of updates where demand rose by **more than 30%** week-over-week.
 
@@ -529,8 +529,9 @@ elif tabs == "Waterfall Analysis":
                                                 - **Avg Abs WoW Change**: Average of the absolute **week-over-week unit changes** in demand (ignores direction).
 
                                                 - **Irregularity Score**: A normalized composite score combining SD, CV, anomaly counts, and average movement.  
-                                                - Higher values indicate greater overall instability or erratic forecast behavior.
+                                                Higher values indicate greater overall instability or erratic forecast behavior.
                                                 """)
+                                            st.write("Weekly Demand Volatility & Anomaly Summary")
                                             st.dataframe(weekly_demand_summary)
                                             analysis_5 = llm_reasoning.explain_scenario_5_with_groq(condition5, weekly_demand_summary)
                                         except Exception as e:
