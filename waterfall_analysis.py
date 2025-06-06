@@ -7,6 +7,7 @@ from io import BytesIO
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
 from collections import defaultdict 
+from sklearn.preprocessing import MinMaxScaler
 
 
 def style_dataframe(filtered_df):
@@ -731,6 +732,50 @@ def calculate_weekly_sd(data):
     sd_table = data.groupby("Week")["Demand w/o Buffer"].std().reset_index()
     sd_table.columns = ["Week", "SD"]
     return sd_table
+
+
+
+def calculate_weekly_demand_summary(data):
+    """
+    Returns a comprehensive weekly demand variability summary,
+    including SD, CV, anomaly counts, average WoW changes, and an irregularity score.
+    Keeps the order by Week as in the original data.
+    """
+    # Standard Deviation (SD)
+    sd = data.groupby("Week")["Demand w/o Buffer"].std().reset_index()
+    sd.columns = ["Week", "SD"]
+    sd["SD"] = sd["SD"].round(2)
+
+    # Coefficient of Variation (CV)
+    mean_demand = data.groupby("Week")["Demand w/o Buffer"].mean().reset_index()
+    mean_demand.columns = ["Week", "Mean"]
+    cv = sd.merge(mean_demand, on="Week")
+    cv["CV"] = (cv["SD"] / cv["Mean"]).round(2)
+    cv = cv.drop(columns=["Mean"])
+
+    # Anomaly Counts
+    anomaly_counts = data.groupby("Week")[["Spike", "Drop", "Sudden % Spike", "Sudden % Drop"]].sum().reset_index()
+
+    # Avg Absolute WoW Change
+    data["Abs WoW Change"] = data["WoW Change"].abs()
+    avg_abs_change = data.groupby("Week")["Abs WoW Change"].mean().reset_index()
+    avg_abs_change.columns = ["Week", "Avg Abs WoW Change"]
+    avg_abs_change["Avg Abs WoW Change"] = avg_abs_change["Avg Abs WoW Change"].round(2)
+
+    # Merge all tables in order of 'Week' appearance in original data
+    summary = cv.merge(anomaly_counts, on="Week").merge(avg_abs_change, on="Week")
+
+    # Preserve original Week order from the input data
+    week_order = data["Week"].drop_duplicates().tolist()
+    summary["Week"] = pd.Categorical(summary["Week"], categories=week_order, ordered=True)
+    summary = summary.sort_values("Week").reset_index(drop=True)
+
+    # Irregularity Score (normalized composite)
+    scaler = MinMaxScaler()
+    score_cols = ["SD", "CV", "Spike", "Drop", "Avg Abs WoW Change"]
+    summary["Irregularity Score"] = scaler.fit_transform(summary[score_cols]).sum(axis=1).round(2)
+
+    return summary
 
 def scenario_6(waterfall_df, po_df):
     # Filter relevant rows
