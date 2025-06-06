@@ -510,28 +510,35 @@ elif tabs == "Waterfall Analysis":
                                             st.info("""
                                                 ### **Weekly Demand Variability Summary — Column Guide**
 
-                                                - **Week**: The working week (e.g., WW12) associated with demand observations.
+                                                This table helps explain how stable or unstable the weekly demand has been, based on past updates.
 
-                                                - **SD (Standard Deviation)**: Measures the amount of variation or volatility in weekly demand.  
-                                                High SD suggests unstable forecasts or frequent changes.
+                                                - **Week**: The calendar week (e.g., WW12) we're analyzing.
 
-                                                - **CV (Coefficient of Variation)**: Normalized measure of volatility (SD divided by average demand).  
-                                                Useful for comparing variability across products with different volumes.
+                                                - **SD (Standard Deviation)**: Tells us how much the demand numbers changed during the week.  
+                                                ▸ A **higher number** means demand was bouncing around a lot — it wasn’t consistent.
 
-                                                - **Spike**: Count of times demand increased by **more than 10 units** within the same week.
+                                                - **CV (Coefficient of Variation)**: This compares the change (SD) to the average demand.  
+                                                ▸ Helpful when comparing products with very different demand levels — it adjusts for size.
 
-                                                - **Drop**: Count of times demand decreased by **more than 10 units** within the same week.
+                                                - **Spike**: Number of times during the week that demand jumped by **more than 10 units**.  
+                                                ▸ Think of this as mini "demand surges".
 
-                                                - **Sudden % Spike**: Count of updates where demand rose by **more than 30%** week-over-week.
+                                                - **Drop**: Number of times during the week that demand **fell by more than 10 units**.  
+                                                ▸ These are significant sudden drops.
 
-                                                - **Sudden % Drop**: Count of updates where demand dropped by **more than 30%** week-over-week.
+                                                - **Sudden % Spike**: How many times demand jumped by **30% or more** in a single update.  
+                                                ▸ Shows extreme upward swings, even if units are small.
 
-                                                - **Avg Abs WoW Change**: Average of the absolute **week-over-week unit changes** in demand (ignores direction).
+                                                - **Sudden % Drop**: How many times demand fell by **30% or more** in a single update.  
+                                                ▸ Highlights steep declines that may need attention.
 
-                                                - **Irregularity Score**: A normalized composite score combining SD, CV, anomaly counts, and average movement.  
-                                                Higher values indicate greater overall instability or erratic forecast behavior.
+                                                - **Avg Abs WoW Change**: The **average amount** demand changed from one update to the next (ignores direction).  
+                                                ▸ This gives a sense of how much demand moved around week-to-week.
+
+                                                - **Irregularity Score**: A **summary score** that rolls up everything above — big jumps, swings, and inconsistency.  
+                                                ▸ Higher scores = more erratic or unstable demand behavior.
                                                 """)
-                                            st.write("Weekly Demand Volatility & Anomaly Summary")
+                                            st.write("Weekly Demand Variability Summary")
                                             st.dataframe(weekly_demand_summary)
                                             analysis_5 = llm_reasoning.explain_scenario_5_with_groq(condition5, weekly_demand_summary)
                                         except Exception as e:
