@@ -506,11 +506,9 @@ elif tabs == "Waterfall Analysis":
                                             st.subheader('Inspection of Demand w/o Buffer Patterns')
                                             condition5 = waterfall_analysis.analyze_week_to_week_demand_changes(result_df, lead_time=lead_value)
                                             st.dataframe(condition5)
-                                            sd_table = waterfall_analysis.calculate_weekly_sd(condition5)
-                                            st.dataframe(sd_table)
                                             weekly_demand_summary = waterfall_analysis.calculate_weekly_demand_summary(condition5)
                                             st.dataframe(weekly_demand_summary)
-                                            analysis_5 = llm_reasoning.explain_scenario_5_with_groq(condition5, sd_table)
+                                            analysis_5 = llm_reasoning.explain_scenario_5_with_groq(condition5, weekly_demand_summary)
                                         except Exception as e:
                                             st.error(f"Error in Scenario 5: {e}")
 

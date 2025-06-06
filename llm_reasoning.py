@@ -523,103 +523,99 @@ def explain_scenario_4_with_groq(df):
     
     return explanation
 
-def explain_scenario_5_with_groq(df, sd_table):
+def explain_scenario_5_with_groq(df, summary_table):
     df_string = df.to_string(index=False)
-    sd_string = sd_table.to_string(index=False)
+    summary_string = summary_table.to_string(index=False)
     client = Groq(api_key=API_KEY)
 
     system_prompt = f"""
     You are a highly skilled supply chain analyst specializing in the semiconductor industry, with deep experience in analyzing weekly historical data at the material number level.
 
-    You're tasked with reviewing two separate data sets:
+    You're tasked with reviewing two data sets:
     1. A snapshot table showing week-over-week demand fluctuations.
-    2. A standard deviation (SD) table showing weekly demand volatility.
+    2. A weekly volatility summary table containing detailed statistical metrics per week.
 
-    Your goal is not to list every anomaly. Instead, act like you're preparing for a root cause analysis meeting with product, planning, and customer teams.
+    Your job is to prepare insights for a root cause analysis meeting with product, planning, and customer teams. Focus on highlighting significant demand movements, abnormal volatility, and weeks requiring attention.
 
     ---
 
     **Snapshot Table (df_string):**
-    This table contains observed demand changes across different working weeks.
+    This table contains detailed week-over-week demand data.
 
     Columns:
-    - Week: Working Week (e.g., WW05, WW06), may appear multiple times to reflect updates within the same week.
-    - Demand w/o Buffer: The raw forecasted demand for the week, excluding buffer.
-    - WoW Change: The absolute week-over-week change in demand, calculated only between sequential rows **within the same Week** label.
-    - WoW % Change: The percent week-over-week change in demand, calculated only within the same Week.
-    - Spike: A boolean flag indicating if the demand increased by more than 10 units compared to the prior row within the same Week.
-    - Drop: A boolean flag indicating if the demand decreased by more than 10 units compared to the prior row within the same Week.
-    - Sudden % Spike: A boolean flag indicating if the demand rose by more than 30% week-over-week within the same Week.
-    - Sudden % Drop: A boolean flag indicating if the demand fell by more than 30% week-over-week within the same Week.
+    - Week: Week number (e.g., WW05), may appear multiple times to reflect updates within the same week.
+    - Demand w/o Buffer: Forecasted customer demand excluding buffer.
+    - WoW Change: Week-over-week change in demand (units), calculated within the same Week.
+    - WoW % Change: Week-over-week % change.
+    - Spike: Boolean flag if demand increased by more than 10 units.
+    - Drop: Boolean flag if demand decreased by more than 10 units.
+    - Sudden % Spike: Boolean flag if demand increased by more than 30%.
+    - Sudden % Drop: Boolean flag if demand dropped by more than 30%.
 
     ---
 
-    **Standard Deviation Table (sd_string):**
-    This table includes the standard deviation of demand for each week:
-    - Week: Week number (e.g., WW05)
-    - SD: The standard deviation of demand for that week, which quantifies **how much the weekly demand fluctuated**. 
-    - A **higher SD** indicates **greater inconsistency and volatility** in the weekly demand, which could reflect conflicting updates, forecast overrides, or system issues.
-    - Use these values to assess **volatility even when there is no large net change**.
+    **Volatility Summary Table (summary_string):**
+    This table includes one row per Week with the following statistical metrics:
+    - SD: Standard Deviation of demand — measures how much demand fluctuated. High SD indicates erratic updates.
+    - CV: Coefficient of Variation — SD divided by the mean demand, useful for normalizing volatility.
+    - Spike / Drop / Sudden % Spike / Sudden % Drop: Count of how many anomalies occurred in the week.
+    - Avg Abs WoW Change: Average of the absolute week-over-week demand changes.
+    - Irregularity Score: Composite metric based on SD, CV, anomaly counts, and average movement, normalized to [0,1].
 
     ---
 
-    Your Objective:
-    - Write a **clean, executive-level summary** using up to **10 bullet points**.
-    - Each bullet must reflect the **most material change** for that week or a clear case of volatility or missing data.
-    - Always prioritize bullets with the highest impact and relevance for decision-making.
+    Your Output:
+    - Write **up to 10 concise bullets**, one per week, summarizing the most material change or volatility issue.
+    - Each bullet should describe either a Surge, Crash, or Volatile pattern.
+    - Focus on business-impacting fluctuations and volatility that may require further review.
 
     ---
 
     Rules:
 
-    1. **Weekly Movement Detection:**
-        - For each Week:
-            - Select the **row with the largest absolute WoW Change** (in units).
-            - Include both **unit delta** and **% delta** in the bullet.
-            - Classify as:
-                - `Surge`: +10 units or more **and** +30% or more.
-                - `Crash`: -10 units or more **and** -30% or more.
-                - If neither applies, skip the Week **unless** it's the largest move overall.
-            - Do not include changes smaller than 10 units **or** less than 30%.
+    1. **Identify Material Demand Movements:**
+        - For each Week, select the row with the **largest absolute WoW Change**.
+        - If the change is **+10 units and +30%**, classify it as a `Surge`.
+        - If the change is **-10 units and -30%**, classify it as a `Crash`.
+        - Skip other rows **unless** it's the only significant activity that week.
 
-    2. **Volatility Insight (Standard Deviation):**
-        - For each Week, check the SD value from the SD table.
-        - A week is considered **high volatility** if its SD is **significantly higher than others** (e.g., above the 75th percentile of all non-null SDs).
-        - If a week qualifies as high volatility **and does not have a Surge/Crash**, write a bullet like:
-            - `WW10 - Volatile: Demand fluctuated widely without a clear trend (SD = 27.4).`
-        - Provide a short hypothesis for the cause (e.g., forecast uncertainty, conflicting planner updates, etc.).
-        - If a Surge or Crash also exists for a high-volatility week, prefer the Surge/Crash bullet and add **"(high volatility)"** to the end.
+    2. **Volatility Tagging:**
+        - Use the `SD` and `Irregularity Score` to flag **unusual volatility**:
+            - A week is considered volatile if:
+                - SD or CV is in the **top 25%** of all values **or**
+                - Irregularity Score is **above 0.75**.
+        - If no Surge/Crash occurred that week, but the volatility is high, add:
+            - `WW10 - Volatile: Demand fluctuated without a clear trend (SD = 21.4, Irregularity Score = 0.83).`
+        - Provide a short cause hypothesis (e.g., planner delays, conflicting updates, forecast overrides, etc.)
+        - If a Surge/Crash and high SD exist together, prefer the Surge/Crash and append `(high volatility)` at the end.
 
-    3. **Missing Data Handling:**
-        - If a week is entirely absent in the snapshot table:
-            - Write: `WW09 - Missing: No data available this week, possibly due to late planner submission or system error.`
+    3. **Missing Weeks:**
+        - If a week from the summary is **not present** in the snapshot data:
+            - `WW09 - Missing: No data available, possibly due to delayed planner input or system sync issue.`
 
-    4. **Explanatory Hypotheses:**
-        - For each bullet (Surge, Crash, Volatile, or Missing), include a **brief cause hypothesis (10-15 words)**.
-        - Keep explanations practical and grounded:
-            - customer pull-in/pushout, backlog clearance, seasonality, planner delay, system sync issue, etc.
+    4. **Cause Hypotheses:**
+        - For each Surge, Crash, or Volatile event, include a short (10-15 word) hypothesis after the colon.
+        - Use grounded supply chain logic: customer pull-ins, pushouts, backlog clearance, late planner submission, etc.
 
-    5. **Formatting & Style:**
-        - Bullet format must be one per line, like:
+    5. **Formatting Rules:**
+        - Each insight must be on its own line in this format:
             - WW07 - Surge +44 units (+314%): sharp rebound after three flat rows (high volatility).
-        - Be concise and executive-friendly.
-        - Avoid unnecessary qualifiers or vague language.
+        - Round SD and Irregularity Score to two decimals when used in text.
 
-    6. **Limits & Prioritization:**
-        - Return **no more than 10 bullets** total.
+    6. **Bullet Prioritization & Cap:**
+        - Return a maximum of **10 bullets**.
         - Prioritize by:
-            - Highest absolute unit change.
-            - Then, highest % change.
-            - Then, SD outliers (Volatile) if space allows.
-        - Do not repeat the same week more than once.
+            - Highest absolute unit change (Surge/Crash)
+            - Then Irregularity Score (Volatile)
+        - Do not repeat a week in multiple bullets.
 
-    Start directly with bullet points. Do not include introductions or summaries.
+    Start directly with bullet points. Do not include any introductory or summary text.
     """
 
     user_prompt = f"""
-    Analyse the following weekly snapshot dataframe:\n\n{df_string} and
+    Analyse the following weekly snapshot dataframe:\n\n{df_string} 
 
-    Standard Deviation Table (sd_string):\n\n{sd_string}
+    and Weekly Volatility Summary Table (summary_string):\n\n{summary_string}
     """
         
     for model in models:
