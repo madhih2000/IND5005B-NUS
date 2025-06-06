@@ -731,15 +731,14 @@ def analyze_week_to_week_demand_changes(result_df, abs_threshold=10, pct_thresho
 
 def calculate_weekly_demand_summary(data):
     """
-    Returns a comprehensive weekly demand variability summary,
-    including SD, CV, anomaly counts, average WoW changes, and an irregularity score.
-    Keeps the order by Week as in the original data.
+    Returns a simplified weekly demand variability summary,
+    including SD, anomaly counts, average WoW changes, and an irregularity score.
     """
     # Standard Deviation (SD)
     sd = data.groupby("Week")["Demand w/o Buffer"].std().reset_index()
     sd.columns = ["Week", "SD"]
     sd["SD"] = sd["SD"].round(2)
-    
+
     # Anomaly Counts
     anomaly_counts = data.groupby("Week")[["Spike", "Drop", "Sudden % Spike", "Sudden % Drop"]].sum().reset_index()
 
@@ -750,16 +749,16 @@ def calculate_weekly_demand_summary(data):
     avg_abs_change["Avg Abs WoW Change"] = avg_abs_change["Avg Abs WoW Change"].round(2)
 
     # Merge all tables in order of 'Week' appearance in original data
-    summary = cv.merge(anomaly_counts, on="Week").merge(avg_abs_change, on="Week")
+    summary = sd.merge(anomaly_counts, on="Week").merge(avg_abs_change, on="Week")
 
     # Preserve original Week order from the input data
     week_order = data["Week"].drop_duplicates().tolist()
     summary["Week"] = pd.Categorical(summary["Week"], categories=week_order, ordered=True)
     summary = summary.sort_values("Week").reset_index(drop=True)
 
-    # Irregularity Score (normalized composite)
+    # Irregularity Score 
     scaler = MinMaxScaler()
-    score_cols = ["SD", "CV", "Spike", "Drop", "Avg Abs WoW Change"]
+    score_cols = ["SD", "Spike", "Drop", "Avg Abs WoW Change"]
     summary["Irregularity Score"] = scaler.fit_transform(summary[score_cols]).sum(axis=1).round(2)
 
     return summary
