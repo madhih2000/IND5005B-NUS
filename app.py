@@ -517,9 +517,6 @@ elif tabs == "Waterfall Analysis":
                                                 - **SD (Standard Deviation)**: Tells us how much the demand numbers changed during the week.  
                                                 ▸ A **higher number** means demand was bouncing around a lot — it wasn’t consistent.
 
-                                                - **CV (Coefficient of Variation)**: This compares the change (SD) to the average demand.  
-                                                ▸ Helpful when comparing products with very different demand levels — it adjusts for size.
-
                                                 - **Spike**: Number of times during the week that demand jumped by **more than 10 units**.  
                                                 ▸ Think of this as mini "demand surges".
 
